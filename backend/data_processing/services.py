@@ -448,8 +448,8 @@ class BNIMonthlyDataImportService:
                     self.stats['chapters_created'] += 1
                     logger.info(f"Created new chapter: {chapter_name}")
                 
-                # Read Excel file
-                df = pd.read_excel(excel_file_path)
+                # Read Excel file with proper engine handling
+                df = self._read_excel_file_monthly(excel_file_path)
                 logger.info(f"Reading Excel file: {excel_file_path}")
                 logger.info(f"Found {len(df)} rows in Excel file")
                 logger.info(f"Excel columns: {list(df.columns)}")
@@ -474,6 +474,108 @@ class BNIMonthlyDataImportService:
             'stats': self.stats,
             'errors': self.errors
         }
+    
+    def _read_excel_file_monthly(self, excel_file_path: str) -> pd.DataFrame:
+        """
+        Read Excel file with fallback for different formats, specifically for monthly reports.
+        Handles XML-based .xls files (audit reports) and standard Excel files.
+        """
+        from pathlib import Path
+        import xml.etree.ElementTree as ET
+        import io
+        
+        file_path = Path(excel_file_path)
+        
+        try:
+            # Check if it's an XML-based .xls file by reading the first line
+            with open(excel_file_path, 'r', encoding='utf-8') as f:
+                first_line = f.readline().strip()
+            
+            if first_line.startswith('<?xml'):
+                # Handle XML-based .xls files (BNI audit reports)
+                logger.info(f"Detected XML-based .xls file: {excel_file_path}")
+                return self._parse_xml_excel(excel_file_path)
+            else:
+                # Handle standard Excel files
+                if file_path.suffix.lower() == '.xls':
+                    # Try xlrd for binary .xls files
+                    df = pd.read_excel(excel_file_path, engine='xlrd')
+                    return df
+                else:
+                    # For .xlsx files, use default engine
+                    df = pd.read_excel(excel_file_path)
+                    return df
+                
+        except Exception as e:
+            logger.error(f"Failed to read Excel file {excel_file_path}: {str(e)}")
+            raise e
+    
+    def _parse_xml_excel(self, xml_file_path: str) -> pd.DataFrame:
+        """
+        Parse XML-based Excel files (like BNI audit reports) and convert to DataFrame.
+        """
+        import xml.etree.ElementTree as ET
+        
+        # Parse the XML
+        tree = ET.parse(xml_file_path)
+        root = tree.getroot()
+        
+        # Define namespace
+        ns = {
+            'ss': 'urn:schemas-microsoft-com:office:spreadsheet',
+            'o': 'urn:schemas-microsoft-com:office:office',
+            'x': 'urn:schemas-microsoft-com:office:excel',
+            'html': 'http://www.w3.org/TR/REC-html40'
+        }
+        
+        # Find the worksheet
+        worksheet = root.find('.//ss:Worksheet', ns)
+        if worksheet is None:
+            raise ValueError("No worksheet found in XML file")
+        
+        # Find the table
+        table = worksheet.find('.//ss:Table', ns)
+        if table is None:
+            raise ValueError("No table found in worksheet")
+        
+        # Extract data from rows
+        data_rows = []
+        headers = []
+        
+        rows = table.findall('.//ss:Row', ns)
+        for i, row in enumerate(rows):
+            cells = row.findall('.//ss:Cell', ns)
+            row_data = []
+            
+            for cell in cells:
+                data_elem = cell.find('.//ss:Data', ns)
+                if data_elem is not None:
+                    cell_value = data_elem.text if data_elem.text else ""
+                else:
+                    cell_value = ""
+                row_data.append(cell_value)
+            
+            if i == 0:
+                # First row is headers
+                headers = row_data
+            else:
+                # Data rows
+                data_rows.append(row_data)
+        
+        # Create DataFrame
+        if not headers:
+            raise ValueError("No headers found in XML file")
+        
+        # Pad data rows to match header length
+        max_cols = len(headers)
+        for row in data_rows:
+            while len(row) < max_cols:
+                row.append("")
+        
+        df = pd.DataFrame(data_rows, columns=headers)
+        logger.info(f"Successfully parsed XML Excel file with {len(df)} rows and columns: {list(df.columns)}")
+        
+        return df
     
     def _process_member_data(self, df: pd.DataFrame, chapter: Chapter, report_month: date):
         """

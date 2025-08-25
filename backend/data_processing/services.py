@@ -404,3 +404,355 @@ class ExcelProcessorService:
             'errors': [error_message],
             'warnings': [],
         }
+
+
+class BNIMonthlyDataImportService:
+    """
+    Service for importing BNI monthly audit report data from Excel files.
+    Handles both current month and last month data import for trend analysis.
+    """
+    
+    def __init__(self):
+        self.errors = []
+        self.stats = {
+            'chapters_created': 0,
+            'members_created': 0,
+            'reports_created': 0,
+            'metrics_created': 0,
+            'errors': 0
+        }
+    
+    def import_monthly_data(self, chapter_name: str, excel_file_path: str, report_month: date):
+        """
+        Import monthly BNI data from Excel file for a specific chapter and month.
+        
+        Args:
+            chapter_name: Name of the BNI chapter
+            excel_file_path: Path to the Excel audit report file
+            report_month: Date representing the month (e.g., 2024-12-01)
+        
+        Returns:
+            dict: Import statistics and any errors
+        """
+        try:
+            with transaction.atomic():
+                # Import the new models here to avoid circular imports
+                from chapters.models import MonthlyChapterReport, MemberMonthlyMetrics
+                
+                # Get or create chapter
+                chapter, created = Chapter.objects.get_or_create(
+                    name=chapter_name,
+                    defaults={'location': 'TBD', 'meeting_day': 'TBD'}
+                )
+                if created:
+                    self.stats['chapters_created'] += 1
+                    logger.info(f"Created new chapter: {chapter_name}")
+                
+                # Read Excel file
+                df = pd.read_excel(excel_file_path)
+                logger.info(f"Reading Excel file: {excel_file_path}")
+                logger.info(f"Found {len(df)} rows in Excel file")
+                logger.info(f"Excel columns: {list(df.columns)}")
+                
+                # Process member data and create monthly metrics
+                members_data = self._process_member_data(df, chapter, report_month)
+                
+                # Create monthly chapter report
+                chapter_report = self._create_chapter_report(chapter, members_data, report_month)
+                
+                # Create individual member metrics
+                self._create_member_metrics(chapter_report, members_data, report_month)
+                
+                logger.info(f"Successfully imported data for {chapter_name} - {report_month}")
+                
+        except Exception as e:
+            logger.error(f"Error importing data for {chapter_name}: {str(e)}")
+            self.errors.append(f"Import failed for {chapter_name}: {str(e)}")
+            self.stats['errors'] += 1
+            
+        return {
+            'stats': self.stats,
+            'errors': self.errors
+        }
+    
+    def _process_member_data(self, df: pd.DataFrame, chapter: Chapter, report_month: date):
+        """
+        Process member data from Excel file and return structured member information.
+        """
+        members_data = []
+        
+        logger.info(f"Excel columns: {list(df.columns)}")
+        
+        for index, row in df.iterrows():
+            try:
+                # Extract member info - be flexible with column names
+                first_name = self._extract_column_value(row, ['First Name', 'FirstName', 'first_name'])
+                last_name = self._extract_column_value(row, ['Last Name', 'LastName', 'last_name'])
+                
+                if not first_name or not last_name or first_name == 'nan' or last_name == 'nan':
+                    continue  # Skip rows without proper names
+                
+                # Get or create member
+                member, created = Member.objects.get_or_create(
+                    chapter=chapter,
+                    normalized_name=Member.normalize_name(f"{first_name} {last_name}"),
+                    defaults={
+                        'first_name': first_name,
+                        'last_name': last_name,
+                        'business_name': self._extract_column_value(row, ['Business Name', 'BusinessName', 'business_name'], ''),
+                        'classification': self._extract_column_value(row, ['Classification', 'classification'], ''),
+                        'is_active': True
+                    }
+                )
+                
+                if created:
+                    self.stats['members_created'] += 1
+                    logger.info(f"Created new member: {member.full_name}")
+                
+                # Extract performance metrics - be flexible with column names
+                referrals_given = self._safe_int(self._extract_column_value(row, ['Referrals Given', 'ReferralsGiven', 'referrals_given']))
+                referrals_received = self._safe_int(self._extract_column_value(row, ['Referrals Received', 'ReferralsReceived', 'referrals_received']))
+                one_to_ones = self._safe_int(self._extract_column_value(row, ['One-to-Ones', 'OneToOnes', 'one_to_ones', 'OTOs', 'otos']))
+                tyfcb = self._safe_decimal(self._extract_column_value(row, ['TYFCB', 'tyfcb', 'TYFCB Amount', 'tyfcb_amount']))
+                
+                members_data.append({
+                    'member': member,
+                    'referrals_given': referrals_given,
+                    'referrals_received': referrals_received,
+                    'one_to_ones': one_to_ones,
+                    'tyfcb': tyfcb
+                })
+                
+            except Exception as e:
+                logger.error(f"Error processing member row {index}: {str(e)}")
+                self.errors.append(f"Error processing member row {index}: {str(e)}")
+                self.stats['errors'] += 1
+        
+        logger.info(f"Processed {len(members_data)} members")
+        return members_data
+    
+    def _extract_column_value(self, row: pd.Series, possible_columns: list, default=''):
+        """
+        Extract value from row trying multiple possible column names.
+        """
+        for col_name in possible_columns:
+            if col_name in row.index and not pd.isna(row[col_name]):
+                return str(row[col_name]).strip()
+        return default
+    
+    def _create_chapter_report(self, chapter: Chapter, members_data: list, report_month: date):
+        """
+        Create or update monthly chapter report with aggregated data.
+        """
+        # Import here to avoid circular imports
+        from chapters.models import MonthlyChapterReport
+        
+        # Calculate chapter-level aggregations
+        total_referrals_given = sum(m['referrals_given'] for m in members_data)
+        total_referrals_received = sum(m['referrals_received'] for m in members_data)
+        total_one_to_ones = sum(m['one_to_ones'] for m in members_data)
+        total_tyfcb = sum(m['tyfcb'] for m in members_data)
+        active_member_count = len(members_data)
+        
+        # Calculate averages
+        avg_referrals_per_member = total_referrals_given / active_member_count if active_member_count > 0 else 0
+        avg_one_to_ones_per_member = total_one_to_ones / active_member_count if active_member_count > 0 else 0
+        
+        # Create or update chapter report
+        chapter_report, created = MonthlyChapterReport.objects.update_or_create(
+            chapter=chapter,
+            report_month=report_month,
+            defaults={
+                'total_referrals_given': total_referrals_given,
+                'total_referrals_received': total_referrals_received,
+                'total_one_to_ones': total_one_to_ones,
+                'total_tyfcb': total_tyfcb,
+                'active_member_count': active_member_count,
+                'avg_referrals_per_member': avg_referrals_per_member,
+                'avg_one_to_ones_per_member': avg_one_to_ones_per_member
+            }
+        )
+        
+        if created:
+            self.stats['reports_created'] += 1
+            logger.info(f"Created chapter report for {chapter.name} - {report_month}")
+        else:
+            logger.info(f"Updated chapter report for {chapter.name} - {report_month}")
+            
+        return chapter_report
+    
+    def _create_member_metrics(self, chapter_report, members_data: list, report_month: date):
+        """
+        Create individual member monthly metrics.
+        """
+        # Import here to avoid circular imports
+        from chapters.models import MemberMonthlyMetrics
+        
+        for member_data in members_data:
+            member = member_data['member']
+            
+            # Calculate one-to-one completion rate
+            total_possible_otos = chapter_report.active_member_count - 1  # Excluding themselves
+            oto_completion_rate = (member_data['one_to_ones'] / total_possible_otos * 100) if total_possible_otos > 0 else 0
+            
+            # Create or update member metrics
+            member_metrics, created = MemberMonthlyMetrics.objects.update_or_create(
+                member=member,
+                report_month=report_month,
+                defaults={
+                    'chapter_report': chapter_report,
+                    'referrals_given': member_data['referrals_given'],
+                    'referrals_received': member_data['referrals_received'],
+                    'one_to_ones_completed': member_data['one_to_ones'],
+                    'tyfcb_amount': member_data['tyfcb'],
+                    'total_possible_otos': total_possible_otos,
+                    'oto_completion_rate': round(oto_completion_rate, 1)
+                }
+            )
+            
+            if created:
+                self.stats['metrics_created'] += 1
+    
+    def _safe_int(self, value, default=0):
+        """
+        Safely convert value to integer, handling NaN and empty values.
+        """
+        try:
+            if pd.isna(value) or value == '' or value is None:
+                return default
+            return int(float(value))
+        except (ValueError, TypeError):
+            return default
+    
+    def _safe_decimal(self, value, default=0):
+        """
+        Safely convert value to Decimal, handling NaN and empty values.
+        """
+        try:
+            if pd.isna(value) or value == '' or value is None:
+                return Decimal(str(default))
+            return Decimal(str(float(value)))
+        except (ValueError, TypeError, Exception):
+            return Decimal(str(default))
+
+
+class BNIGrowthAnalysisService:
+    """
+    Service for calculating growth metrics and trends between current and last month.
+    """
+    
+    @staticmethod
+    def get_chapter_growth_metrics(chapter_id: int):
+        """
+        Get growth metrics for a chapter comparing current vs last month.
+        """
+        try:
+            from chapters.models import MonthlyChapterReport
+            
+            chapter = Chapter.objects.get(id=chapter_id)
+            
+            # Get the two most recent monthly reports
+            recent_reports = MonthlyChapterReport.objects.filter(
+                chapter=chapter
+            ).order_by('-report_month')[:2]
+            
+            if len(recent_reports) < 2:
+                return {
+                    'chapter': chapter.name,
+                    'has_comparison': False,
+                    'message': 'Need at least 2 months of data for comparison'
+                }
+            
+            current_report = recent_reports[0]
+            previous_report = recent_reports[1]
+            
+            # Calculate growth metrics
+            growth_data = current_report.calculate_growth(previous_report)
+            
+            return {
+                'chapter': chapter.name,
+                'has_comparison': True,
+                'current_month': current_report.report_month,
+                'previous_month': previous_report.report_month,
+                'current_metrics': {
+                    'total_referrals_given': current_report.total_referrals_given,
+                    'total_one_to_ones': current_report.total_one_to_ones,
+                    'total_tyfcb': float(current_report.total_tyfcb),
+                    'active_member_count': current_report.active_member_count,
+                    'performance_score': current_report.performance_score
+                },
+                'previous_metrics': {
+                    'total_referrals_given': previous_report.total_referrals_given,
+                    'total_one_to_ones': previous_report.total_one_to_ones,
+                    'total_tyfcb': float(previous_report.total_tyfcb),
+                    'active_member_count': previous_report.active_member_count,
+                    'performance_score': previous_report.performance_score
+                },
+                'growth': growth_data
+            }
+            
+        except Chapter.DoesNotExist:
+            return {'error': f'Chapter with ID {chapter_id} not found'}
+        except Exception as e:
+            logger.error(f"Error calculating growth for chapter {chapter_id}: {str(e)}")
+            return {'error': str(e)}
+    
+    @staticmethod
+    def get_member_growth_metrics(member_id: int):
+        """
+        Get growth metrics for an individual member comparing current vs last month.
+        """
+        try:
+            from chapters.models import MemberMonthlyMetrics
+            
+            member = Member.objects.get(id=member_id)
+            
+            # Get the two most recent monthly metrics
+            recent_metrics = MemberMonthlyMetrics.objects.filter(
+                member=member
+            ).order_by('-report_month')[:2]
+            
+            if len(recent_metrics) < 2:
+                return {
+                    'member': member.full_name,
+                    'chapter': member.chapter.name,
+                    'has_comparison': False,
+                    'message': 'Need at least 2 months of data for comparison'
+                }
+            
+            current_metrics = recent_metrics[0]
+            previous_metrics = recent_metrics[1]
+            
+            # Calculate growth metrics
+            growth_data = current_metrics.calculate_growth(previous_metrics)
+            
+            return {
+                'member': member.full_name,
+                'chapter': member.chapter.name,
+                'has_comparison': True,
+                'current_month': current_metrics.report_month,
+                'previous_month': previous_metrics.report_month,
+                'current_metrics': {
+                    'referrals_given': current_metrics.referrals_given,
+                    'referrals_received': current_metrics.referrals_received,
+                    'one_to_ones_completed': current_metrics.one_to_ones_completed,
+                    'tyfcb_amount': float(current_metrics.tyfcb_amount),
+                    'performance_score': current_metrics.performance_score,
+                    'oto_completion_rate': current_metrics.oto_completion_rate
+                },
+                'previous_metrics': {
+                    'referrals_given': previous_metrics.referrals_given,
+                    'referrals_received': previous_metrics.referrals_received,
+                    'one_to_ones_completed': previous_metrics.one_to_ones_completed,
+                    'tyfcb_amount': float(previous_metrics.tyfcb_amount),
+                    'performance_score': previous_metrics.performance_score,
+                    'oto_completion_rate': previous_metrics.oto_completion_rate
+                },
+                'growth': growth_data
+            }
+            
+        except Member.DoesNotExist:
+            return {'error': f'Member with ID {member_id} not found'}
+        except Exception as e:
+            logger.error(f"Error calculating growth for member {member_id}: {str(e)}")
+            return {'error': str(e)}

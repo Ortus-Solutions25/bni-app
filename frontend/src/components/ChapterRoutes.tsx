@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, useNavigate, useParams } from 'react-router-dom';
 import ChapterDashboard from './ChapterDashboard';
-import MemberDashboard from './MemberDashboard';
+import ChapterDetailPage from './ChapterDetailPage';
 import MemberDetails from './MemberDetails';
 import { ChapterMemberData, loadAllChapterData } from '../services/ChapterDataLoader';
 
@@ -86,7 +86,7 @@ const ChapterDetailRoute: React.FC<{
   chapterData: ChapterMemberData[];
   onBackToChapters: () => void;
   onMemberSelect: (chapterId: string, memberName: string) => void;
-}> = ({ chapterData, onBackToChapters, onMemberSelect }) => {
+}> = ({ chapterData, onBackToChapters }) => {
   const { chapterId } = useParams<{ chapterId: string }>();
   
   const selectedChapter = chapterData.find(chapter => chapter.chapterId === chapterId);
@@ -95,11 +95,9 @@ const ChapterDetailRoute: React.FC<{
     return <div>Chapter not found</div>;
   }
 
-  // For now, just show the MemberDashboard - this will be replaced with the 4-tab interface
   return (
-    <MemberDashboard
+    <ChapterDetailPage
       chapterData={selectedChapter}
-      onMemberSelect={(memberName: string) => onMemberSelect(chapterId!, memberName)}
       onBackToChapters={onBackToChapters}
     />
   );

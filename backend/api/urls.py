@@ -24,4 +24,10 @@ urlpatterns = [
          views.get_data_quality_report, name='data_quality_report'),
     path('chapters/<int:chapter_id>/import-history/', 
          views.get_import_history, name='import_history'),
+    
+    # Dashboard endpoints
+    path('dashboard/', views.chapter_dashboard, name='chapter_dashboard'),
+    
+    # Chapter detail endpoints
+    path('chapters/<int:chapter_id>/', views.chapter_detail, name='chapter_detail'),
 ]

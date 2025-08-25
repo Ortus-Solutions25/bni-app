@@ -12,7 +12,10 @@
       "Read(//Users/nat/dev/freelance/pankaj_gupta/BNI-Palms-Analysis/**)",
       "Read(//Users/nat/dev/freelance/pankaj_gupta/BNI-Palms-Analysis/**)",
       "Read(//Users/nat/dev/freelance/pankaj_gupta/BNI-Palms-Analysis/**)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(npx playwright:*)",
+      "Bash(node:*)",
+      "Bash(curl:*)"
     ],
     "deny": [],
     "ask": []

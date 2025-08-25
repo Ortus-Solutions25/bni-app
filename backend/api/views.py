@@ -1,6 +1,6 @@
 from rest_framework import status, serializers
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.views import APIView
@@ -313,5 +313,75 @@ def get_import_history(request, chapter_id):
     except Exception as e:
         return Response(
             {'error': f'Import history failed: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+# ========================================
+# CHAPTER-FOCUSED API ENDPOINTS
+# ========================================
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def chapter_dashboard(request):
+    """Get dashboard data for all chapters."""
+    try:
+        chapters = Chapter.objects.all().order_by('name')
+        dashboard_data = []
+        
+        for chapter in chapters:
+            # Simple chapter data for now
+            chapter_data = {
+                'id': chapter.id,
+                'name': chapter.name,
+                'location': chapter.location if hasattr(chapter, 'location') else 'Dubai',
+                'latest_data_date': None,
+                'member_count': 0,
+                'total_referrals': 0,
+                'total_tyfcb': 0.0,
+                'has_data': False
+            }
+            dashboard_data.append(chapter_data)
+        
+        return Response({
+            'chapters': dashboard_data,
+            'total_chapters': len(dashboard_data)
+        })
+        
+    except Exception as e:
+        return Response(
+            {'error': f'Dashboard failed: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def chapter_detail(request, chapter_id):
+    """Get detailed information for a specific chapter."""
+    try:
+        chapter = Chapter.objects.get(id=chapter_id)
+        
+        chapter_data = {
+            'id': chapter.id,
+            'name': chapter.name,
+            'location': chapter.location if hasattr(chapter, 'location') else 'Dubai',
+            'latest_data_date': None,
+            'member_count': 0,
+            'total_referrals': 0,
+            'total_tyfcb': 0.0,
+            'has_data': False
+        }
+        
+        return Response(chapter_data)
+        
+    except Chapter.DoesNotExist:
+        return Response(
+            {'error': 'Chapter not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        return Response(
+            {'error': f'Chapter detail failed: {str(e)}'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )

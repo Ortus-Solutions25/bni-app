@@ -1,4 +1,4 @@
-import * as XLSX from 'xlsx';
+import { read, utils } from 'xlsx';
 
 export interface ChapterInfo {
   id: string;
@@ -41,10 +41,10 @@ export const extractMemberNamesFromFile = async (file: File): Promise<string[]> 
     reader.onload = (e) => {
       try {
         const data = e.target?.result;
-        const workbook = XLSX.read(data, { type: 'binary' });
+        const workbook = read(data, { type: 'binary' });
         const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];
-        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+        const jsonData = utils.sheet_to_json(worksheet);
         
         const members: string[] = [];
         jsonData.forEach((row: any) => {
@@ -86,7 +86,7 @@ const loadChapterFile = async (memberFileName: string): Promise<string[]> => {
     }
     
     const arrayBuffer = await response.arrayBuffer();
-    const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+    const workbook = read(arrayBuffer, { type: 'array' });
     
     if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
       throw new Error(`No sheets found in ${memberFileName}`);
@@ -94,12 +94,12 @@ const loadChapterFile = async (memberFileName: string): Promise<string[]> => {
     
     const sheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[sheetName];
-    const jsonData = XLSX.utils.sheet_to_json(worksheet);
+    const jsonData = utils.sheet_to_json(worksheet);
     
     console.log(`Found ${jsonData.length} rows in ${memberFileName}`);
     
     const members: string[] = [];
-    jsonData.forEach((row: any, index) => {
+    jsonData.forEach((row: any, index: number) => {
       let firstName = '';
       let lastName = '';
       

@@ -31,7 +31,7 @@ import {
   SwapHoriz,
   AccountBalance,
 } from '@mui/icons-material';
-import * as XLSX from 'xlsx';
+import { utils, writeFile, read } from 'xlsx';
 
 interface ReportGenerationProps {
   uploadedFiles: {
@@ -75,10 +75,10 @@ const extractMemberNames = async (file: File): Promise<string[]> => {
         if (file.name.toLowerCase().endsWith('.xlsx') || file.name.toLowerCase().endsWith('.xls')) {
           // Excel file format
           const data = e.target?.result as ArrayBuffer;
-          const workbook = XLSX.read(data, { type: 'array' });
+          const workbook = read(data, { type: 'array' });
           const firstSheetName = workbook.SheetNames[0];
           const worksheet = workbook.Sheets[firstSheetName];
-          const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+          const jsonData = utils.sheet_to_json(worksheet, { header: 1 });
           
           // Extract member names - look for columns that might contain names
           const rows = jsonData as any[][];

@@ -131,7 +131,10 @@ function App() {
             </Box>
 
             <TabPanel value={tabValue} index={0}>
-              <FileUploadSection onFilesUploaded={handleFilesUploaded} />
+              <FileUploadSection 
+                onFilesUploaded={handleFilesUploaded} 
+                onNavigateToReports={() => setTabValue(1)}
+              />
             </TabPanel>
 
             <TabPanel value={tabValue} index={1}>

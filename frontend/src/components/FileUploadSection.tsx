@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -29,6 +29,7 @@ import { useDropzone } from 'react-dropzone';
 
 interface FileUploadSectionProps {
   onFilesUploaded: (palmsFiles: File[], memberFiles: File[]) => void;
+  onNavigateToReports?: () => void;
 }
 
 const steps = [
@@ -38,13 +39,65 @@ const steps = [
   'Ready for Processing'
 ];
 
-const FileUploadSection: React.FC<FileUploadSectionProps> = ({ onFilesUploaded }) => {
+const FileUploadSection: React.FC<FileUploadSectionProps> = ({ onFilesUploaded, onNavigateToReports }) => {
   const [palmsFiles, setPalmsFiles] = useState<File[]>([]);
   const [memberFiles, setMemberFiles] = useState<File[]>([]);
   const [activeStep, setActiveStep] = useState(0);
   const [isValidating, setIsValidating] = useState(false);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [validationComplete, setValidationComplete] = useState(false);
+
+  // Validation function
+  const validateFiles = useCallback(async () => {
+    setIsValidating(true);
+    setValidationErrors([]);
+    
+    // Simulate validation process
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    const errors: string[] = [];
+    
+    if (palmsFiles.length === 0) {
+      errors.push('At least one PALMS data file is required');
+    }
+    
+    if (memberFiles.length === 0) {
+      errors.push('Member names file is required');
+    }
+
+    // Check file sizes
+    [...palmsFiles, ...memberFiles].forEach(file => {
+      if (file.size > 50 * 1024 * 1024) { // 50MB limit
+        errors.push(`File ${file.name} is too large (max 50MB)`);
+      }
+      if (file.size === 0) {
+        errors.push(`File ${file.name} is empty`);
+      }
+    });
+
+    setValidationErrors(errors);
+    setIsValidating(false);
+    setValidationComplete(true);
+    
+    if (errors.length === 0) {
+      setActiveStep(3);
+      onFilesUploaded(palmsFiles, memberFiles);
+      
+      // Automatically navigate to reports page after successful validation
+      setTimeout(() => {
+        onNavigateToReports?.();
+      }, 1500); // Wait 1.5 seconds to show success message
+    }
+  }, [palmsFiles, memberFiles, onFilesUploaded, onNavigateToReports]);
+
+  // Auto-validate when both files are uploaded
+  useEffect(() => {
+    if (palmsFiles.length > 0 && memberFiles.length > 0 && activeStep === 2 && !isValidating && !validationComplete) {
+      setTimeout(() => {
+        validateFiles();
+      }, 1000); // Wait 1 second after files are uploaded
+    }
+  }, [palmsFiles.length, memberFiles.length, activeStep, isValidating, validationComplete, validateFiles]);
 
   // PALMS files dropzone
   const onDropPalms = useCallback((acceptedFiles: File[]) => {
@@ -79,7 +132,7 @@ const FileUploadSection: React.FC<FileUploadSectionProps> = ({ onFilesUploaded }
         setActiveStep(2);
       }
     }
-  }, [activeStep]);
+  }, [activeStep, palmsFiles]);
 
   const {
     getRootProps: getPalmsRootProps,
@@ -106,43 +159,6 @@ const FileUploadSection: React.FC<FileUploadSectionProps> = ({ onFilesUploaded }
     },
     multiple: false
   });
-
-  const validateFiles = async () => {
-    setIsValidating(true);
-    setValidationErrors([]);
-    
-    // Simulate validation process
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    const errors: string[] = [];
-    
-    if (palmsFiles.length === 0) {
-      errors.push('At least one PALMS data file is required');
-    }
-    
-    if (memberFiles.length === 0) {
-      errors.push('Member names file is required');
-    }
-
-    // Check file sizes
-    [...palmsFiles, ...memberFiles].forEach(file => {
-      if (file.size > 50 * 1024 * 1024) { // 50MB limit
-        errors.push(`File ${file.name} is too large (max 50MB)`);
-      }
-      if (file.size === 0) {
-        errors.push(`File ${file.name} is empty`);
-      }
-    });
-
-    setValidationErrors(errors);
-    setIsValidating(false);
-    setValidationComplete(true);
-    
-    if (errors.length === 0) {
-      setActiveStep(3);
-      onFilesUploaded(palmsFiles, memberFiles);
-    }
-  };
 
   const removeFile = (fileName: string, type: 'palms' | 'members') => {
     if (type === 'palms') {
@@ -298,26 +314,29 @@ const FileUploadSection: React.FC<FileUploadSectionProps> = ({ onFilesUploaded }
               {index === 2 && (
                 <Box>
                   <Typography variant="body1" gutterBottom>
-                    Validate your uploaded files to ensure they're properly formatted
+                    {isValidating || validationComplete ? 
+                      'Validating your uploaded files...' : 
+                      'Files will be validated automatically'
+                    }
                   </Typography>
                   
                   {isValidating && (
                     <Box sx={{ mt: 2 }}>
                       <Typography variant="body2" gutterBottom>
-                        Validating files...
+                        Checking file format, structure and content...
                       </Typography>
                       <LinearProgress />
                     </Box>
                   )}
 
-                  {!isValidating && (
+                  {!isValidating && !validationComplete && (
                     <Button
                       variant="contained"
                       onClick={validateFiles}
                       disabled={palmsFiles.length === 0 || memberFiles.length === 0}
                       sx={{ mt: 2 }}
                     >
-                      Validate Files
+                      Validate Now
                     </Button>
                   )}
 
@@ -334,7 +353,7 @@ const FileUploadSection: React.FC<FileUploadSectionProps> = ({ onFilesUploaded }
                   {validationComplete && validationErrors.length === 0 && (
                     <Alert severity="success" sx={{ mt: 2 }}>
                       <CheckCircle sx={{ mr: 1 }} />
-                      All files validated successfully! Ready to generate reports.
+                      All files validated successfully! Automatically navigating to Generate Reports...
                     </Alert>
                   )}
                 </Box>

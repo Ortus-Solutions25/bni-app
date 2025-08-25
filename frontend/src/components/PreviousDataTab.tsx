@@ -53,31 +53,45 @@ const PreviousDataTab: React.FC<PreviousDataTabProps> = ({ chapterData }) => {
 
   // Load data for selected month
   useEffect(() => {
-    if (selectedMonth) {
+    if (selectedMonth && chapterData.chapterId) {
       setIsLoading(true);
       
-      // Simulate API call delay
-      setTimeout(() => {
-        // Mock data based on selected month
-        const mockData: MonthlyData = {
-          month: selectedMonth.split(' ')[0],
-          year: parseInt(selectedMonth.split(' ')[1]),
-          totalReferrals: Math.floor(Math.random() * 200) + 150,
-          totalOTOs: Math.floor(Math.random() * 100) + 80,
-          totalTYFCB: Math.floor(Math.random() * 800000) + 200000,
-          memberCount: chapterData.memberCount,
-          avgReferralsPerMember: 0,
-          avgOTOsPerMember: 0,
-          topPerformer: chapterData.members[Math.floor(Math.random() * chapterData.members.length)]
-        };
-        
-        // Calculate averages
-        mockData.avgReferralsPerMember = Math.round(mockData.totalReferrals / mockData.memberCount * 10) / 10;
-        mockData.avgOTOsPerMember = Math.round(mockData.totalOTOs / mockData.memberCount * 10) / 10;
-        
-        setMonthlyData(mockData);
-        setIsLoading(false);
-      }, 1000);
+      const fetchRealData = async () => {
+        try {
+          // Call the real backend API for chapter details
+          const response = await fetch(`/api/chapters/${chapterData.chapterId}/`);
+          
+          if (!response.ok) {
+            throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+          }
+          
+          const data = await response.json();
+          
+          // Transform API data to our MonthlyData interface
+          const realData: MonthlyData = {
+            month: selectedMonth.split(' ')[0],
+            year: parseInt(selectedMonth.split(' ')[1]),
+            totalReferrals: data.total_referrals || 0,
+            totalOTOs: data.total_otos || 0,
+            totalTYFCB: data.total_tyfcb || 0,
+            memberCount: data.member_count || 0,
+            avgReferralsPerMember: data.avg_referrals_per_member || 0,
+            avgOTOsPerMember: data.avg_otos_per_member || 0,
+            topPerformer: data.top_performer || 'N/A'
+          };
+          
+          setMonthlyData(realData);
+          
+        } catch (error) {
+          console.error('Failed to load chapter details:', error);
+          // Show error state
+          setMonthlyData(null);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+      
+      fetchRealData();
     }
   }, [selectedMonth, chapterData]);
 

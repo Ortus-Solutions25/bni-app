@@ -19,6 +19,8 @@ import {
 } from '@mui/icons-material';
 import { ChapterMemberData } from '../services/ChapterDataLoader';
 import PreviousDataTab from './PreviousDataTab';
+import MembersTab from './MembersTab';
+import MatrixTab from './MatrixTab';
 
 interface ChapterDetailPageProps {
   chapterData: ChapterMemberData;
@@ -152,60 +154,7 @@ const ChapterDetailPage: React.FC<ChapterDetailPageProps> = ({
         </TabPanel>
 
         <TabPanel value={tabValue} index={1}>
-          <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <ViewModule />
-            Referral Matrices
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-            Interactive matrices showing referral relationships between chapter members
-          </Typography>
-
-          <Box sx={{ display: 'grid', gridTemplateColumns: '1fr', gap: 3 }}>
-            {/* Referral Matrix */}
-            <Paper elevation={1} sx={{ p: 3 }}>
-              <Typography variant="h6" gutterBottom>
-                📊 Referral Matrix
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Shows who has given referrals to whom this month
-              </Typography>
-              <Box sx={{ p: 2, bgcolor: 'grey.50', borderRadius: 1, textAlign: 'center' }}>
-                <Typography variant="body2" color="text.secondary">
-                  Matrix visualization will be implemented here
-                </Typography>
-              </Box>
-            </Paper>
-
-            {/* One-to-One Matrix */}
-            <Paper elevation={1} sx={{ p: 3 }}>
-              <Typography variant="h6" gutterBottom>
-                🤝 One-to-One Matrix
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Tracks one-to-one meetings between members
-              </Typography>
-              <Box sx={{ p: 2, bgcolor: 'grey.50', borderRadius: 1, textAlign: 'center' }}>
-                <Typography variant="body2" color="text.secondary">
-                  OTO matrix visualization will be implemented here
-                </Typography>
-              </Box>
-            </Paper>
-
-            {/* Combination Matrix */}
-            <Paper elevation={1} sx={{ p: 3 }}>
-              <Typography variant="h6" gutterBottom>
-                🔄 Combination Matrix
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Combined view of referrals and one-to-ones
-              </Typography>
-              <Box sx={{ p: 2, bgcolor: 'grey.50', borderRadius: 1, textAlign: 'center' }}>
-                <Typography variant="body2" color="text.secondary">
-                  Combination matrix visualization will be implemented here
-                </Typography>
-              </Box>
-            </Paper>
-          </Box>
+          <MatrixTab chapterData={chapterData} />
         </TabPanel>
 
         <TabPanel value={tabValue} index={2}>
@@ -274,26 +223,7 @@ const ChapterDetailPage: React.FC<ChapterDetailPageProps> = ({
         </TabPanel>
 
         <TabPanel value={tabValue} index={3}>
-          <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <People />
-            Chapter Members
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-            All {chapterData.memberCount} active members in {chapterData.chapterName}
-          </Typography>
-          
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' }, gap: 2 }}>
-            {chapterData.members.map((member, index) => (
-              <Paper key={index} elevation={1} sx={{ p: 2 }}>
-                <Typography variant="body1" fontWeight="medium">
-                  {member}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Active Member
-                </Typography>
-              </Paper>
-            ))}
-          </Box>
+          <MembersTab chapterData={chapterData} />
         </TabPanel>
       </Paper>
     </Box>

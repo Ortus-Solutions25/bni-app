@@ -96,8 +96,12 @@ class ExcelProcessorService:
                 try:
                     df = pd.read_excel(file_path, engine='xlrd', dtype=str)
                 except Exception:
-                    # Fallback to openpyxl (for XML-based .xls files)
-                    df = pd.read_excel(file_path, engine='openpyxl', dtype=str)
+                    try:
+                        # Fallback to openpyxl (for XML-based .xls files)
+                        df = pd.read_excel(file_path, engine='openpyxl', dtype=str)
+                    except Exception:
+                        # If both fail, try XML conversion
+                        df = self._read_xml_excel_file(file_path)
             else:
                 # For .xlsx files
                 df = pd.read_excel(file_path, dtype=str)
@@ -116,6 +120,61 @@ class ExcelProcessorService:
             
         except Exception as e:
             self.errors.append(f"Failed to read Excel file: {str(e)}")
+            return None
+    
+    def _read_xml_excel_file(self, file_path: Path) -> Optional[pd.DataFrame]:
+        """Read XML-based .xls files (PALMS format)."""
+        try:
+            import xml.etree.ElementTree as ET
+            
+            logger.info(f"Attempting XML conversion for {file_path}")
+            
+            # Parse XML
+            tree = ET.parse(file_path)
+            root = tree.getroot()
+            
+            # Find the worksheet
+            worksheet = root.find('.//{urn:schemas-microsoft-com:office:spreadsheet}Worksheet')
+            if worksheet is None:
+                self.errors.append("No worksheet found in XML file")
+                return None
+                
+            table = worksheet.find('.//{urn:schemas-microsoft-com:office:spreadsheet}Table')
+            if table is None:
+                self.errors.append("No table found in XML worksheet")
+                return None
+                
+            rows = table.findall('.//{urn:schemas-microsoft-com:office:spreadsheet}Row')
+            
+            # Extract data
+            data = []
+            headers = []
+            
+            for i, row in enumerate(rows):
+                row_data = []
+                cells = row.findall('.//{urn:schemas-microsoft-com:office:spreadsheet}Cell')
+                
+                for cell in cells:
+                    data_elem = cell.find('.//{urn:schemas-microsoft-com:office:spreadsheet}Data')
+                    if data_elem is not None:
+                        row_data.append(str(data_elem.text or '').strip())
+                    else:
+                        row_data.append('')
+                
+                if i == 0:
+                    headers = row_data
+                else:
+                    data.append(row_data)
+            
+            # Create DataFrame
+            df = pd.DataFrame(data, columns=headers)
+            logger.info(f"Successfully converted XML file, shape: {df.shape}")
+            
+            return df
+            
+        except Exception as e:
+            logger.exception(f"Error converting XML file {file_path}")
+            self.errors.append(f"Failed to convert XML file: {str(e)}")
             return None
     
     def _get_members_lookup(self) -> Dict[str, Member]:

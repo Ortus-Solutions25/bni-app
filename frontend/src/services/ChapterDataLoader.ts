@@ -126,41 +126,54 @@ const loadChapterFile = async (memberFileName: string): Promise<string[]> => {
 };
 
 export const loadAllChapterData = async (): Promise<ChapterMemberData[]> => {
-  const results: ChapterMemberData[] = [];
-  
-  for (const chapter of REAL_CHAPTERS) {
-    try {
-      const members = await loadChapterFile(chapter.memberFile);
-      
-      results.push({
-        chapterName: chapter.name,
-        chapterId: chapter.id,
-        members,
-        memberCount: members.length,
-        memberFile: chapter.memberFile,
-        loadedAt: new Date(),
-        performanceMetrics: generateMockPerformanceMetrics(members)
-      });
-    } catch (error) {
-      results.push({
-        chapterName: chapter.name,
-        chapterId: chapter.id,
-        members: [],
-        memberCount: 0,
-        memberFile: chapter.memberFile,
-        loadedAt: new Date(),
-        loadError: error instanceof Error ? error.message : 'Unknown error',
-        performanceMetrics: {
-          avgReferralsPerMember: 0,
-          avgOTOsPerMember: 0,
-          totalTYFCB: 0,
-          topPerformer: 'N/A'
-        }
-      });
+  try {
+    // Call the real backend API
+    const response = await fetch('/api/dashboard/');
+    
+    if (!response.ok) {
+      throw new Error(`API request failed: ${response.status} ${response.statusText}`);
     }
+    
+    const data = await response.json();
+    
+    // Transform API data to match our ChapterMemberData interface
+    const results: ChapterMemberData[] = data.chapters.map((chapter: any) => ({
+      chapterName: chapter.name,
+      chapterId: chapter.id.toString(), // Convert to string for consistency
+      members: [], // We'll fetch individual member lists when needed
+      memberCount: chapter.member_count,
+      memberFile: `${chapter.name.toLowerCase().replace(/\s+/g, '-')}.xls`,
+      loadedAt: new Date(),
+      performanceMetrics: {
+        avgReferralsPerMember: chapter.avg_referrals_per_member || 0,
+        avgOTOsPerMember: chapter.avg_otos_per_member || 0,
+        totalTYFCB: chapter.total_tyfcb || 0,
+        topPerformer: 'Loading...' // Will be loaded with chapter details
+      }
+    }));
+    
+    return results;
+    
+  } catch (error) {
+    console.error('Failed to load chapter data from API:', error);
+    
+    // Fallback to empty chapters with error indication
+    return REAL_CHAPTERS.map(chapter => ({
+      chapterName: chapter.name,
+      chapterId: chapter.id,
+      members: [],
+      memberCount: 0,
+      memberFile: chapter.memberFile,
+      loadedAt: new Date(),
+      loadError: error instanceof Error ? error.message : 'Unknown error',
+      performanceMetrics: {
+        avgReferralsPerMember: 0,
+        avgOTOsPerMember: 0,
+        totalTYFCB: 0,
+        topPerformer: 'N/A'
+      }
+    }));
   }
-  
-  return results;
 };
 
 export const generateMockPerformanceMetrics = (members: string[]): ChapterMemberData['performanceMetrics'] => {

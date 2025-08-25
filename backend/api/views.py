@@ -89,7 +89,7 @@ class ExcelUploadView(APIView):
 
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 def get_referral_matrix(request, chapter_id):
     """Generate and return referral matrix for a chapter."""
     try:
@@ -125,7 +125,7 @@ def get_referral_matrix(request, chapter_id):
 
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 def get_one_to_one_matrix(request, chapter_id):
     """Generate and return one-to-one matrix for a chapter."""
     try:
@@ -157,7 +157,7 @@ def get_one_to_one_matrix(request, chapter_id):
 
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 def get_combination_matrix(request, chapter_id):
     """Generate and return combination matrix for a chapter."""
     try:
@@ -326,26 +326,38 @@ def get_import_history(request, chapter_id):
 def chapter_dashboard(request):
     """Get dashboard data for all chapters."""
     try:
+        from chapters.models import MonthlyChapterReport
+        
         chapters = Chapter.objects.all().order_by('name')
         dashboard_data = []
         
         for chapter in chapters:
-            # Simple chapter data for now
+            # Get member count
+            member_count = chapter.members.filter(is_active=True).count()
+            
+            # Get latest monthly report (August 2024)
+            latest_report = chapter.monthly_reports.order_by('-report_month').first()
+            
+            # Build chapter data
             chapter_data = {
                 'id': chapter.id,
                 'name': chapter.name,
-                'location': chapter.location if hasattr(chapter, 'location') else 'Dubai',
-                'latest_data_date': None,
-                'member_count': 0,
-                'total_referrals': 0,
-                'total_tyfcb': 0.0,
-                'has_data': False
+                'location': chapter.location or 'Dubai',
+                'latest_data_date': latest_report.report_month.isoformat() if latest_report else None,
+                'member_count': member_count,
+                'total_referrals': latest_report.total_referrals_given if latest_report else 0,
+                'total_tyfcb': float(latest_report.total_tyfcb) if latest_report else 0.0,
+                'performance_score': latest_report.performance_score if latest_report else 0,
+                'avg_referrals_per_member': latest_report.avg_referrals_per_member if latest_report else 0,
+                'avg_otos_per_member': latest_report.avg_one_to_ones_per_member if latest_report else 0,
+                'has_data': member_count > 0
             }
             dashboard_data.append(chapter_data)
         
         return Response({
             'chapters': dashboard_data,
-            'total_chapters': len(dashboard_data)
+            'total_chapters': len(dashboard_data),
+            'total_members': sum(c['member_count'] for c in dashboard_data)
         })
         
     except Exception as e:
@@ -360,17 +372,56 @@ def chapter_dashboard(request):
 def chapter_detail(request, chapter_id):
     """Get detailed information for a specific chapter."""
     try:
+        from chapters.models import MonthlyChapterReport, MemberMonthlyMetrics
+        
         chapter = Chapter.objects.get(id=chapter_id)
+        
+        # Get member details
+        members = list(chapter.members.filter(is_active=True).order_by('first_name', 'last_name'))
+        member_count = len(members)
+        
+        # Get latest monthly report (August 2024)
+        latest_report = chapter.monthly_reports.order_by('-report_month').first()
+        
+        # Get member monthly metrics for detailed breakdown
+        member_metrics = []
+        if latest_report:
+            metrics_queryset = MemberMonthlyMetrics.objects.filter(
+                chapter_report=latest_report
+            ).select_related('member')
+            
+            for metrics in metrics_queryset:
+                member_metrics.append({
+                    'name': metrics.member.full_name,
+                    'referrals_given': metrics.referrals_given,
+                    'referrals_received': metrics.referrals_received,
+                    'one_to_ones': metrics.one_to_ones_completed,
+                    'tyfcb': float(metrics.tyfcb_amount),
+                    'performance_score': metrics.performance_score,
+                    'oto_completion_rate': metrics.oto_completion_rate
+                })
+        
+        # Find top performer
+        top_performer = 'N/A'
+        if member_metrics:
+            top_performer = max(member_metrics, key=lambda x: x['referrals_given'])['name']
         
         chapter_data = {
             'id': chapter.id,
             'name': chapter.name,
-            'location': chapter.location if hasattr(chapter, 'location') else 'Dubai',
-            'latest_data_date': None,
-            'member_count': 0,
-            'total_referrals': 0,
-            'total_tyfcb': 0.0,
-            'has_data': False
+            'location': chapter.location or 'Dubai',
+            'latest_data_date': latest_report.report_month.isoformat() if latest_report else None,
+            'member_count': member_count,
+            'members': [member.full_name for member in members],
+            'total_referrals': latest_report.total_referrals_given if latest_report else 0,
+            'total_otos': latest_report.total_one_to_ones if latest_report else 0,
+            'total_tyfcb': float(latest_report.total_tyfcb) if latest_report else 0.0,
+            'performance_score': latest_report.performance_score if latest_report else 0,
+            'avg_referrals_per_member': latest_report.avg_referrals_per_member if latest_report else 0,
+            'avg_otos_per_member': latest_report.avg_one_to_ones_per_member if latest_report else 0,
+            'top_performer': top_performer,
+            'member_metrics': member_metrics,
+            'has_data': member_count > 0 and latest_report is not None
         }
         
         return Response(chapter_data)

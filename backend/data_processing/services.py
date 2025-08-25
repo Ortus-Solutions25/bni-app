@@ -1,0 +1,406 @@
+import pandas as pd
+import numpy as np
+from pathlib import Path
+from typing import List, Dict, Tuple, Optional, Union
+from decimal import Decimal
+from datetime import datetime, date
+import logging
+
+from django.db import transaction
+from django.core.exceptions import ValidationError
+from openpyxl import load_workbook
+
+from chapters.models import Member, Chapter
+from analytics.models import Referral, OneToOne, TYFCB, DataImportSession
+
+logger = logging.getLogger(__name__)
+
+
+class ExcelProcessorService:
+    """Service for processing BNI Excel files and extracting data."""
+    
+    # Column mappings based on BNI PALMS format
+    COLUMN_MAPPINGS = {
+        'giver_name': 0,      # Column A
+        'receiver_name': 1,    # Column B  
+        'slip_type': 2,        # Column C
+        'tyfcb_amount': 4,     # Column E
+        'detail': 6,           # Column G
+    }
+    
+    SLIP_TYPES = {
+        'referral': ['referral', 'ref'],
+        'one_to_one': ['one to one', 'oto', '1to1', '1-to-1', 'one-to-one'],
+        'tyfcb': ['tyfcb', 'thank you for closed business', 'closed business']
+    }
+    
+    def __init__(self, chapter: Chapter):
+        self.chapter = chapter
+        self.errors = []
+        self.warnings = []
+        
+    def process_excel_file(self, file_path: Union[str, Path], 
+                          week_of_date: Optional[date] = None) -> Dict:
+        """
+        Process a BNI Excel file and extract referrals, one-to-ones, and TYFCBs.
+        
+        Args:
+            file_path: Path to the Excel file
+            week_of_date: Optional date to associate with the data
+            
+        Returns:
+            Dictionary with processing results
+        """
+        file_path = Path(file_path)
+        self.errors = []
+        self.warnings = []
+        
+        try:
+            # Read Excel file
+            df = self._read_excel_file(file_path)
+            if df is None:
+                return self._create_error_result("Failed to read Excel file")
+            
+            # Get or create members lookup
+            members_lookup = self._get_members_lookup()
+            
+            # Process the data
+            results = self._process_dataframe(df, members_lookup, week_of_date)
+            
+            # Create import session record
+            import_session = self._create_import_session(
+                file_path, results, success=len(self.errors) == 0
+            )
+            
+            return {
+                'success': len(self.errors) == 0,
+                'import_session_id': import_session.id,
+                'referrals_created': results['referrals_created'],
+                'one_to_ones_created': results['one_to_ones_created'], 
+                'tyfcbs_created': results['tyfcbs_created'],
+                'total_processed': results['total_processed'],
+                'errors': self.errors,
+                'warnings': self.warnings,
+            }
+            
+        except Exception as e:
+            logger.exception(f"Error processing Excel file {file_path}")
+            return self._create_error_result(f"Processing failed: {str(e)}")
+    
+    def _read_excel_file(self, file_path: Path) -> Optional[pd.DataFrame]:
+        """Read Excel file with fallback for different formats."""
+        try:
+            # Try pandas with different engines
+            if file_path.suffix.lower() == '.xls':
+                # For .xls files, try xlrd first
+                try:
+                    df = pd.read_excel(file_path, engine='xlrd', dtype=str)
+                except Exception:
+                    # Fallback to openpyxl (for XML-based .xls files)
+                    df = pd.read_excel(file_path, engine='openpyxl', dtype=str)
+            else:
+                # For .xlsx files
+                df = pd.read_excel(file_path, dtype=str)
+            
+            # Basic validation
+            if df.empty:
+                self.errors.append("Excel file is empty")
+                return None
+                
+            # Ensure we have enough columns
+            if df.shape[1] < 3:
+                self.errors.append("Excel file must have at least 3 columns")
+                return None
+                
+            return df
+            
+        except Exception as e:
+            self.errors.append(f"Failed to read Excel file: {str(e)}")
+            return None
+    
+    def _get_members_lookup(self) -> Dict[str, Member]:
+        """Create a lookup dictionary for chapter members by normalized name."""
+        members = Member.objects.filter(chapter=self.chapter, is_active=True)
+        lookup = {}
+        
+        for member in members:
+            # Add by normalized name
+            lookup[member.normalized_name] = member
+            
+            # Also add variations for fuzzy matching
+            full_name = f"{member.first_name} {member.last_name}".lower().strip()
+            lookup[full_name] = member
+            
+            # Add first name only for common cases
+            if member.first_name.lower() not in lookup:
+                lookup[member.first_name.lower()] = member
+        
+        return lookup
+    
+    def _find_member_by_name(self, name: str, lookup: Dict[str, Member]) -> Optional[Member]:
+        """Find a member by name using fuzzy matching."""
+        if not name or pd.isna(name):
+            return None
+            
+        name = str(name).strip()
+        if not name:
+            return None
+        
+        # Try exact normalized match first
+        normalized = Member.normalize_name(name)
+        if normalized in lookup:
+            return lookup[normalized]
+        
+        # Try variations
+        variations = [
+            name.lower(),
+            ' '.join(name.lower().split()),
+        ]
+        
+        for variation in variations:
+            if variation in lookup:
+                return lookup[variation]
+        
+        # Log unmatched names for debugging
+        self.warnings.append(f"Could not find member: '{name}'")
+        return None
+    
+    def _normalize_slip_type(self, slip_type: str) -> Optional[str]:
+        """Normalize slip type to standard format."""
+        if not slip_type or pd.isna(slip_type):
+            return None
+            
+        slip_type = str(slip_type).lower().strip()
+        
+        for standard_type, variations in self.SLIP_TYPES.items():
+            if any(variation in slip_type for variation in variations):
+                return standard_type
+        
+        return None
+    
+    def _process_dataframe(self, df: pd.DataFrame, members_lookup: Dict[str, Member], 
+                          week_of_date: Optional[date]) -> Dict:
+        """Process DataFrame and create database records."""
+        results = {
+            'referrals_created': 0,
+            'one_to_ones_created': 0,
+            'tyfcbs_created': 0,
+            'total_processed': 0,
+        }
+        
+        with transaction.atomic():
+            for idx, row in df.iterrows():
+                try:
+                    # Skip header row (assuming row 0 is header)
+                    if idx == 0:
+                        continue
+                    
+                    # Extract data from row
+                    giver_name = self._get_cell_value(row, self.COLUMN_MAPPINGS['giver_name'])
+                    receiver_name = self._get_cell_value(row, self.COLUMN_MAPPINGS['receiver_name'])
+                    slip_type = self._get_cell_value(row, self.COLUMN_MAPPINGS['slip_type'])
+                    
+                    if not slip_type:
+                        continue
+                    
+                    normalized_slip_type = self._normalize_slip_type(slip_type)
+                    if not normalized_slip_type:
+                        self.warnings.append(f"Row {idx + 1}: Unknown slip type '{slip_type}'")
+                        continue
+                    
+                    results['total_processed'] += 1
+                    
+                    # Process based on slip type
+                    if normalized_slip_type == 'referral':
+                        if self._process_referral(row, idx, giver_name, receiver_name, 
+                                                members_lookup, week_of_date):
+                            results['referrals_created'] += 1
+                    
+                    elif normalized_slip_type == 'one_to_one':
+                        if self._process_one_to_one(row, idx, giver_name, receiver_name,
+                                                  members_lookup, week_of_date):
+                            results['one_to_ones_created'] += 1
+                    
+                    elif normalized_slip_type == 'tyfcb':
+                        if self._process_tyfcb(row, idx, giver_name, receiver_name,
+                                             members_lookup, week_of_date):
+                            results['tyfcbs_created'] += 1
+                
+                except Exception as e:
+                    self.errors.append(f"Row {idx + 1}: {str(e)}")
+                    continue
+        
+        return results
+    
+    def _get_cell_value(self, row: pd.Series, column_index: int) -> Optional[str]:
+        """Safely get cell value from row."""
+        try:
+            if column_index >= len(row) or pd.isna(row.iloc[column_index]):
+                return None
+            return str(row.iloc[column_index]).strip()
+        except (IndexError, AttributeError):
+            return None
+    
+    def _process_referral(self, row: pd.Series, row_idx: int, giver_name: str, 
+                         receiver_name: str, members_lookup: Dict[str, Member],
+                         week_of_date: Optional[date]) -> bool:
+        """Process a referral record."""
+        if not all([giver_name, receiver_name]):
+            self.warnings.append(f"Row {row_idx + 1}: Referral missing giver or receiver name")
+            return False
+        
+        giver = self._find_member_by_name(giver_name, members_lookup)
+        receiver = self._find_member_by_name(receiver_name, members_lookup)
+        
+        if not giver:
+            self.warnings.append(f"Row {row_idx + 1}: Could not find giver '{giver_name}'")
+            return False
+        
+        if not receiver:
+            self.warnings.append(f"Row {row_idx + 1}: Could not find receiver '{receiver_name}'")
+            return False
+        
+        if giver == receiver:
+            self.warnings.append(f"Row {row_idx + 1}: Self-referral detected, skipping")
+            return False
+        
+        # Create referral
+        referral = Referral(
+            giver=giver,
+            receiver=receiver,
+            week_of=week_of_date
+        )
+        
+        try:
+            referral.full_clean()
+            referral.save()
+            return True
+        except ValidationError as e:
+            self.errors.append(f"Row {row_idx + 1}: Referral validation error: {e}")
+            return False
+    
+    def _process_one_to_one(self, row: pd.Series, row_idx: int, giver_name: str,
+                           receiver_name: str, members_lookup: Dict[str, Member],
+                           week_of_date: Optional[date]) -> bool:
+        """Process a one-to-one meeting record."""
+        if not all([giver_name, receiver_name]):
+            self.warnings.append(f"Row {row_idx + 1}: One-to-one missing member names")
+            return False
+        
+        member1 = self._find_member_by_name(giver_name, members_lookup)
+        member2 = self._find_member_by_name(receiver_name, members_lookup)
+        
+        if not member1:
+            self.warnings.append(f"Row {row_idx + 1}: Could not find member '{giver_name}'")
+            return False
+        
+        if not member2:
+            self.warnings.append(f"Row {row_idx + 1}: Could not find member '{receiver_name}'")
+            return False
+        
+        if member1 == member2:
+            self.warnings.append(f"Row {row_idx + 1}: Self-meeting detected, skipping")
+            return False
+        
+        # Create one-to-one
+        one_to_one = OneToOne(
+            member1=member1,
+            member2=member2,
+            week_of=week_of_date
+        )
+        
+        try:
+            one_to_one.full_clean()
+            one_to_one.save()
+            return True
+        except ValidationError as e:
+            self.errors.append(f"Row {row_idx + 1}: One-to-one validation error: {e}")
+            return False
+    
+    def _process_tyfcb(self, row: pd.Series, row_idx: int, giver_name: str,
+                      receiver_name: str, members_lookup: Dict[str, Member],
+                      week_of_date: Optional[date]) -> bool:
+        """Process a TYFCB record."""
+        if not receiver_name:
+            self.warnings.append(f"Row {row_idx + 1}: TYFCB missing receiver name")
+            return False
+        
+        receiver = self._find_member_by_name(receiver_name, members_lookup)
+        if not receiver:
+            self.warnings.append(f"Row {row_idx + 1}: Could not find receiver '{receiver_name}'")
+            return False
+        
+        # Giver is optional for TYFCB
+        giver = None
+        if giver_name:
+            giver = self._find_member_by_name(giver_name, members_lookup)
+        
+        # Extract amount
+        amount_str = self._get_cell_value(row, self.COLUMN_MAPPINGS['tyfcb_amount'])
+        amount = self._parse_currency_amount(amount_str)
+        
+        if amount <= 0:
+            self.warnings.append(f"Row {row_idx + 1}: Invalid TYFCB amount: {amount_str}")
+            return False
+        
+        # Extract detail/description
+        detail = self._get_cell_value(row, self.COLUMN_MAPPINGS['detail'])
+        within_chapter = not detail or detail.strip() == ""
+        
+        # Create TYFCB
+        tyfcb = TYFCB(
+            receiver=receiver,
+            giver=giver,
+            amount=Decimal(str(amount)),
+            within_chapter=within_chapter,
+            description=detail or "",
+            week_of=week_of_date
+        )
+        
+        try:
+            tyfcb.full_clean()
+            tyfcb.save()
+            return True
+        except ValidationError as e:
+            self.errors.append(f"Row {row_idx + 1}: TYFCB validation error: {e}")
+            return False
+    
+    def _parse_currency_amount(self, amount_str: Optional[str]) -> float:
+        """Parse currency amount from string."""
+        if not amount_str or pd.isna(amount_str):
+            return 0.0
+        
+        try:
+            # Remove currency symbols and commas
+            cleaned = str(amount_str).replace('$', '').replace(',', '').strip()
+            return float(cleaned) if cleaned else 0.0
+        except (ValueError, TypeError):
+            return 0.0
+    
+    def _create_import_session(self, file_path: Path, results: Dict, success: bool) -> DataImportSession:
+        """Create an import session record for auditing."""
+        return DataImportSession.objects.create(
+            chapter=self.chapter,
+            file_name=file_path.name,
+            file_size=file_path.stat().st_size if file_path.exists() else 0,
+            records_processed=results['total_processed'],
+            referrals_created=results['referrals_created'],
+            one_to_ones_created=results['one_to_ones_created'],
+            tyfcbs_created=results['tyfcbs_created'],
+            errors_count=len(self.errors),
+            success=success,
+            error_details=self.errors + self.warnings
+        )
+    
+    def _create_error_result(self, error_message: str) -> Dict:
+        """Create error result dictionary."""
+        return {
+            'success': False,
+            'error': error_message,
+            'referrals_created': 0,
+            'one_to_ones_created': 0,
+            'tyfcbs_created': 0,
+            'total_processed': 0,
+            'errors': [error_message],
+            'warnings': [],
+        }

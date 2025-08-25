@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3:*)",
+      "Bash(source:*)",
+      "Bash(mkdir:*)",
+      "Bash(pip install:*)",
+      "Bash(django-admin startproject:*)",
+      "Bash(python manage.py startapp:*)",
+      "Bash(python manage.py:*)",
+      "Bash(npm install:*)",
+      "Read(//Users/nat/dev/freelance/pankaj_gupta/BNI-Palms-Analysis/**)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

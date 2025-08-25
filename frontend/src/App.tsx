@@ -1,5 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useCallback } from "react";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
 import {
   Container,
   AppBar,
@@ -10,17 +16,17 @@ import {
   Tab,
   Paper,
   CssBaseline,
-} from '@mui/material';
-import { ThemeProvider, createTheme } from '@mui/material/styles';
-import { Analytics } from '@mui/icons-material';
+} from "@mui/material";
+import { ThemeProvider, createTheme } from "@mui/material/styles";
+import { Analytics } from "@mui/icons-material";
 
 // Import components
-import FileUploadSection from './components/FileUploadSection';
-import ReportGeneration from './components/ReportGeneration';
-import DataQualityMonitor from './components/DataQualityMonitor';
-import FileManagement from './components/FileManagement';
-import MatrixVisualization from './components/MatrixVisualization';
-import ChapterRoutes from './components/ChapterRoutes';
+import FileUploadSection from "./components/FileUploadSection";
+import ReportGeneration from "./components/ReportGeneration";
+import DataQualityMonitor from "./components/DataQualityMonitor";
+import FileManagement from "./components/FileManagement";
+import MatrixVisualization from "./components/MatrixVisualization";
+import ChapterRoutes from "./components/ChapterRoutes";
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -39,11 +45,7 @@ function TabPanel(props: TabPanelProps) {
       aria-labelledby={`simple-tab-${index}`}
       {...other}
     >
-      {value === index && (
-        <Box sx={{ p: 3 }}>
-          {children}
-        </Box>
-      )}
+      {value === index && <Box sx={{ p: 3 }}>{children}</Box>}
     </div>
   );
 }
@@ -51,17 +53,17 @@ function TabPanel(props: TabPanelProps) {
 function a11yProps(index: number) {
   return {
     id: `simple-tab-${index}`,
-    'aria-controls': `simple-tabpanel-${index}`,
+    "aria-controls": `simple-tabpanel-${index}`,
   };
 }
 
 const theme = createTheme({
   palette: {
     primary: {
-      main: '#1976d2',
+      main: "#1976d2",
     },
     secondary: {
-      main: '#dc004e',
+      main: "#dc004e",
     },
   },
 });
@@ -93,25 +95,28 @@ function App() {
 function AppContent() {
   const location = useLocation();
   const navigate = useNavigate();
-  
+
   // Determine current tab based on URL
   const getCurrentTab = useCallback(() => {
-    if (location.pathname.startsWith('/chapters') || location.pathname === '/') {
+    if (
+      location.pathname.startsWith("/chapters") ||
+      location.pathname === "/"
+    ) {
       return 5; // Chapters tab
-    } else if (location.pathname.startsWith('/upload')) {
+    } else if (location.pathname.startsWith("/upload")) {
       return 0;
-    } else if (location.pathname.startsWith('/reports')) {
+    } else if (location.pathname.startsWith("/reports")) {
       return 1;
-    } else if (location.pathname.startsWith('/matrices')) {
+    } else if (location.pathname.startsWith("/matrices")) {
       return 2;
-    } else if (location.pathname.startsWith('/quality')) {
+    } else if (location.pathname.startsWith("/quality")) {
       return 3;
-    } else if (location.pathname.startsWith('/management')) {
+    } else if (location.pathname.startsWith("/management")) {
       return 4;
     }
     return 5; // Default to chapters
   }, [location.pathname]);
-  
+
   const [tabValue, setTabValue] = useState(getCurrentTab());
   const [uploadedFiles, setUploadedFiles] = useState<{
     palmsFiles: File[];
@@ -126,29 +131,29 @@ function AppContent() {
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
-    
+
     // Navigate to appropriate route when tab changes
     switch (newValue) {
       case 0:
-        navigate('/upload');
+        navigate("/upload");
         break;
       case 1:
-        navigate('/reports');
+        navigate("/reports");
         break;
       case 2:
-        navigate('/matrices');
+        navigate("/matrices");
         break;
       case 3:
-        navigate('/quality');
+        navigate("/quality");
         break;
       case 4:
-        navigate('/management');
+        navigate("/management");
         break;
       case 5:
-        navigate('/chapters');
+        navigate("/chapters");
         break;
       default:
-        navigate('/chapters');
+        navigate("/chapters");
     }
   };
 
@@ -168,18 +173,16 @@ function AppContent() {
           <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
             📊 BNI PALMS Analysis
           </Typography>
-          <Typography variant="body2">
-            Version 2.0
-          </Typography>
+          <Typography variant="body2">Version 2.0</Typography>
         </Toolbar>
       </AppBar>
 
       <Container maxWidth="lg" sx={{ mt: 2 }}>
         <Paper elevation={0}>
-          <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-            <Tabs 
-              value={tabValue} 
-              onChange={handleTabChange} 
+          <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
+            <Tabs
+              value={tabValue}
+              onChange={handleTabChange}
               aria-label="BNI Analysis tabs"
               variant="scrollable"
               scrollButtons="auto"
@@ -194,51 +197,74 @@ function AppContent() {
           </Box>
 
           <Routes>
-            <Route path="/" element={
-              <TabPanel value={tabValue} index={5}>
-                <ChapterRoutes />
-              </TabPanel>
-            } />
-            <Route path="/chapters/*" element={
-              <TabPanel value={tabValue} index={5}>
-                <ChapterRoutes />
-              </TabPanel>
-            } />
-            <Route path="/upload" element={
-              <TabPanel value={tabValue} index={0}>
-                <FileUploadSection 
-                  onFilesUploaded={handleFilesUploaded} 
-                  onNavigateToReports={() => setTabValue(1)}
-                />
-              </TabPanel>
-            } />
-            <Route path="/reports" element={
-              <TabPanel value={tabValue} index={1}>
-                <ReportGeneration 
-                  uploadedFiles={uploadedFiles}
-                  onReportsGenerated={() => setTabValue(2)}
-                  onMatrixDataGenerated={handleMatrixDataGenerated}
-                />
-              </TabPanel>
-            } />
-            <Route path="/matrices" element={
-              <TabPanel value={tabValue} index={2}>
-                <MatrixVisualization data={matrixData || undefined} />
-              </TabPanel>
-            } />
-            <Route path="/quality" element={
-              <TabPanel value={tabValue} index={3}>
-                <DataQualityMonitor />
-              </TabPanel>
-            } />
-            <Route path="/management" element={
-              <TabPanel value={tabValue} index={4}>
-                <FileManagement onFilesCleared={() => {
-                  setUploadedFiles({ palmsFiles: [], memberFiles: [] });
-                  setTabValue(0);
-                }} />
-              </TabPanel>
-            } />
+            <Route
+              path="/"
+              element={
+                <TabPanel value={tabValue} index={5}>
+                  <ChapterRoutes />
+                </TabPanel>
+              }
+            />
+            <Route
+              path="/chapters/*"
+              element={
+                <TabPanel value={tabValue} index={5}>
+                  <ChapterRoutes />
+                </TabPanel>
+              }
+            />
+            <Route
+              path="/upload"
+              element={
+                <TabPanel value={tabValue} index={0}>
+                  <FileUploadSection
+                    onFilesUploaded={handleFilesUploaded}
+                    onNavigateToReports={() => setTabValue(1)}
+                  />
+                </TabPanel>
+              }
+            />
+            <Route
+              path="/reports"
+              element={
+                <TabPanel value={tabValue} index={1}>
+                  <ReportGeneration
+                    uploadedFiles={uploadedFiles}
+                    onReportsGenerated={() => setTabValue(2)}
+                    onMatrixDataGenerated={handleMatrixDataGenerated}
+                  />
+                </TabPanel>
+              }
+            />
+            <Route
+              path="/matrices"
+              element={
+                <TabPanel value={tabValue} index={2}>
+                  <MatrixVisualization data={matrixData || undefined} />
+                </TabPanel>
+              }
+            />
+            <Route
+              path="/quality"
+              element={
+                <TabPanel value={tabValue} index={3}>
+                  <DataQualityMonitor />
+                </TabPanel>
+              }
+            />
+            <Route
+              path="/management"
+              element={
+                <TabPanel value={tabValue} index={4}>
+                  <FileManagement
+                    onFilesCleared={() => {
+                      setUploadedFiles({ palmsFiles: [], memberFiles: [] });
+                      setTabValue(0);
+                    }}
+                  />
+                </TabPanel>
+              }
+            />
           </Routes>
         </Paper>
       </Container>

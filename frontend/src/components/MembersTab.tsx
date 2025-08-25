@@ -5,16 +5,26 @@ import {
   Paper,
   CircularProgress,
   Alert,
+  Chip,
 } from '@mui/material';
-import { People } from '@mui/icons-material';
+import { People, Business, Email, Phone } from '@mui/icons-material';
 import { ChapterMemberData } from '../services/ChapterDataLoader';
+
+interface Member {
+  id: number;
+  full_name: string;
+  business_name: string;
+  classification: string;
+  email: string;
+  phone: string;
+}
 
 interface MembersTabProps {
   chapterData: ChapterMemberData;
 }
 
 const MembersTab: React.FC<MembersTabProps> = ({ chapterData }) => {
-  const [members, setMembers] = useState<string[]>([]);
+  const [members, setMembers] = useState<Member[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -78,15 +88,49 @@ const MembersTab: React.FC<MembersTabProps> = ({ chapterData }) => {
         All {members.length} active members in {chapterData.chapterName}
       </Typography>
       
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' }, gap: 2 }}>
-        {members.map((member, index) => (
-          <Paper key={index} elevation={1} sx={{ p: 2 }}>
-            <Typography variant="body1" fontWeight="medium">
-              {member}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Active Member
-            </Typography>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(3, 1fr)' }, gap: 3 }}>
+        {members.map((member) => (
+          <Paper key={member.id} elevation={1} sx={{ p: 3, cursor: 'pointer', '&:hover': { elevation: 3 } }}>
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="h6" fontWeight="medium" sx={{ mb: 1 }}>
+                {member.full_name}
+              </Typography>
+              {member.business_name && (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                  <Business fontSize="small" color="action" />
+                  <Typography variant="body2" color="text.secondary">
+                    {member.business_name}
+                  </Typography>
+                </Box>
+              )}
+              {member.classification && (
+                <Chip 
+                  label={member.classification}
+                  size="small"
+                  variant="outlined"
+                  sx={{ mb: 2 }}
+                />
+              )}
+            </Box>
+            
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              {member.email && (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Email fontSize="small" color="action" />
+                  <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+                    {member.email}
+                  </Typography>
+                </Box>
+              )}
+              {member.phone && (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Phone fontSize="small" color="action" />
+                  <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+                    {member.phone}
+                  </Typography>
+                </Box>
+              )}
+            </Box>
           </Paper>
         ))}
       </Box>

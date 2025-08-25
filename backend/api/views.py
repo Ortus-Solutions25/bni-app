@@ -18,16 +18,18 @@ from data_processing.utils import MatrixGenerator, DataValidator
 
 
 class FileUploadSerializer(serializers.Serializer):
-    file = serializers.FileField()
+    slip_audit_file = serializers.FileField()
+    member_names_file = serializers.FileField(required=False)
     chapter_id = serializers.IntegerField()
-    week_of = serializers.DateField(required=False)
+    month_year = serializers.CharField(max_length=7, help_text="e.g., '2024-06'")
+    upload_option = serializers.ChoiceField(choices=['slip_only', 'slip_and_members'], default='slip_only')
 
 
 class ExcelUploadView(APIView):
     """Handle Excel file upload and processing."""
     
     parser_classes = (MultiPartParser, FormParser)
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
     
     def post(self, request):
         serializer = FileUploadSerializer(data=request.data)
@@ -39,9 +41,11 @@ class ExcelUploadView(APIView):
         
         try:
             # Get validated data
-            file = serializer.validated_data['file']
+            slip_audit_file = serializer.validated_data['slip_audit_file']
+            member_names_file = serializer.validated_data.get('member_names_file')
             chapter_id = serializer.validated_data['chapter_id']
-            week_of = serializer.validated_data.get('week_of')
+            month_year = serializer.validated_data['month_year']
+            upload_option = serializer.validated_data['upload_option']
             
             # Validate chapter access
             try:
@@ -53,33 +57,28 @@ class ExcelUploadView(APIView):
                     status=status.HTTP_404_NOT_FOUND
                 )
             
-            # Validate file type
-            if not file.name.lower().endswith(('.xls', '.xlsx')):
+            # Validate file types
+            if not slip_audit_file.name.lower().endswith(('.xls', '.xlsx')):
                 return Response(
-                    {'error': 'Only .xls and .xlsx files are supported'},
+                    {'error': 'Only .xls and .xlsx files are supported for slip audit file'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
-            # Save file to temporary location
-            with tempfile.NamedTemporaryFile(
-                delete=False, 
-                suffix=Path(file.name).suffix
-            ) as tmp_file:
-                for chunk in file.chunks():
-                    tmp_file.write(chunk)
-                tmp_file_path = tmp_file.name
+            if member_names_file and not member_names_file.name.lower().endswith(('.xls', '.xlsx')):
+                return Response(
+                    {'error': 'Only .xls and .xlsx files are supported for member names file'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
             
-            try:
-                # Process the Excel file
-                processor = ExcelProcessorService(chapter)
-                result = processor.process_excel_file(tmp_file_path, week_of)
-                
-                return Response(result, status=status.HTTP_200_OK)
-                
-            finally:
-                # Clean up temporary file
-                if os.path.exists(tmp_file_path):
-                    os.unlink(tmp_file_path)
+            # Process using the new monthly report method
+            processor = ExcelProcessorService(chapter)
+            result = processor.process_monthly_report(
+                slip_audit_file=slip_audit_file,
+                member_names_file=member_names_file,
+                month_year=month_year
+            )
+            
+            return Response(result, status=status.HTTP_200_OK)
         
         except Exception as e:
             return Response(
@@ -90,31 +89,22 @@ class ExcelUploadView(APIView):
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
-def get_referral_matrix(request, chapter_id):
-    """Generate and return referral matrix for a chapter."""
+def get_referral_matrix(request, chapter_id, report_id):
+    """Return referral matrix for a specific monthly report."""
     try:
+        from chapters.models import MonthlyReport
+        
         chapter = Chapter.objects.get(id=chapter_id)
-        members = list(Member.objects.filter(chapter=chapter, is_active=True))
-        referrals = list(Referral.objects.filter(giver__chapter=chapter))
+        monthly_report = MonthlyReport.objects.get(id=report_id, chapter=chapter)
         
-        generator = MatrixGenerator(members)
-        matrix = generator.generate_referral_matrix(referrals)
-        
-        # Convert to JSON-serializable format
-        result = {
-            'members': [m.full_name for m in members],
-            'matrix': matrix.values.tolist(),
-            'totals': {
-                'given': matrix.sum(axis=1).to_dict(),
-                'received': matrix.sum(axis=0).to_dict()
-            }
-        }
+        # Return the pre-processed matrix data
+        result = monthly_report.referral_matrix_data
         
         return Response(result)
         
-    except Chapter.DoesNotExist:
+    except (Chapter.DoesNotExist, MonthlyReport.DoesNotExist):
         return Response(
-            {'error': 'Chapter not found'},
+            {'error': 'Chapter or monthly report not found'},
             status=status.HTTP_404_NOT_FOUND
         )
     except Exception as e:
@@ -126,27 +116,22 @@ def get_referral_matrix(request, chapter_id):
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
-def get_one_to_one_matrix(request, chapter_id):
-    """Generate and return one-to-one matrix for a chapter."""
+def get_one_to_one_matrix(request, chapter_id, report_id):
+    """Return one-to-one matrix for a specific monthly report."""
     try:
+        from chapters.models import MonthlyReport
+        
         chapter = Chapter.objects.get(id=chapter_id)
-        members = list(Member.objects.filter(chapter=chapter, is_active=True))
-        one_to_ones = list(OneToOne.objects.filter(member1__chapter=chapter))
+        monthly_report = MonthlyReport.objects.get(id=report_id, chapter=chapter)
         
-        generator = MatrixGenerator(members)
-        matrix = generator.generate_one_to_one_matrix(one_to_ones)
-        
-        result = {
-            'members': [m.full_name for m in members],
-            'matrix': matrix.values.tolist(),
-            'totals': matrix.sum(axis=1).to_dict()
-        }
+        # Return the pre-processed matrix data
+        result = monthly_report.oto_matrix_data
         
         return Response(result)
         
-    except Chapter.DoesNotExist:
+    except (Chapter.DoesNotExist, MonthlyReport.DoesNotExist):
         return Response(
-            {'error': 'Chapter not found'},
+            {'error': 'Chapter or monthly report not found'},
             status=status.HTTP_404_NOT_FOUND
         )
     except Exception as e:
@@ -158,33 +143,22 @@ def get_one_to_one_matrix(request, chapter_id):
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
-def get_combination_matrix(request, chapter_id):
-    """Generate and return combination matrix for a chapter."""
+def get_combination_matrix(request, chapter_id, report_id):
+    """Return combination matrix for a specific monthly report."""
     try:
+        from chapters.models import MonthlyReport
+        
         chapter = Chapter.objects.get(id=chapter_id)
-        members = list(Member.objects.filter(chapter=chapter, is_active=True))
-        referrals = list(Referral.objects.filter(giver__chapter=chapter))
-        one_to_ones = list(OneToOne.objects.filter(member1__chapter=chapter))
+        monthly_report = MonthlyReport.objects.get(id=report_id, chapter=chapter)
         
-        generator = MatrixGenerator(members)
-        matrix = generator.generate_combination_matrix(referrals, one_to_ones)
-        
-        result = {
-            'members': [m.full_name for m in members],
-            'matrix': matrix.values.tolist(),
-            'legend': {
-                '0': 'Neither',
-                '1': 'One-to-One Only',
-                '2': 'Referral Only',
-                '3': 'Both'
-            }
-        }
+        # Return the pre-processed matrix data
+        result = monthly_report.combination_matrix_data
         
         return Response(result)
         
-    except Chapter.DoesNotExist:
+    except (Chapter.DoesNotExist, MonthlyReport.DoesNotExist):
         return Response(
-            {'error': 'Chapter not found'},
+            {'error': 'Chapter or monthly report not found'},
             status=status.HTTP_404_NOT_FOUND
         )
     except Exception as e:
@@ -326,38 +300,58 @@ def get_import_history(request, chapter_id):
 def chapter_dashboard(request):
     """Get dashboard data for all chapters."""
     try:
-        from chapters.models import MonthlyChapterReport
+        from analytics.models import Referral, OneToOne, TYFCB
+        from chapters.models import MonthlyReport
+        from django.db.models import Count, Sum
         
         chapters = Chapter.objects.all().order_by('name')
         dashboard_data = []
         
         for chapter in chapters:
-            # Get member count
-            member_count = chapter.members.filter(is_active=True).count()
+            # Get actual data from database
+            members = Member.objects.filter(chapter=chapter, is_active=True)
+            referrals = Referral.objects.filter(giver__chapter=chapter)
+            tyfcbs = TYFCB.objects.filter(receiver__chapter=chapter)
+            monthly_reports = MonthlyReport.objects.filter(chapter=chapter).order_by('-month_year')
             
-            # Get latest monthly report (August 2024)
-            latest_report = chapter.monthly_reports.order_by('-report_month').first()
+            # Get latest data date from monthly report
+            latest_date = None
+            if monthly_reports.exists():
+                latest_report = monthly_reports.first()
+                latest_date = f"{latest_report.month_year}"
             
-            # Build chapter data
+            # Calculate total TYFCB amount
+            total_tyfcb = tyfcbs.aggregate(total=Sum('amount'))['total'] or 0.0
+            
+            # Calculate averages
+            member_count = members.count()
+            referral_count = referrals.count()
+            one_to_ones = OneToOne.objects.filter(member1__chapter=chapter)
+            oto_count = one_to_ones.count()
+            
+            avg_referrals = round(referral_count / member_count, 2) if member_count > 0 else 0
+            avg_tyfcb = round(float(total_tyfcb) / member_count, 2) if member_count > 0 else 0
+            avg_otos = round(oto_count / member_count, 2) if member_count > 0 else 0
+            
             chapter_data = {
                 'id': chapter.id,
                 'name': chapter.name,
-                'location': chapter.location or 'Dubai',
-                'latest_data_date': latest_report.report_month.isoformat() if latest_report else None,
+                'location': chapter.location if hasattr(chapter, 'location') else 'Dubai',
+                'latest_data_date': latest_date,
                 'member_count': member_count,
-                'total_referrals': latest_report.total_referrals_given if latest_report else 0,
-                'total_tyfcb': float(latest_report.total_tyfcb) if latest_report else 0.0,
-                'performance_score': latest_report.performance_score if latest_report else 0,
-                'avg_referrals_per_member': latest_report.avg_referrals_per_member if latest_report else 0,
-                'avg_otos_per_member': latest_report.avg_one_to_ones_per_member if latest_report else 0,
-                'has_data': member_count > 0
+                'total_referrals': referral_count,
+                'total_one_to_ones': oto_count,
+                'total_tyfcb': float(total_tyfcb),
+                'avg_referrals_per_member': avg_referrals,
+                'avg_tyfcb_per_member': avg_tyfcb,
+                'avg_otos_per_member': avg_otos,
+                'has_data': monthly_reports.exists()
             }
             dashboard_data.append(chapter_data)
         
         return Response({
             'chapters': dashboard_data,
-            'total_chapters': len(dashboard_data),
-            'total_members': sum(c['member_count'] for c in dashboard_data)
+            'total_chapters': len(dashboard_data)
         })
         
     except Exception as e:
@@ -372,56 +366,60 @@ def chapter_dashboard(request):
 def chapter_detail(request, chapter_id):
     """Get detailed information for a specific chapter."""
     try:
-        from chapters.models import MonthlyChapterReport, MemberMonthlyMetrics
+        from analytics.models import Referral, OneToOne, TYFCB
+        from chapters.models import MonthlyReport
+        from django.db.models import Sum
         
         chapter = Chapter.objects.get(id=chapter_id)
+        members = Member.objects.filter(chapter=chapter, is_active=True)
         
-        # Get member details
-        members = list(chapter.members.filter(is_active=True).order_by('first_name', 'last_name'))
-        member_count = len(members)
+        # Get actual data from database
+        referrals = Referral.objects.filter(giver__chapter=chapter)
+        one_to_ones = OneToOne.objects.filter(member1__chapter=chapter)
+        tyfcbs = TYFCB.objects.filter(receiver__chapter=chapter)
+        monthly_reports = MonthlyReport.objects.filter(chapter=chapter).order_by('-month_year')
         
-        # Get latest monthly report (August 2024)
-        latest_report = chapter.monthly_reports.order_by('-report_month').first()
+        # Get latest data date
+        latest_date = None
+        if monthly_reports.exists():
+            latest_report = monthly_reports.first()
+            latest_date = f"{latest_report.month_year}"
         
-        # Get member monthly metrics for detailed breakdown
-        member_metrics = []
-        if latest_report:
-            metrics_queryset = MemberMonthlyMetrics.objects.filter(
-                chapter_report=latest_report
-            ).select_related('member')
-            
-            for metrics in metrics_queryset:
-                member_metrics.append({
-                    'name': metrics.member.full_name,
-                    'referrals_given': metrics.referrals_given,
-                    'referrals_received': metrics.referrals_received,
-                    'one_to_ones': metrics.one_to_ones_completed,
-                    'tyfcb': float(metrics.tyfcb_amount),
-                    'performance_score': metrics.performance_score,
-                    'oto_completion_rate': metrics.oto_completion_rate
-                })
+        # Calculate totals
+        member_count = members.count()
+        referral_count = referrals.count()
+        oto_count = one_to_ones.count()
+        total_tyfcb = tyfcbs.aggregate(total=Sum('amount'))['total'] or 0.0
         
-        # Find top performer
-        top_performer = 'N/A'
-        if member_metrics:
-            top_performer = max(member_metrics, key=lambda x: x['referrals_given'])['name']
+        # Calculate averages
+        avg_referrals = round(referral_count / member_count, 2) if member_count > 0 else 0
+        avg_tyfcb = round(float(total_tyfcb) / member_count, 2) if member_count > 0 else 0
+        avg_otos = round(oto_count / member_count, 2) if member_count > 0 else 0
         
         chapter_data = {
             'id': chapter.id,
             'name': chapter.name,
-            'location': chapter.location or 'Dubai',
-            'latest_data_date': latest_report.report_month.isoformat() if latest_report else None,
+            'location': chapter.location if hasattr(chapter, 'location') else 'Dubai',
+            'latest_data_date': latest_date,
             'member_count': member_count,
-            'members': [member.full_name for member in members],
-            'total_referrals': latest_report.total_referrals_given if latest_report else 0,
-            'total_otos': latest_report.total_one_to_ones if latest_report else 0,
-            'total_tyfcb': float(latest_report.total_tyfcb) if latest_report else 0.0,
-            'performance_score': latest_report.performance_score if latest_report else 0,
-            'avg_referrals_per_member': latest_report.avg_referrals_per_member if latest_report else 0,
-            'avg_otos_per_member': latest_report.avg_one_to_ones_per_member if latest_report else 0,
-            'top_performer': top_performer,
-            'member_metrics': member_metrics,
-            'has_data': member_count > 0 and latest_report is not None
+            'total_referrals': referral_count,
+            'total_one_to_ones': oto_count,
+            'total_tyfcb': float(total_tyfcb),
+            'avg_referrals_per_member': avg_referrals,
+            'avg_tyfcb_per_member': avg_tyfcb,
+            'avg_otos_per_member': avg_otos,
+            'has_data': monthly_reports.exists(),
+            'members': [
+                {
+                    'id': member.id,
+                    'full_name': member.full_name,
+                    'business_name': member.business_name,
+                    'classification': member.classification,
+                    'email': member.email,
+                    'phone': member.phone
+                }
+                for member in members
+            ]
         }
         
         return Response(chapter_data)
@@ -434,5 +432,209 @@ def chapter_detail(request, chapter_id):
     except Exception as e:
         return Response(
             {'error': f'Chapter detail failed: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_monthly_reports(request, chapter_id):
+    """Get all monthly reports for a specific chapter."""
+    try:
+        from chapters.models import MonthlyReport
+        
+        chapter = Chapter.objects.get(id=chapter_id)
+        monthly_reports = MonthlyReport.objects.filter(chapter=chapter).order_by('-month_year')
+        
+        result = []
+        for report in monthly_reports:
+            result.append({
+                'id': report.id,
+                'month_year': report.month_year,
+                'uploaded_at': report.uploaded_at,
+                'processed_at': report.processed_at,
+                'slip_audit_file': report.slip_audit_file.name if report.slip_audit_file else None,
+                'member_names_file': report.member_names_file.name if report.member_names_file else None,
+                'has_referral_matrix': bool(report.referral_matrix_data),
+                'has_oto_matrix': bool(report.oto_matrix_data),
+                'has_combination_matrix': bool(report.combination_matrix_data)
+            })
+        
+        return Response(result)
+        
+    except Chapter.DoesNotExist:
+        return Response(
+            {'error': 'Chapter not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        return Response(
+            {'error': f'Monthly reports retrieval failed: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_monthly_report(request, chapter_id, report_id):
+    """Delete a monthly report."""
+    try:
+        from chapters.models import MonthlyReport
+        
+        chapter = Chapter.objects.get(id=chapter_id)
+        monthly_report = MonthlyReport.objects.get(id=report_id, chapter=chapter)
+        
+        # Delete associated files
+        if monthly_report.slip_audit_file:
+            monthly_report.slip_audit_file.delete(save=False)
+        if monthly_report.member_names_file:
+            monthly_report.member_names_file.delete(save=False)
+        
+        # Delete the report
+        monthly_report.delete()
+        
+        return Response({'message': 'Monthly report deleted successfully'})
+        
+    except (Chapter.DoesNotExist, MonthlyReport.DoesNotExist):
+        return Response(
+            {'error': 'Chapter or monthly report not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        return Response(
+            {'error': f'Monthly report deletion failed: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_member_detail(request, chapter_id, report_id, member_id):
+    """Get detailed member information including missing interaction lists."""
+    try:
+        from chapters.models import MonthlyReport, MemberMonthlyStats
+        
+        chapter = Chapter.objects.get(id=chapter_id)
+        monthly_report = MonthlyReport.objects.get(id=report_id, chapter=chapter)
+        member = Member.objects.get(id=member_id, chapter=chapter)
+        
+        try:
+            member_stats = MemberMonthlyStats.objects.get(
+                member=member,
+                monthly_report=monthly_report
+            )
+        except MemberMonthlyStats.DoesNotExist:
+            # If no stats exist, return basic member info with empty lists
+            member_stats = None
+        
+        # Get all chapter members for name resolution
+        chapter_members = Member.objects.filter(chapter=chapter, is_active=True)
+        member_lookup = {m.id: m.full_name for m in chapter_members}
+        
+        result = {
+            'member': {
+                'id': member.id,
+                'full_name': member.full_name,
+                'first_name': member.first_name,
+                'last_name': member.last_name,
+                'business_name': member.business_name,
+                'classification': member.classification,
+                'email': member.email,
+                'phone': member.phone
+            },
+            'stats': {
+                'referrals_given': member_stats.referrals_given if member_stats else 0,
+                'referrals_received': member_stats.referrals_received if member_stats else 0,
+                'one_to_ones_completed': member_stats.one_to_ones_completed if member_stats else 0,
+                'tyfcb_inside_amount': float(member_stats.tyfcb_inside_amount) if member_stats else 0.0,
+                'tyfcb_outside_amount': float(member_stats.tyfcb_outside_amount) if member_stats else 0.0
+            },
+            'missing_interactions': {
+                'missing_otos': [
+                    {
+                        'id': member_id,
+                        'name': member_lookup.get(member_id, 'Unknown')
+                    }
+                    for member_id in (member_stats.missing_otos if member_stats else [])
+                    if member_id in member_lookup
+                ],
+                'missing_referrals_given_to': [
+                    {
+                        'id': member_id,
+                        'name': member_lookup.get(member_id, 'Unknown')
+                    }
+                    for member_id in (member_stats.missing_referrals_given_to if member_stats else [])
+                    if member_id in member_lookup
+                ],
+                'missing_referrals_received_from': [
+                    {
+                        'id': member_id,
+                        'name': member_lookup.get(member_id, 'Unknown')
+                    }
+                    for member_id in (member_stats.missing_referrals_received_from if member_stats else [])
+                    if member_id in member_lookup
+                ],
+                'priority_connections': [
+                    {
+                        'id': member_id,
+                        'name': member_lookup.get(member_id, 'Unknown')
+                    }
+                    for member_id in (member_stats.priority_connections if member_stats else [])
+                    if member_id in member_lookup
+                ]
+            },
+            'monthly_report': {
+                'id': monthly_report.id,
+                'month_year': monthly_report.month_year,
+                'processed_at': monthly_report.processed_at
+            }
+        }
+        
+        return Response(result)
+        
+    except (Chapter.DoesNotExist, MonthlyReport.DoesNotExist, Member.DoesNotExist):
+        return Response(
+            {'error': 'Chapter, monthly report, or member not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        return Response(
+            {'error': f'Member detail retrieval failed: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_tyfcb_data(request, chapter_id, report_id):
+    """Get TYFCB data for a specific monthly report."""
+    try:
+        from chapters.models import MonthlyReport
+        
+        chapter = Chapter.objects.get(id=chapter_id)
+        monthly_report = MonthlyReport.objects.get(id=report_id, chapter=chapter)
+        
+        tyfcb_data = {
+            'inside': monthly_report.tyfcb_inside_data or {'total_amount': 0, 'count': 0, 'by_member': {}},
+            'outside': monthly_report.tyfcb_outside_data or {'total_amount': 0, 'count': 0, 'by_member': {}},
+            'month_year': monthly_report.month_year,
+            'processed_at': monthly_report.processed_at
+        }
+        
+        return Response(tyfcb_data)
+        
+    except Chapter.DoesNotExist:
+        return Response(
+            {'error': 'Chapter not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except MonthlyReport.DoesNotExist:
+        return Response(
+            {'error': 'Monthly report not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        return Response(
+            {'error': f'Failed to get TYFCB data: {str(e)}'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )

@@ -6,6 +6,49 @@ export interface ChapterInfo {
   memberFile: string;
 }
 
+export interface MonthlyReport {
+  id: number;
+  month_year: string;
+  uploaded_at: string;
+  processed_at: string | null;
+  slip_audit_file: string | null;
+  member_names_file: string | null;
+  has_referral_matrix: boolean;
+  has_oto_matrix: boolean;
+  has_combination_matrix: boolean;
+}
+
+export interface MemberDetail {
+  member: {
+    id: number;
+    full_name: string;
+    first_name: string;
+    last_name: string;
+    business_name: string;
+    classification: string;
+    email: string;
+    phone: string;
+  };
+  stats: {
+    referrals_given: number;
+    referrals_received: number;
+    one_to_ones_completed: number;
+    tyfcb_inside_amount: number;
+    tyfcb_outside_amount: number;
+  };
+  missing_interactions: {
+    missing_otos: Array<{id: number, name: string}>;
+    missing_referrals_given_to: Array<{id: number, name: string}>;
+    missing_referrals_received_from: Array<{id: number, name: string}>;
+    priority_connections: Array<{id: number, name: string}>;
+  };
+  monthly_report: {
+    id: number;
+    month_year: string;
+    processed_at: string | null;
+  };
+}
+
 export interface ChapterMemberData {
   chapterName: string;
   chapterId: string;
@@ -14,6 +57,8 @@ export interface ChapterMemberData {
   memberFile: string;
   loadedAt: Date;
   loadError?: string;
+  monthlyReports?: MonthlyReport[];
+  currentReport?: MonthlyReport;
   performanceMetrics?: {
     avgReferralsPerMember: number;
     avgOTOsPerMember: number;
@@ -173,6 +218,82 @@ export const loadAllChapterData = async (): Promise<ChapterMemberData[]> => {
         topPerformer: 'N/A'
       }
     }));
+  }
+};
+
+export const loadMonthlyReports = async (chapterId: string): Promise<MonthlyReport[]> => {
+  try {
+    const response = await fetch(`/api/chapters/${chapterId}/reports/`);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to load monthly reports: ${response.status} ${response.statusText}`);
+    }
+    
+    const reports = await response.json();
+    return reports;
+  } catch (error) {
+    console.error(`Failed to load monthly reports for chapter ${chapterId}:`, error);
+    throw error;
+  }
+};
+
+export const loadMemberDetail = async (
+  chapterId: string, 
+  reportId: number, 
+  memberId: number
+): Promise<MemberDetail> => {
+  try {
+    const response = await fetch(
+      `/api/chapters/${chapterId}/reports/${reportId}/members/${memberId}/`
+    );
+    
+    if (!response.ok) {
+      throw new Error(`Failed to load member detail: ${response.status} ${response.statusText}`);
+    }
+    
+    const memberDetail = await response.json();
+    return memberDetail;
+  } catch (error) {
+    console.error(`Failed to load member detail for chapter ${chapterId}, report ${reportId}, member ${memberId}:`, error);
+    throw error;
+  }
+};
+
+export const loadMatrixData = async (
+  chapterId: string,
+  reportId: number,
+  matrixType: 'referral-matrix' | 'one-to-one-matrix' | 'combination-matrix'
+): Promise<any> => {
+  try {
+    const response = await fetch(
+      `/api/chapters/${chapterId}/reports/${reportId}/${matrixType}/`
+    );
+    
+    if (!response.ok) {
+      throw new Error(`Failed to load ${matrixType}: ${response.status} ${response.statusText}`);
+    }
+    
+    const matrixData = await response.json();
+    return matrixData;
+  } catch (error) {
+    console.error(`Failed to load ${matrixType} for chapter ${chapterId}, report ${reportId}:`, error);
+    throw error;
+  }
+};
+
+export const deleteMonthlyReport = async (chapterId: string, reportId: number): Promise<void> => {
+  try {
+    const response = await fetch(
+      `/api/chapters/${chapterId}/reports/${reportId}/`,
+      { method: 'DELETE' }
+    );
+    
+    if (!response.ok) {
+      throw new Error(`Failed to delete monthly report: ${response.status} ${response.statusText}`);
+    }
+  } catch (error) {
+    console.error(`Failed to delete monthly report ${reportId} for chapter ${chapterId}:`, error);
+    throw error;
   }
 };
 

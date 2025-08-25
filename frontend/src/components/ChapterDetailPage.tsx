@@ -21,6 +21,7 @@ import { ChapterMemberData } from '../services/ChapterDataLoader';
 import PreviousDataTab from './PreviousDataTab';
 import MembersTab from './MembersTab';
 import MatrixTab from './MatrixTab';
+import FileUploadComponent from './FileUploadComponent';
 
 interface ChapterDetailPageProps {
   chapterData: ChapterMemberData;
@@ -61,9 +62,17 @@ const ChapterDetailPage: React.FC<ChapterDetailPageProps> = ({
   onBackToChapters,
 }) => {
   const [tabValue, setTabValue] = useState(0);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
+  };
+
+  const handleUploadSuccess = () => {
+    // Trigger refresh of other tabs by incrementing counter
+    setRefreshTrigger(prev => prev + 1);
+    // Switch to Previous Data tab to show the results
+    setTabValue(0);
   };
 
   return (
@@ -158,68 +167,11 @@ const ChapterDetailPage: React.FC<ChapterDetailPageProps> = ({
         </TabPanel>
 
         <TabPanel value={tabValue} index={2}>
-          <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <CloudUpload />
-            Upload Palms Data
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-            Upload slip audit reports from PALMS for {chapterData.chapterName}
-          </Typography>
-
-          <Box sx={{ display: 'grid', gridTemplateColumns: '1fr', gap: 3, maxWidth: 600 }}>
-            {/* Upload Section */}
-            <Paper elevation={1} sx={{ p: 3, textAlign: 'center', border: '2px dashed', borderColor: 'grey.300' }}>
-              <CloudUpload sx={{ fontSize: 48, color: 'primary.main', mb: 2 }} />
-              <Typography variant="h6" gutterBottom>
-                Drop PALMS Files Here
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Upload Excel files exported from PALMS for monthly reporting
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Supported formats: .xls, .xlsx
-              </Typography>
-            </Paper>
-
-            {/* Instructions */}
-            <Paper elevation={1} sx={{ p: 3 }}>
-              <Typography variant="h6" gutterBottom>
-                📋 Upload Instructions
-              </Typography>
-              <Box component="ol" sx={{ pl: 2, '& li': { mb: 1 } }}>
-                <li>
-                  <Typography variant="body2">
-                    Export slip audit reports from PALMS system
-                  </Typography>
-                </li>
-                <li>
-                  <Typography variant="body2">
-                    Ensure files contain member names and referral data
-                  </Typography>
-                </li>
-                <li>
-                  <Typography variant="body2">
-                    Files will be processed automatically and added to monthly data
-                  </Typography>
-                </li>
-                <li>
-                  <Typography variant="body2">
-                    Use "Previous Data" tab to view processed results
-                  </Typography>
-                </li>
-              </Box>
-            </Paper>
-
-            {/* Recent Uploads */}
-            <Paper elevation={1} sx={{ p: 3 }}>
-              <Typography variant="h6" gutterBottom>
-                📁 Recent Uploads
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                No files uploaded yet for this chapter
-              </Typography>
-            </Paper>
-          </Box>
+          <FileUploadComponent
+            chapterId={chapterData.chapterId}
+            chapterName={chapterData.chapterName}
+            onUploadSuccess={handleUploadSuccess}
+          />
         </TabPanel>
 
         <TabPanel value={tabValue} index={3}>

@@ -11,92 +11,83 @@ import {
   CircularProgress,
   Alert,
   Chip,
+  Button,
+  IconButton,
 } from '@mui/material';
 import {
   CalendarMonth,
   TrendingUp,
   People,
   AttachMoney,
+  Delete,
+  Refresh,
 } from '@mui/icons-material';
-import { ChapterMemberData } from '../services/ChapterDataLoader';
+import { ChapterMemberData, MonthlyReport, loadMonthlyReports, deleteMonthlyReport } from '../services/ChapterDataLoader';
 
 interface PreviousDataTabProps {
   chapterData: ChapterMemberData;
 }
 
-interface MonthlyData {
-  month: string;
-  year: number;
-  totalReferrals: number;
-  totalOTOs: number;
-  totalTYFCB: number;
-  memberCount: number;
-  avgReferralsPerMember: number;
-  avgOTOsPerMember: number;
-  topPerformer: string;
-}
-
 const PreviousDataTab: React.FC<PreviousDataTabProps> = ({ chapterData }) => {
-  const [selectedMonth, setSelectedMonth] = useState<string>('');
-  const [availableMonths, setAvailableMonths] = useState<string[]>([]);
-  const [monthlyData, setMonthlyData] = useState<MonthlyData | null>(null);
+  const [selectedReport, setSelectedReport] = useState<MonthlyReport | null>(null);
+  const [monthlyReports, setMonthlyReports] = useState<MonthlyReport[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Only August 2024 available - based on provided slip audit reports
-  useEffect(() => {
-    const months = [
-      'August 2024'
-    ];
-    setAvailableMonths(months);
-    setSelectedMonth(months[0]); // Default to August 2024 (only available month)
-  }, []);
-
-  // Load data for selected month
-  useEffect(() => {
-    if (selectedMonth && chapterData.chapterId) {
-      setIsLoading(true);
+  // Load monthly reports when component mounts
+  const loadReports = async () => {
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const reports = await loadMonthlyReports(chapterData.chapterId);
+      setMonthlyReports(reports);
       
-      const fetchRealData = async () => {
-        try {
-          // Call the real backend API for chapter details
-          const response = await fetch(`/api/chapters/${chapterData.chapterId}/`);
-          
-          if (!response.ok) {
-            throw new Error(`API request failed: ${response.status} ${response.statusText}`);
-          }
-          
-          const data = await response.json();
-          
-          // Transform API data to our MonthlyData interface
-          const realData: MonthlyData = {
-            month: selectedMonth.split(' ')[0],
-            year: parseInt(selectedMonth.split(' ')[1]),
-            totalReferrals: data.total_referrals || 0,
-            totalOTOs: data.total_otos || 0,
-            totalTYFCB: data.total_tyfcb || 0,
-            memberCount: data.member_count || 0,
-            avgReferralsPerMember: data.avg_referrals_per_member || 0,
-            avgOTOsPerMember: data.avg_otos_per_member || 0,
-            topPerformer: data.top_performer || 'N/A'
-          };
-          
-          setMonthlyData(realData);
-          
-        } catch (error) {
-          console.error('Failed to load chapter details:', error);
-          // Show error state
-          setMonthlyData(null);
-        } finally {
-          setIsLoading(false);
-        }
-      };
-      
-      fetchRealData();
+      // Select the most recent report by default
+      if (reports.length > 0) {
+        setSelectedReport(reports[0]);
+      }
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Failed to load monthly reports');
+    } finally {
+      setIsLoading(false);
     }
-  }, [selectedMonth, chapterData]);
+  };
 
-  const handleMonthChange = (event: any) => {
-    setSelectedMonth(event.target.value);
+  useEffect(() => {
+    if (chapterData.chapterId) {
+      loadReports();
+    }
+  }, [chapterData.chapterId]);
+
+  const handleReportChange = (event: any) => {
+    const reportId = event.target.value;
+    const report = monthlyReports.find(r => r.id === reportId);
+    setSelectedReport(report || null);
+  };
+
+  const handleDeleteReport = async (reportToDelete: MonthlyReport) => {
+    if (!window.confirm(`Are you sure you want to delete the ${reportToDelete.month_year} report?`)) {
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      await deleteMonthlyReport(chapterData.chapterId, reportToDelete.id);
+      
+      // Reload reports after deletion
+      await loadReports();
+      
+      // Clear selection if the deleted report was selected
+      if (selectedReport?.id === reportToDelete.id) {
+        setSelectedReport(null);
+      }
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Failed to delete report');
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const formatCurrency = (amount: number) => {
@@ -110,142 +101,171 @@ const PreviousDataTab: React.FC<PreviousDataTabProps> = ({ chapterData }) => {
 
   return (
     <Box>
-      <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-        <CalendarMonth />
-        Previous Month Data
-      </Typography>
-
-      {/* Month Selection */}
-      <Box sx={{ mb: 3, maxWidth: 300 }}>
-        <FormControl fullWidth>
-          <InputLabel>Select Month</InputLabel>
-          <Select
-            value={selectedMonth}
-            label="Select Month"
-            onChange={handleMonthChange}
-          >
-            {availableMonths.map((month) => (
-              <MenuItem key={month} value={month}>
-                {month}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
+        <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <CalendarMonth />
+          Monthly Reports
+        </Typography>
+        <Button
+          startIcon={<Refresh />}
+          onClick={loadReports}
+          disabled={isLoading}
+          size="small"
+        >
+          Refresh
+        </Button>
       </Box>
+
+      {/* Error State */}
+      {error && (
+        <Alert severity="error" sx={{ mb: 3 }}>
+          {error}
+        </Alert>
+      )}
+
+      {/* Report Selection */}
+      {monthlyReports.length > 0 && (
+        <Box sx={{ mb: 3, maxWidth: 400 }}>
+          <FormControl fullWidth>
+            <InputLabel>Select Monthly Report</InputLabel>
+            <Select
+              value={selectedReport?.id || ''}
+              label="Select Monthly Report"
+              onChange={handleReportChange}
+            >
+              {monthlyReports.map((report) => (
+                <MenuItem key={report.id} value={report.id}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                    <span>{report.month_year}</span>
+                    <Box sx={{ display: 'flex', gap: 1 }}>
+                      {report.has_referral_matrix && <Chip label="Referrals" size="small" />}
+                      {report.has_oto_matrix && <Chip label="OTOs" size="small" />}
+                      {report.has_combination_matrix && <Chip label="Combined" size="small" />}
+                    </Box>
+                  </Box>
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Box>
+      )}
 
       {/* Loading State */}
       {isLoading && (
         <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 4 }}>
           <CircularProgress />
           <Typography variant="body1" sx={{ ml: 2 }}>
-            Loading {selectedMonth} data...
+            Loading monthly reports...
           </Typography>
         </Box>
       )}
 
-      {/* Monthly Data Display */}
-      {!isLoading && monthlyData && (
+      {/* Selected Report Display */}
+      {!isLoading && selectedReport && (
         <Box>
-          <Box sx={{ mb: 3 }}>
-            <Typography variant="h5" gutterBottom>
-              {chapterData.chapterName} - {monthlyData.month} {monthlyData.year}
-            </Typography>
-            <Chip 
-              label={`${monthlyData.memberCount} members`} 
-              color="primary" 
-              variant="outlined" 
-            />
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+            <Box>
+              <Typography variant="h5" gutterBottom>
+                {chapterData.chapterName} - {selectedReport.month_year}
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+                <Chip 
+                  label={`Uploaded: ${new Date(selectedReport.uploaded_at).toLocaleDateString()}`}
+                  size="small"
+                  variant="outlined"
+                />
+                {selectedReport.processed_at && (
+                  <Chip 
+                    label={`Processed: ${new Date(selectedReport.processed_at).toLocaleDateString()}`}
+                    size="small"
+                    color="success"
+                  />
+                )}
+              </Box>
+            </Box>
+            
+            <IconButton
+              color="error"
+              onClick={() => handleDeleteReport(selectedReport)}
+              disabled={isDeleting}
+              title="Delete this report"
+            >
+              <Delete />
+            </IconButton>
           </Box>
 
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }, gap: 3 }}>
-            {/* Total Referrals */}
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' }, gap: 3 }}>
+            {/* Report Files */}
             <Card>
               <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                  <TrendingUp color="primary" sx={{ mr: 1 }} />
-                  <Typography variant="h6" component="div">
-                    {monthlyData.totalReferrals}
-                  </Typography>
-                </Box>
-                <Typography variant="body2" color="text.secondary">
-                  Total Referrals
+                <Typography variant="h6" gutterBottom>
+                  Files
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                  Slip Audit: {selectedReport.slip_audit_file ? '✅ Uploaded' : '❌ Missing'}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Avg: {monthlyData.avgReferralsPerMember} per member
+                  Member Names: {selectedReport.member_names_file ? '✅ Uploaded' : '❌ Not provided'}
                 </Typography>
               </CardContent>
             </Card>
 
-            {/* Total OTOs */}
+            {/* Matrix Data Status */}
             <Card>
               <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                  <People color="primary" sx={{ mr: 1 }} />
-                  <Typography variant="h6" component="div">
-                    {monthlyData.totalOTOs}
-                  </Typography>
-                </Box>
-                <Typography variant="body2" color="text.secondary">
-                  Total One-to-Ones
+                <Typography variant="h6" gutterBottom>
+                  Processed Data
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                  Referral Matrix: {selectedReport.has_referral_matrix ? '✅ Available' : '❌ Not processed'}
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                  One-to-One Matrix: {selectedReport.has_oto_matrix ? '✅ Available' : '❌ Not processed'}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Avg: {monthlyData.avgOTOsPerMember} per member
+                  Combination Matrix: {selectedReport.has_combination_matrix ? '✅ Available' : '❌ Not processed'}
                 </Typography>
               </CardContent>
             </Card>
 
-            {/* Total TYFCB */}
+            {/* Actions */}
             <Card>
               <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                  <AttachMoney color="primary" sx={{ mr: 1 }} />
-                  <Typography variant="h6" component="div">
-                    {formatCurrency(monthlyData.totalTYFCB)}
-                  </Typography>
-                </Box>
-                <Typography variant="body2" color="text.secondary">
-                  Total TYFCB
+                <Typography variant="h6" gutterBottom>
+                  Actions
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  Use the "Matrices" tab to view detailed referral and OTO data for this month.
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Thank You For Closed Business
-                </Typography>
-              </CardContent>
-            </Card>
-
-            {/* Top Performer */}
-            <Card>
-              <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                  <TrendingUp color="secondary" sx={{ mr: 1 }} />
-                  <Typography variant="h6" component="div" sx={{ fontSize: '0.9rem' }}>
-                    {monthlyData.topPerformer}
-                  </Typography>
-                </Box>
-                <Typography variant="body2" color="text.secondary">
-                  Top Performer
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Most referrals this month
+                  Use the "Members" tab to see individual member performance and missing connections.
                 </Typography>
               </CardContent>
             </Card>
           </Box>
 
-          {/* Additional Info */}
-          <Box sx={{ mt: 4 }}>
-            <Alert severity="info">
-              This data is based on the August 2024 PALMS slip audit reports that were provided. 
-              Use the "Upload Palms Data" tab to add reports for additional months.
-            </Alert>
-          </Box>
+          {/* Processing Status Alert */}
+          {selectedReport.processed_at ? (
+            <Box sx={{ mt: 4 }}>
+              <Alert severity="success">
+                This report has been successfully processed and matrix data is available in the "Matrices" tab.
+              </Alert>
+            </Box>
+          ) : (
+            <Box sx={{ mt: 4 }}>
+              <Alert severity="warning">
+                This report is still being processed. Matrix data will be available once processing is complete.
+              </Alert>
+            </Box>
+          )}
         </Box>
       )}
 
-      {/* No Data State */}
-      {!isLoading && !monthlyData && (
-        <Alert severity="warning">
-          No data available. Currently only August 2024 PALMS reports have been provided. 
-          Use the "Upload Palms Data" tab to add reports for additional months.
+      {/* No Reports State */}
+      {!isLoading && monthlyReports.length === 0 && !error && (
+        <Alert severity="info">
+          No monthly reports have been uploaded yet for {chapterData.chapterName}. 
+          Use the "Upload Palms Data" tab to upload PALMS slip audit reports.
         </Alert>
       )}
     </Box>

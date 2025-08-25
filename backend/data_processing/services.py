@@ -8,9 +8,10 @@ import logging
 
 from django.db import transaction
 from django.core.exceptions import ValidationError
+from django.utils import timezone
 from openpyxl import load_workbook
 
-from chapters.models import Member, Chapter
+from chapters.models import Member, Chapter, MonthlyReport, MemberMonthlyStats
 from analytics.models import Referral, OneToOne, TYFCB, DataImportSession
 
 logger = logging.getLogger(__name__)
@@ -90,21 +91,30 @@ class ExcelProcessorService:
     def _read_excel_file(self, file_path: Path) -> Optional[pd.DataFrame]:
         """Read Excel file with fallback for different formats."""
         try:
-            # Try pandas with different engines
-            if file_path.suffix.lower() == '.xls':
-                # For .xls files, try xlrd first
-                try:
+            # Check if it's an XML-based .xls file by reading the first line
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    first_line = f.readline().strip()
+                
+                if first_line.startswith('<?xml'):
+                    # Handle XML-based .xls files (BNI audit reports)
+                    logger.info(f"Detected XML-based .xls file: {file_path}")
+                    df = self._parse_xml_excel(str(file_path))
+                else:
+                    # Handle standard Excel files
+                    if file_path.suffix.lower() == '.xls':
+                        # Try xlrd for binary .xls files
+                        df = pd.read_excel(file_path, engine='xlrd', dtype=str)
+                    else:
+                        # For .xlsx files, use default engine
+                        df = pd.read_excel(file_path, dtype=str)
+                        
+            except UnicodeDecodeError:
+                # If we can't read as text, it's probably binary Excel
+                if file_path.suffix.lower() == '.xls':
                     df = pd.read_excel(file_path, engine='xlrd', dtype=str)
-                except Exception:
-                    try:
-                        # Fallback to openpyxl (for XML-based .xls files)
-                        df = pd.read_excel(file_path, engine='openpyxl', dtype=str)
-                    except Exception:
-                        # If both fail, try XML conversion
-                        df = self._read_xml_excel_file(file_path)
-            else:
-                # For .xlsx files
-                df = pd.read_excel(file_path, dtype=str)
+                else:
+                    df = pd.read_excel(file_path, dtype=str)
             
             # Basic validation
             if df.empty:
@@ -122,60 +132,72 @@ class ExcelProcessorService:
             self.errors.append(f"Failed to read Excel file: {str(e)}")
             return None
     
-    def _read_xml_excel_file(self, file_path: Path) -> Optional[pd.DataFrame]:
-        """Read XML-based .xls files (PALMS format)."""
-        try:
-            import xml.etree.ElementTree as ET
+    def _parse_xml_excel(self, xml_file_path: str) -> pd.DataFrame:
+        """
+        Parse XML-based Excel files (like BNI audit reports) and convert to DataFrame.
+        """
+        import xml.etree.ElementTree as ET
+        
+        # Parse the XML
+        tree = ET.parse(xml_file_path)
+        root = tree.getroot()
+        
+        # Define namespace
+        ns = {
+            'ss': 'urn:schemas-microsoft-com:office:spreadsheet',
+            'o': 'urn:schemas-microsoft-com:office:office',
+            'x': 'urn:schemas-microsoft-com:office:excel',
+            'html': 'http://www.w3.org/TR/REC-html40'
+        }
+        
+        # Find the worksheet
+        worksheet = root.find('.//ss:Worksheet', ns)
+        if worksheet is None:
+            raise ValueError("No worksheet found in XML file")
+        
+        # Find the table
+        table = worksheet.find('.//ss:Table', ns)
+        if table is None:
+            raise ValueError("No table found in worksheet")
+        
+        # Extract data from rows
+        data_rows = []
+        headers = []
+        
+        rows = table.findall('.//ss:Row', ns)
+        for i, row in enumerate(rows):
+            cells = row.findall('.//ss:Cell', ns)
+            row_data = []
             
-            logger.info(f"Attempting XML conversion for {file_path}")
-            
-            # Parse XML
-            tree = ET.parse(file_path)
-            root = tree.getroot()
-            
-            # Find the worksheet
-            worksheet = root.find('.//{urn:schemas-microsoft-com:office:spreadsheet}Worksheet')
-            if worksheet is None:
-                self.errors.append("No worksheet found in XML file")
-                return None
-                
-            table = worksheet.find('.//{urn:schemas-microsoft-com:office:spreadsheet}Table')
-            if table is None:
-                self.errors.append("No table found in XML worksheet")
-                return None
-                
-            rows = table.findall('.//{urn:schemas-microsoft-com:office:spreadsheet}Row')
-            
-            # Extract data
-            data = []
-            headers = []
-            
-            for i, row in enumerate(rows):
-                row_data = []
-                cells = row.findall('.//{urn:schemas-microsoft-com:office:spreadsheet}Cell')
-                
-                for cell in cells:
-                    data_elem = cell.find('.//{urn:schemas-microsoft-com:office:spreadsheet}Data')
-                    if data_elem is not None:
-                        row_data.append(str(data_elem.text or '').strip())
-                    else:
-                        row_data.append('')
-                
-                if i == 0:
-                    headers = row_data
+            for cell in cells:
+                data_elem = cell.find('.//ss:Data', ns)
+                if data_elem is not None:
+                    cell_value = data_elem.text if data_elem.text else ""
                 else:
-                    data.append(row_data)
+                    cell_value = ""
+                row_data.append(cell_value)
             
-            # Create DataFrame
-            df = pd.DataFrame(data, columns=headers)
-            logger.info(f"Successfully converted XML file, shape: {df.shape}")
-            
-            return df
-            
-        except Exception as e:
-            logger.exception(f"Error converting XML file {file_path}")
-            self.errors.append(f"Failed to convert XML file: {str(e)}")
-            return None
+            if i == 0:
+                # First row is headers
+                headers = row_data
+            else:
+                # Data rows
+                data_rows.append(row_data)
+        
+        # Create DataFrame
+        if not headers:
+            raise ValueError("No headers found in XML file")
+        
+        # Pad data rows to match header length
+        max_cols = len(headers)
+        for row in data_rows:
+            while len(row) < max_cols:
+                row.append("")
+        
+        df = pd.DataFrame(data_rows, columns=headers)
+        logger.info(f"Successfully parsed XML Excel file with {len(df)} rows and columns: {list(df.columns)}")
+        
+        return df
     
     def _get_members_lookup(self) -> Dict[str, Member]:
         """Create a lookup dictionary for chapter members by normalized name."""
@@ -323,19 +345,19 @@ class ExcelProcessorService:
             self.warnings.append(f"Row {row_idx + 1}: Self-referral detected, skipping")
             return False
         
-        # Create referral
-        referral = Referral(
-            giver=giver,
-            receiver=receiver,
-            week_of=week_of_date
-        )
-        
+        # Create or get existing referral
         try:
-            referral.full_clean()
-            referral.save()
-            return True
-        except ValidationError as e:
-            self.errors.append(f"Row {row_idx + 1}: Referral validation error: {e}")
+            referral, created = Referral.objects.get_or_create(
+                giver=giver,
+                receiver=receiver,
+                date_given=week_of_date or timezone.now().date(),
+                defaults={'week_of': week_of_date}
+            )
+            if not created:
+                self.warnings.append(f"Row {row_idx + 1}: Duplicate referral skipped (already exists)")
+            return created
+        except Exception as e:
+            self.errors.append(f"Row {row_idx + 1}: Referral creation error: {e}")
             return False
     
     def _process_one_to_one(self, row: pd.Series, row_idx: int, giver_name: str,
@@ -361,19 +383,27 @@ class ExcelProcessorService:
             self.warnings.append(f"Row {row_idx + 1}: Self-meeting detected, skipping")
             return False
         
-        # Create one-to-one
-        one_to_one = OneToOne(
-            member1=member1,
-            member2=member2,
-            week_of=week_of_date
-        )
-        
+        # Create or get existing one-to-one (handle both member orders)
         try:
-            one_to_one.full_clean()
-            one_to_one.save()
-            return True
-        except ValidationError as e:
-            self.errors.append(f"Row {row_idx + 1}: One-to-one validation error: {e}")
+            one_to_one, created = OneToOne.objects.get_or_create(
+                member1=member1,
+                member2=member2,
+                meeting_date=week_of_date or timezone.now().date(),
+                defaults={'week_of': week_of_date}
+            )
+            if not created:
+                # Try the reverse order
+                one_to_one, created = OneToOne.objects.get_or_create(
+                    member1=member2,
+                    member2=member1,
+                    meeting_date=week_of_date or timezone.now().date(),
+                    defaults={'week_of': week_of_date}
+                )
+            if not created:
+                self.warnings.append(f"Row {row_idx + 1}: Duplicate one-to-one skipped (already exists)")
+            return created
+        except Exception as e:
+            self.errors.append(f"Row {row_idx + 1}: One-to-one creation error: {e}")
             return False
     
     def _process_tyfcb(self, row: pd.Series, row_idx: int, giver_name: str,
@@ -406,22 +436,24 @@ class ExcelProcessorService:
         detail = self._get_cell_value(row, self.COLUMN_MAPPINGS['detail'])
         within_chapter = not detail or detail.strip() == ""
         
-        # Create TYFCB
-        tyfcb = TYFCB(
-            receiver=receiver,
-            giver=giver,
-            amount=Decimal(str(amount)),
-            within_chapter=within_chapter,
-            description=detail or "",
-            week_of=week_of_date
-        )
-        
+        # Create or get existing TYFCB
         try:
-            tyfcb.full_clean()
-            tyfcb.save()
-            return True
-        except ValidationError as e:
-            self.errors.append(f"Row {row_idx + 1}: TYFCB validation error: {e}")
+            tyfcb, created = TYFCB.objects.get_or_create(
+                receiver=receiver,
+                giver=giver,
+                amount=Decimal(str(amount)),
+                within_chapter=within_chapter,
+                date_closed=week_of_date or timezone.now().date(),
+                defaults={
+                    'description': detail or "",
+                    'week_of': week_of_date
+                }
+            )
+            if not created:
+                self.warnings.append(f"Row {row_idx + 1}: Duplicate TYFCB skipped (already exists)")
+            return created
+        except Exception as e:
+            self.errors.append(f"Row {row_idx + 1}: TYFCB creation error: {e}")
             return False
     
     def _parse_currency_amount(self, amount_str: Optional[str]) -> float:
@@ -463,6 +495,177 @@ class ExcelProcessorService:
             'errors': [error_message],
             'warnings': [],
         }
+    
+    def process_monthly_report(self, slip_audit_file, member_names_file, month_year: str) -> Dict:
+        """
+        Process files and create a MonthlyReport with processed matrix data.
+        
+        Args:
+            slip_audit_file: Excel file with slip audit data
+            member_names_file: Optional file with member names
+            month_year: Month in format '2024-06'
+            
+        Returns:
+            Dictionary with processing results
+        """
+        try:
+            with transaction.atomic():
+                # Create or get MonthlyReport
+                monthly_report, created = MonthlyReport.objects.get_or_create(
+                    chapter=self.chapter,
+                    month_year=month_year,
+                    defaults={
+                        'slip_audit_file': slip_audit_file,
+                        'member_names_file': member_names_file,
+                    }
+                )
+                
+                if not created:
+                    # Update existing report
+                    monthly_report.slip_audit_file = slip_audit_file
+                    if member_names_file:
+                        monthly_report.member_names_file = member_names_file
+                
+                # Process the slip audit file
+                # Handle both InMemoryUploadedFile and TemporaryUploadedFile
+                if hasattr(slip_audit_file, 'temporary_file_path'):
+                    # TemporaryUploadedFile - use temporary file path
+                    temp_file_path = slip_audit_file.temporary_file_path()
+                    df = self._read_excel_file(Path(temp_file_path))
+                else:
+                    # InMemoryUploadedFile - save to temporary file first
+                    import tempfile
+                    import os
+                    
+                    with tempfile.NamedTemporaryFile(delete=False, suffix='.xls') as temp_file:
+                        for chunk in slip_audit_file.chunks():
+                            temp_file.write(chunk)
+                        temp_file.flush()
+                        
+                        try:
+                            df = self._read_excel_file(Path(temp_file.name))
+                        finally:
+                            # Clean up temporary file
+                            os.unlink(temp_file.name)
+                if df is None:
+                    return self._create_error_result("Failed to read Excel file")
+                
+                # Get members lookup
+                members_lookup = self._get_members_lookup()
+                
+                # Process the data and create individual records
+                processing_result = self._process_dataframe(df, members_lookup, None)
+                
+                # Generate matrix data using existing utilities
+                from data_processing.utils import MatrixGenerator
+                
+                members = list(Member.objects.filter(chapter=self.chapter, is_active=True))
+                referrals = list(Referral.objects.filter(giver__chapter=self.chapter))
+                one_to_ones = list(OneToOne.objects.filter(member1__chapter=self.chapter))
+                tyfcbs = list(TYFCB.objects.filter(receiver__chapter=self.chapter))
+                
+                generator = MatrixGenerator(members)
+                
+                # Generate matrices and store as JSON
+                monthly_report.referral_matrix_data = {
+                    'members': [m.full_name for m in members],
+                    'matrix': generator.generate_referral_matrix(referrals).values.tolist(),
+                }
+                
+                monthly_report.oto_matrix_data = {
+                    'members': [m.full_name for m in members],
+                    'matrix': generator.generate_one_to_one_matrix(one_to_ones).values.tolist(),
+                }
+                
+                monthly_report.combination_matrix_data = {
+                    'members': [m.full_name for m in members],
+                    'matrix': generator.generate_combination_matrix(referrals, one_to_ones).values.tolist(),
+                    'legend': {
+                        '0': 'Neither',
+                        '1': 'One-to-One Only', 
+                        '2': 'Referral Only',
+                        '3': 'Both'
+                    }
+                }
+                
+                # Separate TYFCBs by inside/outside chapter
+                inside_tyfcbs = [t for t in tyfcbs if t.within_chapter]
+                outside_tyfcbs = [t for t in tyfcbs if not t.within_chapter]
+                
+                monthly_report.tyfcb_inside_data = {
+                    'total_amount': sum(float(t.amount) for t in inside_tyfcbs),
+                    'count': len(inside_tyfcbs),
+                    'by_member': {m.full_name: sum(float(t.amount) for t in inside_tyfcbs if t.receiver == m) for m in members}
+                }
+                
+                monthly_report.tyfcb_outside_data = {
+                    'total_amount': sum(float(t.amount) for t in outside_tyfcbs),
+                    'count': len(outside_tyfcbs),
+                    'by_member': {m.full_name: sum(float(t.amount) for t in outside_tyfcbs if t.receiver == m) for m in members}
+                }
+                
+                monthly_report.processed_at = timezone.now()
+                monthly_report.save()
+                
+                # Generate member monthly stats
+                self._generate_member_stats(monthly_report, members, referrals, one_to_ones, inside_tyfcbs, outside_tyfcbs)
+                
+                return {
+                    'success': True,
+                    'monthly_report_id': monthly_report.id,
+                    'month_year': monthly_report.month_year,
+                    'referrals_created': processing_result['referrals_created'],
+                    'one_to_ones_created': processing_result['one_to_ones_created'],
+                    'tyfcbs_created': processing_result['tyfcbs_created'],
+                    'total_processed': processing_result['total_processed'],
+                    'errors': self.errors,
+                    'warnings': self.warnings,
+                }
+                
+        except Exception as e:
+            logger.exception(f"Error processing monthly report for {self.chapter}")
+            return self._create_error_result(f"Processing failed: {str(e)}")
+    
+    def _generate_member_stats(self, monthly_report, members, referrals, one_to_ones, inside_tyfcbs, outside_tyfcbs):
+        """Generate MemberMonthlyStats for each member."""
+        
+        for member in members:
+            # Calculate stats for this member
+            referrals_given = len([r for r in referrals if r.giver == member])
+            referrals_received = len([r for r in referrals if r.receiver == member])
+            
+            # Count one-to-ones
+            otos_completed = len([o for o in one_to_ones if o.member1 == member or o.member2 == member])
+            
+            # Calculate TYFCB amounts
+            inside_amount = sum(float(t.amount) for t in inside_tyfcbs if t.receiver == member)
+            outside_amount = sum(float(t.amount) for t in outside_tyfcbs if t.receiver == member)
+            
+            # Create or update member stats
+            member_stats, created = MemberMonthlyStats.objects.get_or_create(
+                member=member,
+                monthly_report=monthly_report,
+                defaults={
+                    'referrals_given': referrals_given,
+                    'referrals_received': referrals_received,
+                    'one_to_ones_completed': otos_completed,
+                    'tyfcb_inside_amount': inside_amount,
+                    'tyfcb_outside_amount': outside_amount,
+                }
+            )
+            
+            if not created:
+                # Update existing stats
+                member_stats.referrals_given = referrals_given
+                member_stats.referrals_received = referrals_received
+                member_stats.one_to_ones_completed = otos_completed
+                member_stats.tyfcb_inside_amount = inside_amount
+                member_stats.tyfcb_outside_amount = outside_amount
+                member_stats.save()
+            
+            # Calculate missing lists
+            member_stats.calculate_missing_lists(Member.objects.filter(chapter=self.chapter, is_active=True))
+            member_stats.save()
 
 
 class BNIMonthlyDataImportService:

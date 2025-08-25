@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Container,
   AppBar,
@@ -19,6 +19,10 @@ import ReportGeneration from './components/ReportGeneration';
 import DataQualityMonitor from './components/DataQualityMonitor';
 import FileManagement from './components/FileManagement';
 import MatrixVisualization from './components/MatrixVisualization';
+import ChapterDashboard from './components/ChapterDashboard';
+import MemberDashboard from './components/MemberDashboard';
+import MemberDetails from './components/MemberDetails';
+import { ChapterMemberData, loadAllChapterData } from './services/ChapterDataLoader';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -77,16 +81,29 @@ interface MatrixData {
   };
 }
 
+type ViewState = 'chapters' | 'members' | 'details';
+
 function App() {
-  const [tabValue, setTabValue] = useState(0);
+  const [tabValue, setTabValue] = useState(5);
   const [uploadedFiles, setUploadedFiles] = useState<{
     palmsFiles: File[];
     memberFiles: File[];
   }>({ palmsFiles: [], memberFiles: [] });
   const [matrixData, setMatrixData] = useState<MatrixData | null>(null);
+  
+  // Chapter system state
+  const [chapterData, setChapterData] = useState<ChapterMemberData[]>([]);
+  const [isLoadingChapters, setIsLoadingChapters] = useState(true);
+  const [currentView, setCurrentView] = useState<ViewState>('chapters');
+  const [selectedChapter, setSelectedChapter] = useState<ChapterMemberData | null>(null);
+  const [selectedMember, setSelectedMember] = useState<string | null>(null);
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
-    setTabValue(newValue);
+    if (newValue === 5) { // Chapters tab
+      handleChapterTabChange(event, newValue);
+    } else {
+      setTabValue(newValue);
+    }
   };
 
   const handleFilesUploaded = (palmsFiles: File[], memberFiles: File[]) => {
@@ -95,6 +112,52 @@ function App() {
 
   const handleMatrixDataGenerated = (newMatrixData: MatrixData) => {
     setMatrixData(newMatrixData);
+  };
+
+  // Load chapter data on app startup
+  useEffect(() => {
+    const loadChapters = async () => {
+      setIsLoadingChapters(true);
+      try {
+        const chapters = await loadAllChapterData();
+        setChapterData(chapters);
+      } catch (error) {
+        console.error('Failed to load chapter data:', error);
+      } finally {
+        setIsLoadingChapters(false);
+      }
+    };
+    
+    loadChapters();
+  }, []);
+
+  // Chapter navigation handlers
+  const handleChapterSelect = (chapter: ChapterMemberData) => {
+    setSelectedChapter(chapter);
+    setCurrentView('members');
+  };
+
+  const handleMemberSelect = (memberName: string) => {
+    setSelectedMember(memberName);
+    setCurrentView('details');
+  };
+
+  const handleBackToChapters = () => {
+    setCurrentView('chapters');
+    setSelectedChapter(null);
+    setSelectedMember(null);
+  };
+
+  const handleBackToMembers = () => {
+    setCurrentView('members');
+    setSelectedMember(null);
+  };
+
+  const handleChapterTabChange = (event: React.SyntheticEvent, newValue: number) => {
+    if (newValue === 5) { // Chapters tab
+      setCurrentView('chapters');
+    }
+    setTabValue(newValue);
   };
 
   return (
@@ -120,13 +183,15 @@ function App() {
                 value={tabValue} 
                 onChange={handleTabChange} 
                 aria-label="BNI Analysis tabs"
-                variant="fullWidth"
+                variant="scrollable"
+                scrollButtons="auto"
               >
                 <Tab label="📤 File Upload" {...a11yProps(0)} />
                 <Tab label="📊 Generate Reports" {...a11yProps(1)} />
                 <Tab label="🔍 View Matrices" {...a11yProps(2)} />
                 <Tab label="📋 Data Quality" {...a11yProps(3)} />
                 <Tab label="🗑️ File Management" {...a11yProps(4)} />
+                <Tab label="🏢 Chapters" {...a11yProps(5)} />
               </Tabs>
             </Box>
 
@@ -158,6 +223,33 @@ function App() {
                 setUploadedFiles({ palmsFiles: [], memberFiles: [] });
                 setTabValue(0);
               }} />
+            </TabPanel>
+
+            <TabPanel value={tabValue} index={5}>
+              {currentView === 'chapters' && (
+                <ChapterDashboard
+                  chapterData={chapterData}
+                  isLoading={isLoadingChapters}
+                  onChapterSelect={handleChapterSelect}
+                />
+              )}
+              
+              {currentView === 'members' && selectedChapter && (
+                <MemberDashboard
+                  chapterData={selectedChapter}
+                  onMemberSelect={handleMemberSelect}
+                  onBackToChapters={handleBackToChapters}
+                />
+              )}
+              
+              {currentView === 'details' && selectedChapter && selectedMember && (
+                <MemberDetails
+                  chapterData={selectedChapter}
+                  memberName={selectedMember}
+                  onBackToMembers={handleBackToMembers}
+                  onBackToChapters={handleBackToChapters}
+                />
+              )}
             </TabPanel>
           </Paper>
         </Container>

@@ -1,0 +1,9 @@
+1. BNI Continental
+2. BNI Elevate
+3. BNI Energy
+4. BNI Excelerate
+5. BNI Givers
+6. BNI Gladiators
+7. BNI Legends
+8. BNI Synergy
+9. BNI United

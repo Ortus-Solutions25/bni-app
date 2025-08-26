@@ -2,8 +2,6 @@ import React, { useState, useMemo } from 'react';
 import {
   Box,
   Typography,
-  TextField,
-  InputAdornment,
   FormControl,
   Select,
   MenuItem,
@@ -14,7 +12,6 @@ import {
   CircularProgress,
 } from '@mui/material';
 import {
-  Search,
   Business,
 } from '@mui/icons-material';
 import ChapterCard from './ChapterCard';
@@ -33,7 +30,6 @@ const ChapterDashboard: React.FC<ChapterDashboardProps> = ({
   isLoading,
   onChapterSelect,
 }) => {
-  const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('name');
 
   const processedChapterData = useMemo(() => {
@@ -44,9 +40,7 @@ const ChapterDashboard: React.FC<ChapterDashboardProps> = ({
   }, [chapterData]);
 
   const filteredAndSortedChapters = useMemo(() => {
-    let filtered = processedChapterData.filter(chapter =>
-      chapter.chapterName.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    let filtered = processedChapterData;
 
     filtered.sort((a, b) => {
       switch (sortBy) {
@@ -67,7 +61,7 @@ const ChapterDashboard: React.FC<ChapterDashboardProps> = ({
     });
 
     return filtered;
-  }, [processedChapterData, searchTerm, sortBy]);
+  }, [processedChapterData, sortBy]);
 
   const totalMembers = useMemo(() => {
     return processedChapterData.reduce((sum, chapter) => sum + chapter.memberCount, 0);
@@ -77,20 +71,6 @@ const ChapterDashboard: React.FC<ChapterDashboardProps> = ({
     return processedChapterData.filter(chapter => !chapter.loadError).length;
   }, [processedChapterData]);
 
-  const avgPerformance = useMemo(() => {
-    const validChapters = processedChapterData.filter(chapter => !chapter.loadError && chapter.performanceMetrics);
-    if (validChapters.length === 0) return 0;
-    
-    const totalScore = validChapters.reduce((sum, chapter) => {
-      const metrics = chapter.performanceMetrics!;
-      const score = Math.min(metrics.avgReferralsPerMember * 10, 40) + 
-                   Math.min(metrics.avgOTOsPerMember * 5, 30) + 
-                   Math.min(metrics.totalTYFCB / 10000, 30);
-      return sum + score;
-    }, 0);
-    
-    return Math.round(totalScore / validChapters.length);
-  }, [processedChapterData]);
 
   if (isLoading) {
     return (
@@ -114,7 +94,7 @@ const ChapterDashboard: React.FC<ChapterDashboardProps> = ({
       </Typography>
 
       {/* Summary Statistics */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(4, 1fr)' }, gap: 3, mb: 4 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' }, gap: 3, mb: 4 }}>
         <Card>
           <CardContent>
             <Typography variant="h4" color="primary">
@@ -145,34 +125,10 @@ const ChapterDashboard: React.FC<ChapterDashboardProps> = ({
             </Typography>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent>
-            <Typography variant="h4" color="primary">
-              {avgPerformance}%
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Avg Performance
-            </Typography>
-          </CardContent>
-        </Card>
       </Box>
 
-      {/* Search and Filter Controls */}
+      {/* Filter Controls */}
       <Box sx={{ display: 'flex', gap: 2, mb: 4, flexWrap: 'wrap' }}>
-        <TextField
-          placeholder="Search chapters..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <Search />
-              </InputAdornment>
-            ),
-          }}
-          sx={{ flex: 1, minWidth: 300 }}
-        />
-        
         <FormControl sx={{ minWidth: 200 }}>
           <InputLabel>Sort By</InputLabel>
           <Select
@@ -195,31 +151,20 @@ const ChapterDashboard: React.FC<ChapterDashboardProps> = ({
       )}
 
       {/* Chapter Grid */}
-      {filteredAndSortedChapters.length === 0 ? (
-        <Box sx={{ textAlign: 'center', py: 8 }}>
-          <Typography variant="h6" color="text.secondary">
-            No chapters found matching your search
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-            Try adjusting your search terms
-          </Typography>
-        </Box>
-      ) : (
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' }, gap: 3 }}>
-          {filteredAndSortedChapters.map((chapter) => (
-            <ChapterCard
-              key={chapter.chapterId}
-              chapterData={chapter}
-              onClick={() => onChapterSelect(chapter)}
-            />
-          ))}
-        </Box>
-      )}
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' }, gap: 3 }}>
+        {filteredAndSortedChapters.map((chapter) => (
+          <ChapterCard
+            key={chapter.chapterId}
+            chapterData={chapter}
+            onClick={() => onChapterSelect(chapter)}
+          />
+        ))}
+      </Box>
 
       <Box sx={{ mt: 4, pt: 3, borderTop: 1, borderColor: 'divider' }}>
         <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center' }}>
           Last updated: {new Date().toLocaleString()} • 
-          Showing {filteredAndSortedChapters.length} of {processedChapterData.length} chapters
+          {processedChapterData.length} chapters total
         </Typography>
       </Box>
     </Box>

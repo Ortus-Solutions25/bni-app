@@ -16,6 +16,7 @@ from chapters.models import Chapter, Member
 from analytics.models import Referral, OneToOne, TYFCB, DataImportSession
 from data_processing.services import ExcelProcessorService
 from data_processing.utils import MatrixGenerator, DataValidator
+from .serializers import ChapterSerializer, MemberSerializer, MemberCreateSerializer, MemberUpdateSerializer
 
 
 class FileUploadSerializer(serializers.Serializer):
@@ -1302,5 +1303,142 @@ def download_all_matrices(request, chapter_id, report_id):
     except Exception as e:
         return Response(
             {'error': f'Failed to generate Excel: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def create_chapter(request):
+    """Create a new chapter."""
+    serializer = ChapterSerializer(data=request.data)
+    
+    if serializer.is_valid():
+        chapter = serializer.save()
+        return Response(
+            ChapterSerializer(chapter).data,
+            status=status.HTTP_201_CREATED
+        )
+    
+    return Response(
+        {'error': 'Invalid data', 'details': serializer.errors},
+        status=status.HTTP_400_BAD_REQUEST
+    )
+
+
+@api_view(['DELETE'])
+@permission_classes([AllowAny])
+def delete_chapter(request, chapter_id):
+    """Delete a chapter."""
+    try:
+        chapter = Chapter.objects.get(id=chapter_id)
+        chapter_name = chapter.name
+        chapter.delete()
+        return Response(
+            {'message': f'Chapter "{chapter_name}" deleted successfully'},
+            status=status.HTTP_200_OK
+        )
+    except Chapter.DoesNotExist:
+        return Response(
+            {'error': 'Chapter not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        return Response(
+            {'error': f'Failed to delete chapter: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def create_member(request, chapter_id):
+    """Create a new member in a specific chapter."""
+    try:
+        chapter = Chapter.objects.get(id=chapter_id)
+    except Chapter.DoesNotExist:
+        return Response(
+            {'error': 'Chapter not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    
+    # Add chapter to the request data
+    data = request.data.copy()
+    data['chapter'] = chapter_id
+    
+    serializer = MemberCreateSerializer(data=data)
+    
+    if serializer.is_valid():
+        member = serializer.save()
+        return Response(
+            MemberSerializer(member).data,
+            status=status.HTTP_201_CREATED
+        )
+    
+    return Response(
+        {'error': 'Invalid data', 'details': serializer.errors},
+        status=status.HTTP_400_BAD_REQUEST
+    )
+
+
+@api_view(['PUT', 'PATCH'])
+@permission_classes([AllowAny])
+def update_member(request, chapter_id, member_id):
+    """Update a member's details."""
+    try:
+        chapter = Chapter.objects.get(id=chapter_id)
+        member = Member.objects.get(id=member_id, chapter=chapter)
+    except Chapter.DoesNotExist:
+        return Response(
+            {'error': 'Chapter not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Member.DoesNotExist:
+        return Response(
+            {'error': 'Member not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    
+    serializer = MemberUpdateSerializer(member, data=request.data, partial=(request.method == 'PATCH'))
+    
+    if serializer.is_valid():
+        updated_member = serializer.save()
+        return Response(
+            MemberSerializer(updated_member).data,
+            status=status.HTTP_200_OK
+        )
+    
+    return Response(
+        {'error': 'Invalid data', 'details': serializer.errors},
+        status=status.HTTP_400_BAD_REQUEST
+    )
+
+
+@api_view(['DELETE'])
+@permission_classes([AllowAny])
+def delete_member(request, chapter_id, member_id):
+    """Delete a member."""
+    try:
+        chapter = Chapter.objects.get(id=chapter_id)
+        member = Member.objects.get(id=member_id, chapter=chapter)
+        member_name = member.full_name
+        member.delete()
+        return Response(
+            {'message': f'Member "{member_name}" deleted successfully'},
+            status=status.HTTP_200_OK
+        )
+    except Chapter.DoesNotExist:
+        return Response(
+            {'error': 'Chapter not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Member.DoesNotExist:
+        return Response(
+            {'error': 'Member not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        return Response(
+            {'error': f'Failed to delete member: {str(e)}'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )

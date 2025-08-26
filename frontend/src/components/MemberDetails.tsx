@@ -16,6 +16,14 @@ import {
   Paper,
   LinearProgress,
   CircularProgress,
+  Button,
+  IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  Snackbar,
 } from '@mui/material';
 import {
   Business,
@@ -29,6 +37,8 @@ import {
   Warning,
   Error as ErrorIcon,
   TrendingUp,
+  Edit,
+  Delete,
 } from '@mui/icons-material';
 import { ChapterMemberData } from '../services/ChapterDataLoader';
 
@@ -37,16 +47,21 @@ interface MemberDetailsProps {
   memberName: string;
   onBackToMembers: () => void;
   onBackToChapters: () => void;
+  onDataRefresh?: () => void;
 }
 
 interface MemberAnalytics {
   member: {
     id: number;
+    first_name: string;
+    last_name: string;
     full_name: string;
     business_name: string;
     classification: string;
     email: string;
     phone: string;
+    joined_date?: string;
+    is_active?: boolean;
   };
   chapter: {
     id: number;
@@ -90,10 +105,26 @@ const MemberDetails: React.FC<MemberDetailsProps> = ({
   memberName,
   onBackToMembers,
   onBackToChapters,
+  onDataRefresh,
 }) => {
   const [memberAnalytics, setMemberAnalytics] = useState<MemberAnalytics | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [openEditDialog, setOpenEditDialog] = useState(false);
+  const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
+  const [formData, setFormData] = useState({
+    first_name: '',
+    last_name: '',
+    business_name: '',
+    classification: '',
+    email: '',
+    phone: '',
+    joined_date: '',
+    is_active: true,
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
 
   useEffect(() => {
     const fetchMemberAnalytics = async () => {
@@ -121,6 +152,120 @@ const MemberDetails: React.FC<MemberDetailsProps> = ({
     
     fetchMemberAnalytics();
   }, [chapterData.chapterId, memberName]);
+
+  // Handler functions for edit and delete
+  const handleEditMember = () => {
+    if (memberAnalytics) {
+      setFormData({
+        first_name: memberAnalytics.member.first_name || '',
+        last_name: memberAnalytics.member.last_name || '',
+        business_name: memberAnalytics.member.business_name || '',
+        classification: memberAnalytics.member.classification || '',
+        email: memberAnalytics.member.email || '',
+        phone: memberAnalytics.member.phone || '',
+        joined_date: memberAnalytics.member.joined_date || '',
+        is_active: memberAnalytics.member.is_active ?? true,
+      });
+      setOpenEditDialog(true);
+    }
+  };
+
+  const handleDeleteMember = () => {
+    setOpenDeleteDialog(true);
+  };
+
+  const handleCloseEditDialog = () => {
+    setOpenEditDialog(false);
+  };
+
+  const handleCloseDeleteDialog = () => {
+    setOpenDeleteDialog(false);
+  };
+
+  const handleFormChange = (field: string) => (event: React.ChangeEvent<HTMLInputElement>) => {
+    const value = field === 'is_active' ? event.target.checked : event.target.value;
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleUpdateMember = async () => {
+    if (!memberAnalytics) return;
+
+    setIsSubmitting(true);
+    try {
+      const response = await fetch(`http://localhost:8000/api/chapters/${chapterData.chapterId}/members/${memberAnalytics.member.id}/`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+
+      if (response.ok) {
+        setSnackbarMessage('Member updated successfully!');
+        setSnackbarOpen(true);
+        setOpenEditDialog(false);
+        // Refresh member analytics
+        const fetchMemberAnalytics = async () => {
+          const encodedMemberName = encodeURIComponent(memberName);
+          const response = await fetch(`/api/chapters/${chapterData.chapterId}/members/${encodedMemberName}/analytics/`);
+          if (response.ok) {
+            const data = await response.json();
+            setMemberAnalytics(data);
+          }
+        };
+        fetchMemberAnalytics();
+        // Trigger parent data refresh
+        if (onDataRefresh) {
+          onDataRefresh();
+        }
+      } else {
+        const errorData = await response.json();
+        setSnackbarMessage(`Error: ${errorData.error || 'Failed to update member'}`);
+        setSnackbarOpen(true);
+      }
+    } catch (error) {
+      setSnackbarMessage('Failed to update member. Please try again.');
+      setSnackbarOpen(true);
+    }
+    setIsSubmitting(false);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!memberAnalytics) return;
+
+    setIsSubmitting(true);
+    try {
+      const response = await fetch(`http://localhost:8000/api/chapters/${chapterData.chapterId}/members/${memberAnalytics.member.id}/delete/`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        setSnackbarMessage(`Member "${memberAnalytics.member.full_name}" deleted successfully!`);
+        setSnackbarOpen(true);
+        setOpenDeleteDialog(false);
+        // Trigger parent data refresh
+        if (onDataRefresh) {
+          onDataRefresh();
+        }
+        // Navigate back to members list
+        setTimeout(() => {
+          onBackToMembers();
+        }, 1500);
+      } else {
+        const errorData = await response.json();
+        setSnackbarMessage(`Error: ${errorData.error || 'Failed to delete member'}`);
+        setSnackbarOpen(true);
+      }
+    } catch (error) {
+      setSnackbarMessage('Failed to delete member. Please try again.');
+      setSnackbarOpen(true);
+    }
+    setIsSubmitting(false);
+  };
+
+  const handleCloseSnackbar = () => {
+    setSnackbarOpen(false);
+  };
 
   if (isLoading) {
     return (
@@ -202,13 +347,31 @@ const MemberDetails: React.FC<MemberDetailsProps> = ({
             Member of {memberAnalytics.chapter.name}
           </Typography>
         </Box>
-        <Chip
-          label={`${memberAnalytics.performance.performance_score}% Performance`}
-          color={performanceInfo.color}
-          size="medium"
-          icon={performanceInfo.icon}
-          sx={{ fontSize: '1rem', px: 2, py: 1 }}
-        />
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <IconButton
+            onClick={handleEditMember}
+            color="primary"
+            size="medium"
+            sx={{ '&:hover': { backgroundColor: 'primary.light', color: 'white' } }}
+          >
+            <Edit />
+          </IconButton>
+          <IconButton
+            onClick={handleDeleteMember}
+            color="error"
+            size="medium"
+            sx={{ '&:hover': { backgroundColor: 'error.light', color: 'white' } }}
+          >
+            <Delete />
+          </IconButton>
+          <Chip
+            label={`${memberAnalytics.performance.performance_score}% Performance`}
+            color={performanceInfo.color}
+            size="medium"
+            icon={performanceInfo.icon}
+            sx={{ fontSize: '1rem', px: 2, py: 1 }}
+          />
+        </Box>
       </Box>
 
       {/* Performance Overview */}
@@ -447,6 +610,106 @@ const MemberDetails: React.FC<MemberDetailsProps> = ({
           Last updated: {new Date().toLocaleDateString()}
         </Typography>
       </Box>
+
+      {/* Edit Member Dialog */}
+      <Dialog open={openEditDialog} onClose={handleCloseEditDialog} maxWidth="sm" fullWidth>
+        <DialogTitle>Edit Member</DialogTitle>
+        <DialogContent>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2, pt: 1 }}>
+            <TextField
+              autoFocus
+              label="First Name"
+              variant="outlined"
+              value={formData.first_name}
+              onChange={handleFormChange('first_name')}
+              required
+            />
+            <TextField
+              label="Last Name"
+              variant="outlined"
+              value={formData.last_name}
+              onChange={handleFormChange('last_name')}
+              required
+            />
+            <TextField
+              label="Business Name"
+              variant="outlined"
+              value={formData.business_name}
+              onChange={handleFormChange('business_name')}
+              sx={{ gridColumn: { xs: '1', sm: '1 / -1' } }}
+            />
+            <TextField
+              label="Classification"
+              variant="outlined"
+              value={formData.classification}
+              onChange={handleFormChange('classification')}
+              placeholder="e.g., Accountant, Lawyer, Real Estate"
+            />
+            <TextField
+              label="Email"
+              type="email"
+              variant="outlined"
+              value={formData.email}
+              onChange={handleFormChange('email')}
+            />
+            <TextField
+              label="Phone"
+              variant="outlined"
+              value={formData.phone}
+              onChange={handleFormChange('phone')}
+            />
+            <TextField
+              label="Joined Date"
+              type="date"
+              variant="outlined"
+              value={formData.joined_date}
+              onChange={handleFormChange('joined_date')}
+              InputLabelProps={{ shrink: true }}
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseEditDialog}>Cancel</Button>
+          <Button 
+            onClick={handleUpdateMember} 
+            variant="contained"
+            disabled={isSubmitting || !formData.first_name || !formData.last_name}
+          >
+            {isSubmitting ? 'Updating...' : 'Update Member'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={openDeleteDialog} onClose={handleCloseDeleteDialog}>
+        <DialogTitle>Delete Member</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to delete "{memberAnalytics?.member.full_name}"? 
+            This action cannot be undone and will remove all associated data including 
+            performance metrics, referral history, and analytics.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDeleteDialog}>Cancel</Button>
+          <Button 
+            onClick={handleConfirmDelete} 
+            color="error"
+            variant="contained"
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? 'Deleting...' : 'Delete Member'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Success/Error Snackbar */}
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={6000}
+        onClose={handleCloseSnackbar}
+        message={snackbarMessage}
+      />
     </Box>
   );
 };

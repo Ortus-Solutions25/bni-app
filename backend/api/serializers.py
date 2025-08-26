@@ -111,6 +111,29 @@ class MemberCreateSerializer(serializers.ModelSerializer):
         return member
 
 
+class MemberUpdateSerializer(serializers.ModelSerializer):
+    """Serializer for updating existing members."""
+    
+    class Meta:
+        model = Member
+        fields = ['first_name', 'last_name', 'business_name', 'classification',
+                 'email', 'phone', 'joined_date', 'is_active']
+    
+    def update(self, instance, validated_data):
+        # Update fields
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        
+        # Update normalized_name if name fields changed
+        if 'first_name' in validated_data or 'last_name' in validated_data:
+            instance.normalized_name = Member.normalize_name(
+                f"{instance.first_name} {instance.last_name}"
+            )
+        
+        instance.save()
+        return instance
+
+
 class BulkMemberUploadSerializer(serializers.Serializer):
     """Serializer for bulk member upload from Excel."""
     file = serializers.FileField()

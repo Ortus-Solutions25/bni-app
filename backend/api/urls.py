@@ -40,8 +40,15 @@ urlpatterns = [
     # Dashboard endpoints
     path('dashboard/', views.chapter_dashboard, name='chapter_dashboard'),
     
-    # Chapter detail endpoints
+    # Chapter management endpoints
+    path('chapters/', views.create_chapter, name='create_chapter'),
     path('chapters/<int:chapter_id>/', views.chapter_detail, name='chapter_detail'),
+    path('chapters/<int:chapter_id>/delete/', views.delete_chapter, name='delete_chapter'),
+    
+    # Member management endpoints
+    path('chapters/<int:chapter_id>/members/', views.create_member, name='create_member'),
+    path('chapters/<int:chapter_id>/members/<int:member_id>/', views.update_member, name='update_member'),
+    path('chapters/<int:chapter_id>/members/<int:member_id>/delete/', views.delete_member, name='delete_member'),
     
     # Member analytics endpoint
     path('chapters/<int:chapter_id>/members/<str:member_name>/analytics/', 

@@ -40,7 +40,14 @@ const FileUploadComponent: React.FC<FileUploadComponentProps> = ({
   onUploadSuccess,
 }) => {
   const [files, setFiles] = useState<UploadFile[]>([]);
-  const [monthYear, setMonthYear] = useState('');
+  // Initialize with current month in YYYY-MM format
+  const getCurrentMonth = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    return `${year}-${month}`;
+  };
+  const [monthYear, setMonthYear] = useState(getCurrentMonth());
   const [uploadOption, setUploadOption] = useState<'slip_only' | 'slip_and_members'>('slip_only');
   const [isUploading, setIsUploading] = useState(false);
   const [uploadResult, setUploadResult] = useState<{type: 'success' | 'error', message: string} | null>(null);
@@ -128,7 +135,8 @@ const FileUploadComponent: React.FC<FileUploadComponentProps> = ({
           message: `Successfully uploaded and processed ${files.length} file(s) for ${monthYear}`
         });
         setFiles([]);
-        setMonthYear('');
+        // Keep current month for next upload
+        setMonthYear(getCurrentMonth());
         onUploadSuccess();
       } else {
         setUploadResult({
@@ -162,12 +170,16 @@ const FileUploadComponent: React.FC<FileUploadComponentProps> = ({
         {/* Month/Year Input */}
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
           <TextField
-            label="Month/Year"
+            label="Report Month"
+            type="month"
             value={monthYear}
             onChange={(e) => setMonthYear(e.target.value)}
-            placeholder="e.g., 2024-08"
-            helperText="Format: YYYY-MM"
+            variant="outlined"
             sx={{ minWidth: 200 }}
+            InputLabelProps={{
+              shrink: true,
+            }}
+            helperText="Select the month for this report"
           />
           
           <FormControl sx={{ minWidth: 200 }}>

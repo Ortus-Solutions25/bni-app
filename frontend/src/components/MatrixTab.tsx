@@ -19,6 +19,7 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  Button,
 } from '@mui/material';
 import {
   ViewModule,
@@ -26,6 +27,7 @@ import {
   People,
   MergeType,
   AttachMoney,
+  Download,
 } from '@mui/icons-material';
 import { ChapterMemberData, MonthlyReport, loadMonthlyReports, loadMatrixData } from '../services/ChapterDataLoader';
 
@@ -39,6 +41,14 @@ interface MatrixData {
   totals?: {
     given?: Record<string, number>;
     received?: Record<string, number>;
+    unique_given?: Record<string, number>;
+    unique_received?: Record<string, number>;
+  };
+  summaries?: {
+    neither?: Record<string, number>;
+    oto_only?: Record<string, number>;
+    referral_only?: Record<string, number>;
+    both?: Record<string, number>;
   };
   legend?: Record<string, string>;
 }
@@ -197,6 +207,39 @@ const MatrixTab: React.FC<MatrixTabProps> = ({ chapterData }) => {
     setSelectedReport(report || null);
   };
 
+  const handleDownloadExcel = async () => {
+    if (!selectedReport) return;
+    
+    try {
+      // Fetch the Excel file from the API
+      const response = await fetch(`/api/chapters/${chapterData.chapterId}/reports/${selectedReport.id}/download-matrices/`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to download file');
+      }
+      
+      // Get the blob from the response
+      const blob = await response.blob();
+      
+      // Create a temporary URL for the blob
+      const url = window.URL.createObjectURL(blob);
+      
+      // Create a temporary anchor element and trigger download
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${chapterData.chapterName.replace(/ /g, '_')}_Matrices_${selectedReport.month_year}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      
+      // Clean up
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Failed to download Excel file:', error);
+      alert('Failed to download Excel file. Please try again.');
+    }
+  };
+
   const renderTYFCBReport = (tyfcbData: TYFCBData | null) => {
     if (!tyfcbData) {
       return (
@@ -340,7 +383,7 @@ const MatrixTab: React.FC<MatrixTabProps> = ({ chapterData }) => {
     );
   };
 
-  const renderMatrix = (matrixData: MatrixData | null, title: string, description: string) => {
+  const renderMatrix = (matrixData: MatrixData | null, title: string, description: string, matrixType: 'referral' | 'oto' | 'combination' = 'referral') => {
     if (!matrixData) {
       return (
         <Alert severity="warning">
@@ -349,7 +392,7 @@ const MatrixTab: React.FC<MatrixTabProps> = ({ chapterData }) => {
       );
     }
 
-    const { members, matrix, totals, legend } = matrixData;
+    const { members, matrix, totals, summaries, legend } = matrixData;
     const hasData = matrix.some(row => row.some(cell => cell > 0));
 
     if (!hasData) {
@@ -389,7 +432,7 @@ const MatrixTab: React.FC<MatrixTabProps> = ({ chapterData }) => {
           <Table stickyHeader size="small">
             <TableHead>
               <TableRow>
-                <TableCell sx={{ fontWeight: 'bold', minWidth: 120 }}>From / To</TableCell>
+                <TableCell sx={{ fontWeight: 'bold', minWidth: 120 }}>Giver \ Receiver</TableCell>
                 {members.map((member, index) => (
                   <TableCell 
                     key={index} 
@@ -407,11 +450,24 @@ const MatrixTab: React.FC<MatrixTabProps> = ({ chapterData }) => {
                     </Tooltip>
                   </TableCell>
                 ))}
-                {totals?.given && (
-                  <TableCell sx={{ fontWeight: 'bold', minWidth: 60 }}>
-                    Total Given
-                  </TableCell>
-                )}
+                {/* Summary columns based on matrix type */}
+                {matrixType === 'combination' && summaries ? (
+                  <>
+                    <TableCell sx={{ fontWeight: 'bold', minWidth: 80, fontSize: '0.75rem' }}>Neither</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold', minWidth: 80, fontSize: '0.75rem' }}>OTO Only</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold', minWidth: 80, fontSize: '0.75rem' }}>Referral Only</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold', minWidth: 80, fontSize: '0.75rem' }}>OTO & Referral</TableCell>
+                  </>
+                ) : totals ? (
+                  <>
+                    <TableCell sx={{ fontWeight: 'bold', minWidth: 80, fontSize: '0.75rem' }}>
+                      {matrixType === 'oto' ? 'Total OTO' : 'Total Referrals'}
+                    </TableCell>
+                    <TableCell sx={{ fontWeight: 'bold', minWidth: 80, fontSize: '0.75rem' }}>
+                      {matrixType === 'oto' ? 'Unique OTO' : 'Unique Referrals'}
+                    </TableCell>
+                  </>
+                ) : null}
               </TableRow>
             </TableHead>
             <TableBody>
@@ -435,16 +491,37 @@ const MatrixTab: React.FC<MatrixTabProps> = ({ chapterData }) => {
                       {matrix[i][j] || '-'}
                     </TableCell>
                   ))}
-                  {totals?.given && (
-                    <TableCell sx={{ fontWeight: 'bold', textAlign: 'center' }}>
-                      {totals.given[giver] || 0}
-                    </TableCell>
-                  )}
+                  {/* Summary values based on matrix type */}
+                  {matrixType === 'combination' && summaries ? (
+                    <>
+                      <TableCell sx={{ fontWeight: 'bold', textAlign: 'center' }}>
+                        {summaries.neither?.[giver] || 0}
+                      </TableCell>
+                      <TableCell sx={{ fontWeight: 'bold', textAlign: 'center' }}>
+                        {summaries.oto_only?.[giver] || 0}
+                      </TableCell>
+                      <TableCell sx={{ fontWeight: 'bold', textAlign: 'center' }}>
+                        {summaries.referral_only?.[giver] || 0}
+                      </TableCell>
+                      <TableCell sx={{ fontWeight: 'bold', textAlign: 'center' }}>
+                        {summaries.both?.[giver] || 0}
+                      </TableCell>
+                    </>
+                  ) : totals ? (
+                    <>
+                      <TableCell sx={{ fontWeight: 'bold', textAlign: 'center' }}>
+                        {totals.given?.[giver] || 0}
+                      </TableCell>
+                      <TableCell sx={{ fontWeight: 'bold', textAlign: 'center' }}>
+                        {totals.unique_given?.[giver] || 0}
+                      </TableCell>
+                    </>
+                  ) : null}
                 </TableRow>
               ))}
               {/* Totals received row */}
               {totals?.received && (
-                <TableRow sx={{ backgroundColor: 'grey.100' }}>
+                <TableRow>
                   <TableCell sx={{ fontWeight: 'bold' }}>Total Received</TableCell>
                   {members.map((member, i) => (
                     <TableCell key={i} sx={{ fontWeight: 'bold', textAlign: 'center' }}>
@@ -492,8 +569,8 @@ const MatrixTab: React.FC<MatrixTabProps> = ({ chapterData }) => {
 
       {/* Report Selection */}
       {monthlyReports.length > 0 && (
-        <Box sx={{ mb: 3, maxWidth: 400 }}>
-          <FormControl fullWidth>
+        <Box sx={{ mb: 3, display: 'flex', gap: 2, alignItems: 'center' }}>
+          <FormControl sx={{ minWidth: 300 }}>
             <InputLabel>Select Monthly Report</InputLabel>
             <Select
               value={selectedReport?.id || ''}
@@ -514,6 +591,16 @@ const MatrixTab: React.FC<MatrixTabProps> = ({ chapterData }) => {
               ))}
             </Select>
           </FormControl>
+          {selectedReport && (
+            <Button
+              variant="contained"
+              startIcon={<Download />}
+              onClick={handleDownloadExcel}
+              sx={{ height: 56 }}
+            >
+              Download All Matrices
+            </Button>
+          )}
         </Box>
       )}
 
@@ -579,7 +666,8 @@ const MatrixTab: React.FC<MatrixTabProps> = ({ chapterData }) => {
             {renderMatrix(
               referralMatrix,
               "Referral Matrix",
-              "Shows who has given referrals to whom. Numbers represent the count of referrals given."
+              "Shows who has given referrals to whom. Numbers represent the count of referrals given.",
+              'referral'
             )}
           </TabPanel>
 
@@ -587,7 +675,8 @@ const MatrixTab: React.FC<MatrixTabProps> = ({ chapterData }) => {
             {renderMatrix(
               oneToOneMatrix,
               "One-to-One Matrix", 
-              "Tracks one-to-one meetings between members. Numbers represent the count of meetings."
+              "Tracks one-to-one meetings between members. Numbers represent the count of meetings.",
+              'oto'
             )}
           </TabPanel>
 
@@ -595,7 +684,8 @@ const MatrixTab: React.FC<MatrixTabProps> = ({ chapterData }) => {
             {renderMatrix(
               combinationMatrix,
               "Combination Matrix",
-              "Combined view showing both referrals and one-to-ones using coded values."
+              "Combined view showing both referrals and one-to-ones using coded values.",
+              'combination'
             )}
           </TabPanel>
 

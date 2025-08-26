@@ -6,6 +6,7 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.views import APIView
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
+from django.db import models
 from datetime import datetime, date
 import tempfile
 import os
@@ -97,8 +98,49 @@ def get_referral_matrix(request, chapter_id, report_id):
         chapter = Chapter.objects.get(id=chapter_id)
         monthly_report = MonthlyReport.objects.get(id=report_id, chapter=chapter)
         
-        # Return the pre-processed matrix data
+        # Return the pre-processed matrix data with calculated summaries
         result = monthly_report.referral_matrix_data
+        
+        # Add calculated summary columns if data exists
+        if result and 'members' in result and 'matrix' in result:
+            members = result['members']
+            matrix = result['matrix']
+            
+            # Calculate totals for referral matrix
+            totals = {
+                'given': {},
+                'received': {},
+                'unique_given': {},
+                'unique_received': {}
+            }
+            
+            # Calculate row totals (given)
+            for i, giver in enumerate(members):
+                row_total = 0
+                unique_count = 0
+                for j, value in enumerate(matrix[i] if i < len(matrix) else []):
+                    if value and isinstance(value, (int, float)):
+                        row_total += value
+                        if value > 0:
+                            unique_count += 1
+                totals['given'][giver] = row_total
+                totals['unique_given'][giver] = unique_count
+            
+            # Calculate column totals (received)
+            for j, receiver in enumerate(members):
+                col_total = 0
+                unique_count = 0
+                for i in range(len(matrix)):
+                    if j < len(matrix[i]):
+                        value = matrix[i][j]
+                        if value and isinstance(value, (int, float)):
+                            col_total += value
+                            if value > 0:
+                                unique_count += 1
+                totals['received'][receiver] = col_total
+                totals['unique_received'][receiver] = unique_count
+            
+            result['totals'] = totals
         
         return Response(result)
         
@@ -124,8 +166,49 @@ def get_one_to_one_matrix(request, chapter_id, report_id):
         chapter = Chapter.objects.get(id=chapter_id)
         monthly_report = MonthlyReport.objects.get(id=report_id, chapter=chapter)
         
-        # Return the pre-processed matrix data
+        # Return the pre-processed matrix data with calculated summaries
         result = monthly_report.oto_matrix_data
+        
+        # Add calculated summary columns if data exists
+        if result and 'members' in result and 'matrix' in result:
+            members = result['members']
+            matrix = result['matrix']
+            
+            # Calculate totals for OTO matrix
+            totals = {
+                'given': {},
+                'received': {},
+                'unique_given': {},
+                'unique_received': {}
+            }
+            
+            # Calculate row totals (given)
+            for i, giver in enumerate(members):
+                row_total = 0
+                unique_count = 0
+                for j, value in enumerate(matrix[i] if i < len(matrix) else []):
+                    if value and isinstance(value, (int, float)):
+                        row_total += value
+                        if value > 0:
+                            unique_count += 1
+                totals['given'][giver] = row_total
+                totals['unique_given'][giver] = unique_count
+            
+            # Calculate column totals (received)
+            for j, receiver in enumerate(members):
+                col_total = 0
+                unique_count = 0
+                for i in range(len(matrix)):
+                    if j < len(matrix[i]):
+                        value = matrix[i][j]
+                        if value and isinstance(value, (int, float)):
+                            col_total += value
+                            if value > 0:
+                                unique_count += 1
+                totals['received'][receiver] = col_total
+                totals['unique_received'][receiver] = unique_count
+            
+            result['totals'] = totals
         
         return Response(result)
         
@@ -151,8 +234,65 @@ def get_combination_matrix(request, chapter_id, report_id):
         chapter = Chapter.objects.get(id=chapter_id)
         monthly_report = MonthlyReport.objects.get(id=report_id, chapter=chapter)
         
-        # Return the pre-processed matrix data
+        # Return the pre-processed matrix data with calculated summaries
         result = monthly_report.combination_matrix_data
+        
+        # Add calculated summary columns if data exists
+        if result and 'members' in result and 'matrix' in result:
+            members = result['members']
+            matrix = result['matrix']
+            
+            # Calculate combination counts for each member using simple numeric mapping
+            # - (empty/0) = Neither, 1 = OTO only, 2 = Referral only, 3 = Both
+            summaries = {
+                'neither': {},
+                'oto_only': {},
+                'referral_only': {},
+                'both': {}
+            }
+            
+            for i, member in enumerate(members):
+                neither_count = 0
+                oto_only_count = 0
+                referral_only_count = 0
+                both_count = 0
+                
+                row_data = matrix[i] if i < len(matrix) else []
+                for j, value in enumerate(row_data):
+                    if i != j:  # Don't count self-relationships
+                        # Convert value to integer for comparison
+                        if isinstance(value, str):
+                            if value == '-' or value == '' or value == '0':
+                                int_value = 0
+                            else:
+                                try:
+                                    int_value = int(value)
+                                except (ValueError, TypeError):
+                                    int_value = 0
+                        elif isinstance(value, (int, float)):
+                            int_value = int(value)
+                        else:
+                            int_value = 0
+                        
+                        # Count based on simple numeric mapping
+                        if int_value == 0:
+                            neither_count += 1
+                        elif int_value == 1:
+                            oto_only_count += 1
+                        elif int_value == 2:
+                            referral_only_count += 1
+                        elif int_value == 3:
+                            both_count += 1
+                        else:
+                            # Any other value counts as neither
+                            neither_count += 1
+                
+                summaries['neither'][member] = neither_count
+                summaries['oto_only'][member] = oto_only_count
+                summaries['referral_only'][member] = referral_only_count
+                summaries['both'][member] = both_count
+            
+            result['summaries'] = summaries
         
         return Response(result)
         
@@ -636,5 +776,531 @@ def get_tyfcb_data(request, chapter_id, report_id):
     except Exception as e:
         return Response(
             {'error': f'Failed to get TYFCB data: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_member_analytics(request, chapter_id, member_name):
+    """Get member analytics and recommendations based on real data."""
+    try:
+        from chapters.models import MonthlyReport, MemberMonthlyStats
+        from django.db.models import Sum
+        from urllib.parse import unquote
+        
+        # Decode URL-encoded member name
+        member_name = unquote(member_name)
+        
+        chapter = Chapter.objects.get(id=chapter_id)
+        # Find member by matching their full_name property since we don't have a full_name field
+        all_chapter_members = Member.objects.filter(chapter=chapter, is_active=True)
+        member = None
+        for m in all_chapter_members:
+            if m.full_name == member_name:
+                member = m
+                break
+        
+        if not member:
+            raise Member.DoesNotExist()
+        
+        # Get latest monthly report for this chapter
+        latest_report = MonthlyReport.objects.filter(chapter=chapter).order_by('-month_year').first()
+        
+        # Get all chapter members for gap analysis
+        all_members = Member.objects.filter(chapter=chapter, is_active=True).exclude(id=member.id)
+        member_lookup = {m.id: m.full_name for m in all_members}
+        
+        # Get member stats from latest report if available
+        member_stats = None
+        if latest_report:
+            try:
+                member_stats = MemberMonthlyStats.objects.get(
+                    member=member,
+                    monthly_report=latest_report
+                )
+            except MemberMonthlyStats.DoesNotExist:
+                pass
+        
+        # Get real analytics data from the analytics models
+        referrals_given = Referral.objects.filter(giver=member).count()
+        referrals_received = Referral.objects.filter(receiver=member).count()
+        one_to_ones = OneToOne.objects.filter(
+            models.Q(member1=member) | models.Q(member2=member)
+        ).count()
+        tyfcbs = TYFCB.objects.filter(receiver=member)
+        total_tyfcb = tyfcbs.aggregate(total=Sum('amount'))['total'] or 0.0
+        
+        # Calculate performance score
+        max_possible_otos = all_members.count()
+        max_referrals = max(20, referrals_given + 10)  # Dynamic scale
+        
+        oto_score = min((one_to_ones / max_possible_otos) * 30, 30) if max_possible_otos > 0 else 0
+        referral_given_score = min((referrals_given / max_referrals) * 35, 35)
+        referral_received_score = min((referrals_received / max_referrals) * 35, 35)
+        performance_score = round(oto_score + referral_given_score + referral_received_score)
+        
+        # Generate gap analysis - who hasn't had interactions with
+        # Get all one-to-one participants for this member
+        oto_partners = set()
+        member_otos = OneToOne.objects.filter(
+            models.Q(member1=member) | models.Q(member2=member)
+        )
+        for oto in member_otos:
+            if oto.member1 == member:
+                oto_partners.add(oto.member2.id)
+            else:
+                oto_partners.add(oto.member1.id)
+        
+        # Get referral partners
+        referral_given_to = set(Referral.objects.filter(giver=member).values_list('receiver_id', flat=True))
+        referral_received_from = set(Referral.objects.filter(receiver=member).values_list('giver_id', flat=True))
+        
+        # Calculate missing interactions
+        all_member_ids = set(all_members.values_list('id', flat=True))
+        missing_otos = all_member_ids - oto_partners
+        missing_referrals_to = all_member_ids - referral_given_to
+        missing_referrals_from = all_member_ids - referral_received_from
+        
+        # Priority connections (members with no interactions at all)
+        priority_connections = missing_otos.intersection(missing_referrals_to).intersection(missing_referrals_from)
+        
+        # Generate recommendations
+        recommendations = []
+        if missing_otos:
+            oto_names = [member_lookup[mid] for mid in list(missing_otos)[:3] if mid in member_lookup]
+            if oto_names:
+                recommendations.append(f"Schedule one-to-ones with {', '.join(oto_names)}")
+        
+        if missing_referrals_to:
+            ref_names = [member_lookup[mid] for mid in list(missing_referrals_to)[:3] if mid in member_lookup]
+            if ref_names:
+                recommendations.append(f"Focus on giving referrals to {', '.join(ref_names)}")
+        
+        if missing_referrals_from:
+            source_names = [member_lookup[mid] for mid in list(missing_referrals_from)[:2] if mid in member_lookup]
+            if source_names:
+                recommendations.append(f"Build stronger relationships with {', '.join(source_names)} to receive more referrals")
+        
+        if performance_score < 70:
+            recommendations.append("Increase chapter event attendance to boost visibility")
+        
+        recommendations.append("Follow up on previous referrals to track success and build stronger connections")
+        
+        result = {
+            'member': {
+                'id': member.id,
+                'full_name': member.full_name,
+                'business_name': member.business_name,
+                'classification': member.classification,
+                'email': member.email,
+                'phone': member.phone
+            },
+            'chapter': {
+                'id': chapter.id,
+                'name': chapter.name,
+                'total_members': all_members.count() + 1  # +1 for the member themselves
+            },
+            'performance': {
+                'referrals_given': referrals_given,
+                'referrals_received': referrals_received,
+                'one_to_ones': one_to_ones,
+                'tyfcb_amount': float(total_tyfcb),
+                'performance_score': performance_score
+            },
+            'gaps': {
+                'missing_one_to_ones': [
+                    {'id': mid, 'name': member_lookup[mid]}
+                    for mid in missing_otos if mid in member_lookup
+                ],
+                'missing_referrals_to': [
+                    {'id': mid, 'name': member_lookup[mid]}
+                    for mid in missing_referrals_to if mid in member_lookup
+                ],
+                'missing_referrals_from': [
+                    {'id': mid, 'name': member_lookup[mid]}
+                    for mid in missing_referrals_from if mid in member_lookup
+                ],
+                'priority_connections': [
+                    {'id': mid, 'name': member_lookup[mid]}
+                    for mid in priority_connections if mid in member_lookup
+                ]
+            },
+            'recommendations': recommendations,
+            'completion_rates': {
+                'oto_completion': round((one_to_ones / max_possible_otos) * 100) if max_possible_otos > 0 else 0,
+                'referral_given_coverage': round((referrals_given / all_members.count()) * 100) if all_members.count() > 0 else 0,
+                'referral_received_coverage': round((referrals_received / all_members.count()) * 100) if all_members.count() > 0 else 0
+            },
+            'latest_report': {
+                'id': latest_report.id if latest_report else None,
+                'month_year': latest_report.month_year if latest_report else None,
+                'processed_at': latest_report.processed_at if latest_report else None
+            }
+        }
+        
+        return Response(result)
+        
+    except Chapter.DoesNotExist:
+        return Response(
+            {'error': 'Chapter not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Member.DoesNotExist:
+        return Response(
+            {'error': 'Member not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        return Response(
+            {'error': f'Member analytics failed: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def download_all_matrices(request, chapter_id, report_id):
+    """Generate Excel file with all matrices as separate sheets."""
+    try:
+        from django.http import HttpResponse
+        from openpyxl import Workbook
+        from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
+        from openpyxl.utils import get_column_letter
+        from chapters.models import MonthlyReport
+        import json
+        
+        chapter = Chapter.objects.get(id=chapter_id)
+        monthly_report = MonthlyReport.objects.get(id=report_id, chapter=chapter)
+        
+        # Create workbook
+        wb = Workbook()
+        
+        # Define styles to match old repository format
+        header_fill = PatternFill(start_color="1976D2", end_color="1976D2", fill_type="solid")
+        header_font = Font(color="FFFFFF", bold=True)
+        zero_fill = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")  # Yellow highlight
+        center_align = Alignment(horizontal="center", vertical="center")
+        thin_border = Border(
+            left=Side(style='thin'),
+            right=Side(style='thin'),
+            top=Side(style='thin'),
+            bottom=Side(style='thin')
+        )
+        bold_font = Font(bold=True)
+        
+        # Helper function to create a matrix sheet
+        def create_matrix_sheet(ws, title, matrix_data, matrix_type="referral", value_formatter=None):
+            ws.title = title
+            
+            if not matrix_data:
+                ws['A1'] = 'No data available'
+                return
+            
+            # Handle the actual matrix data format
+            if 'members' in matrix_data and 'matrix' in matrix_data:
+                members = matrix_data['members']
+                matrix = matrix_data['matrix']
+            else:
+                ws['A1'] = 'Invalid matrix data format'
+                return
+            
+            # Create header row (match old repository format)
+            ws['A1'] = 'Giver \\ Receiver'
+            ws['A1'].fill = header_fill
+            ws['A1'].font = header_font
+            ws['A1'].alignment = center_align
+            ws['A1'].border = thin_border
+            
+            # Add column headers
+            for col_idx, member_name in enumerate(members, start=2):
+                cell = ws.cell(row=1, column=col_idx, value=member_name)
+                cell.fill = header_fill
+                cell.font = header_font
+                cell.alignment = center_align
+                cell.border = thin_border
+            
+            # Add summary column headers based on matrix type (match old repository format)
+            if matrix_type == "combination":
+                # Combination matrix has 4 summary columns
+                col1 = len(members) + 2
+                col2 = len(members) + 3  
+                col3 = len(members) + 4
+                col4 = len(members) + 5
+                
+                headers = ['Neither:', 'OTO only:', 'Referral only:', 'OTO and Referral:']
+                summary_cols = [col1, col2, col3, col4]
+                
+                for col, header in zip(summary_cols, headers):
+                    cell = ws.cell(row=1, column=col, value=header)
+                    cell.fill = header_fill
+                    cell.font = header_font
+                    cell.alignment = center_align
+                    cell.border = thin_border
+            elif matrix_type == "oto":
+                # OTO matrix has 2 summary columns
+                total_oto_col = len(members) + 2
+                unique_oto_col = len(members) + 3
+                
+                cell = ws.cell(row=1, column=total_oto_col, value='Total OTO:')
+                cell.fill = header_fill
+                cell.font = header_font
+                cell.alignment = center_align
+                cell.border = thin_border
+                
+                cell = ws.cell(row=1, column=unique_oto_col, value=f'Unique OTO: (Total Members = {len(members)})')
+                cell.fill = header_fill
+                cell.font = header_font
+                cell.alignment = center_align
+                cell.border = thin_border
+            else:
+                # Referral matrix has 2 summary columns
+                total_given_col = len(members) + 2
+                unique_given_col = len(members) + 3
+                
+                cell = ws.cell(row=1, column=total_given_col, value='Total Referrals Given:')
+                cell.fill = header_fill
+                cell.font = header_font
+                cell.alignment = center_align
+                cell.border = thin_border
+                
+                cell = ws.cell(row=1, column=unique_given_col, value='Unique Referrals Given:')
+                cell.fill = header_fill
+                cell.font = header_font
+                cell.alignment = center_align
+                cell.border = thin_border
+            
+            # Add data rows
+            for row_idx, row_member in enumerate(members, start=2):
+                # Row header
+                cell = ws.cell(row=row_idx, column=1, value=row_member)
+                cell.fill = header_fill
+                cell.font = header_font
+                cell.alignment = center_align
+                cell.border = thin_border
+                
+                # Data cells with yellow highlighting for zeros
+                row_total = 0
+                unique_count = 0
+                row_data = matrix[row_idx - 2] if row_idx - 2 < len(matrix) else []
+                
+                for col_idx, col_member in enumerate(members, start=2):
+                    value = row_data[col_idx - 2] if col_idx - 2 < len(row_data) else 0
+                    
+                    # Handle combination matrix format (e.g., "1/2" becomes "1/2", 0 becomes "")
+                    if value_formatter:
+                        display_value = value_formatter(value)
+                    elif isinstance(value, str):
+                        display_value = value if value != "0/0" else ''
+                    else:
+                        display_value = value if value else ''
+                    
+                    cell = ws.cell(row=row_idx, column=col_idx, value=display_value)
+                    cell.alignment = center_align
+                    cell.border = thin_border
+                    
+                    # Yellow highlight for zero values (match old repository format)
+                    if value == 0 and row_idx != col_idx:  # Don't highlight diagonal
+                        cell.fill = zero_fill
+                    
+                    # Calculate row total and unique count (for numeric values only)
+                    if value and isinstance(value, (int, float)):
+                        row_total += value
+                        if value > 0:
+                            unique_count += 1
+                
+                # Row summary values based on matrix type
+                if matrix_type == "combination":
+                    # For combination matrix, use simple numeric mapping
+                    # - (empty/0) = Neither, 1 = OTO only, 2 = Referral only, 3 = Both
+                    neither_count = 0
+                    oto_only_count = 0
+                    referral_only_count = 0
+                    both_count = 0
+                    
+                    for col_idx_inner in range(len(row_data)):
+                        if row_idx - 2 != col_idx_inner:  # Don't count self-relationships
+                            value = row_data[col_idx_inner] if col_idx_inner < len(row_data) else None
+                            
+                            # Convert value to integer for comparison
+                            if isinstance(value, str):
+                                if value == '-' or value == '' or value == '0':
+                                    int_value = 0
+                                else:
+                                    try:
+                                        int_value = int(value)
+                                    except (ValueError, TypeError):
+                                        int_value = 0
+                            elif isinstance(value, (int, float)):
+                                int_value = int(value)
+                            else:
+                                int_value = 0
+                            
+                            # Count based on simple numeric mapping
+                            if int_value == 0:
+                                neither_count += 1
+                            elif int_value == 1:
+                                oto_only_count += 1
+                            elif int_value == 2:
+                                referral_only_count += 1
+                            elif int_value == 3:
+                                both_count += 1
+                            else:
+                                # Any other value counts as neither
+                                neither_count += 1
+                    
+                    summary_values = [neither_count, oto_only_count, referral_only_count, both_count]
+                    for col_offset, value in enumerate(summary_values):
+                        cell = ws.cell(row=row_idx, column=len(members) + 2 + col_offset, value=value if value > 0 else '')
+                        cell.alignment = center_align
+                        cell.border = thin_border
+                        cell.font = bold_font
+                else:
+                    # For referral and OTO matrices, use the calculated totals
+                    cell = ws.cell(row=row_idx, column=len(members) + 2, value=row_total if row_total > 0 else '')
+                    cell.alignment = center_align
+                    cell.border = thin_border
+                    cell.font = bold_font
+                    
+                    cell = ws.cell(row=row_idx, column=len(members) + 3, value=unique_count if unique_count > 0 else '')
+                    cell.alignment = center_align
+                    cell.border = thin_border
+                    cell.font = bold_font
+            
+            # Add summary rows based on matrix type (match old repository format)
+            if matrix_type == "combination":
+                # Combination matrix doesn't have summary rows in the old format
+                pass
+            else:
+                total_received_row = len(members) + 2
+                unique_received_row = len(members) + 3
+                
+                # Summary row labels based on matrix type
+                if matrix_type == "oto":
+                    total_label = 'Total OTO Received:'
+                    unique_label = 'Unique OTO Received:'
+                else:
+                    total_label = 'Total Referrals Received:'
+                    unique_label = 'Unique Referrals Received:'
+                
+                # Total received row
+                cell = ws.cell(row=total_received_row, column=1, value=total_label)
+                cell.fill = header_fill
+                cell.font = header_font
+                cell.alignment = center_align
+                cell.border = thin_border
+                
+                # Unique received row
+                cell = ws.cell(row=unique_received_row, column=1, value=unique_label)
+                cell.fill = header_fill
+                cell.font = header_font
+                cell.alignment = center_align
+                cell.border = thin_border
+            
+                # Calculate column totals and unique counts for non-combination matrices
+                grand_total = 0
+                grand_unique = 0
+                
+                for col_idx in range(len(members)):
+                    col_total = 0
+                    col_unique = 0
+                    
+                    for row_idx in range(len(matrix)):
+                        if row_idx < len(matrix) and col_idx < len(matrix[row_idx]):
+                            value = matrix[row_idx][col_idx]
+                            if value and isinstance(value, (int, float)):
+                                col_total += value
+                                grand_total += value
+                                if value > 0:
+                                    col_unique += 1
+                                    grand_unique += 1
+                    
+                    # Total received for this member
+                    cell = ws.cell(row=total_received_row, column=col_idx + 2, value=col_total if col_total else '')
+                    cell.alignment = center_align
+                    cell.border = thin_border
+                    cell.font = bold_font
+                    
+                    # Unique received for this member
+                    cell = ws.cell(row=unique_received_row, column=col_idx + 2, value=col_unique if col_unique else '')
+                    cell.alignment = center_align
+                    cell.border = thin_border
+                    cell.font = bold_font
+                
+                # Grand totals in summary columns
+                summary_col1 = len(members) + 2
+                summary_col2 = len(members) + 3
+                
+                cell = ws.cell(row=total_received_row, column=summary_col1, value=grand_total if grand_total else '')
+                cell.alignment = center_align
+                cell.border = thin_border
+                cell.font = bold_font
+                
+                cell = ws.cell(row=unique_received_row, column=summary_col2, value=grand_unique if grand_unique else '')
+                cell.alignment = center_align
+                cell.border = thin_border
+                cell.font = bold_font
+            
+            # Adjust column widths (match old repository format)
+            num_summary_cols = 4 if matrix_type == "combination" else 2
+            for col in range(1, len(members) + 2 + num_summary_cols):
+                ws.column_dimensions[get_column_letter(col)].width = 15
+            ws.column_dimensions['A'].width = 25  # Wider for names
+            # Make summary columns wider for longer headers
+            for i in range(num_summary_cols):
+                col_letter = get_column_letter(len(members) + 2 + i)
+                ws.column_dimensions[col_letter].width = 20
+        
+        # Remove default sheet
+        wb.remove(wb.active)
+        
+        # Create Referral Matrix sheet
+        if monthly_report.referral_matrix_data:
+            ws_referral = wb.create_sheet("Referral Matrix")
+            create_matrix_sheet(ws_referral, "Referral Matrix", monthly_report.referral_matrix_data, "referral")
+        
+        # Create One-to-One Matrix sheet
+        if monthly_report.oto_matrix_data:
+            ws_oto = wb.create_sheet("One-to-One Matrix")
+            create_matrix_sheet(ws_oto, "One-to-One Matrix", monthly_report.oto_matrix_data, "oto")
+        
+        # Create Combination Matrix sheet
+        if monthly_report.combination_matrix_data:
+            ws_combo = wb.create_sheet("Combination Matrix")
+            # For combination matrix, format the values differently
+            def format_combo(value):
+                if not value or value == '0/0':
+                    return ''
+                return value
+            create_matrix_sheet(ws_combo, "Combination Matrix", monthly_report.combination_matrix_data, "combination", format_combo)
+        
+        # If no matrices available, add a notice sheet
+        if not wb.worksheets:
+            ws = wb.create_sheet("No Data")
+            ws['A1'] = "No matrix data available for this report"
+        
+        # Save to response
+        response = HttpResponse(
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        filename = f"{chapter.name.replace(' ', '_')}_Matrices_{monthly_report.month_year}.xlsx"
+        response['Content-Disposition'] = f'attachment; filename={filename}'
+        
+        wb.save(response)
+        return response
+        
+    except Chapter.DoesNotExist:
+        return Response(
+            {'error': 'Chapter not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except MonthlyReport.DoesNotExist:
+        return Response(
+            {'error': 'Monthly report not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        return Response(
+            {'error': f'Failed to generate Excel: {str(e)}'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )

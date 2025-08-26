@@ -86,7 +86,7 @@ const ChapterDetailRoute: React.FC<{
   chapterData: ChapterMemberData[];
   onBackToChapters: () => void;
   onMemberSelect: (chapterId: string, memberName: string) => void;
-}> = ({ chapterData, onBackToChapters }) => {
+}> = ({ chapterData, onBackToChapters, onMemberSelect }) => {
   const { chapterId } = useParams<{ chapterId: string }>();
   
   const selectedChapter = chapterData.find(chapter => chapter.chapterId === chapterId);
@@ -99,6 +99,7 @@ const ChapterDetailRoute: React.FC<{
     <ChapterDetailPage
       chapterData={selectedChapter}
       onBackToChapters={onBackToChapters}
+      onMemberSelect={(memberName: string) => onMemberSelect(chapterId!, memberName)}
     />
   );
 };

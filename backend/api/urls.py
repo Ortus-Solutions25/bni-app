@@ -42,4 +42,12 @@ urlpatterns = [
     
     # Chapter detail endpoints
     path('chapters/<int:chapter_id>/', views.chapter_detail, name='chapter_detail'),
+    
+    # Member analytics endpoint
+    path('chapters/<int:chapter_id>/members/<str:member_name>/analytics/', 
+         views.get_member_analytics, name='member_analytics'),
+    
+    # Download all matrices as Excel
+    path('chapters/<int:chapter_id>/reports/<int:report_id>/download-matrices/', 
+         views.download_all_matrices, name='download_all_matrices'),
 ]

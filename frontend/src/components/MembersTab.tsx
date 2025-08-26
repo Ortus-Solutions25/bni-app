@@ -21,9 +21,10 @@ interface Member {
 
 interface MembersTabProps {
   chapterData: ChapterMemberData;
+  onMemberSelect: (memberName: string) => void;
 }
 
-const MembersTab: React.FC<MembersTabProps> = ({ chapterData }) => {
+const MembersTab: React.FC<MembersTabProps> = ({ chapterData, onMemberSelect }) => {
   const [members, setMembers] = useState<Member[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -90,7 +91,20 @@ const MembersTab: React.FC<MembersTabProps> = ({ chapterData }) => {
       
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(3, 1fr)' }, gap: 3 }}>
         {members.map((member) => (
-          <Paper key={member.id} elevation={1} sx={{ p: 3, cursor: 'pointer', '&:hover': { elevation: 3 } }}>
+          <Paper 
+            key={member.id} 
+            elevation={1} 
+            sx={{ 
+              p: 3, 
+              cursor: 'pointer', 
+              transition: 'all 0.2s',
+              '&:hover': { 
+                elevation: 4,
+                transform: 'translateY(-2px)'
+              } 
+            }}
+            onClick={() => onMemberSelect(member.full_name)}
+          >
             <Box sx={{ mb: 2 }}>
               <Typography variant="h6" fontWeight="medium" sx={{ mb: 1 }}>
                 {member.full_name}

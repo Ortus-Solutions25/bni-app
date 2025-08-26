@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -15,12 +15,12 @@ import {
   Alert,
   Paper,
   LinearProgress,
+  CircularProgress,
 } from '@mui/material';
 import {
   Business,
   Person,
   NavigateNext,
-  TrendingUp,
   PersonAdd,
   PersonOff,
   SwapHoriz,
@@ -28,6 +28,7 @@ import {
   CheckCircle,
   Warning,
   Error as ErrorIcon,
+  TrendingUp,
 } from '@mui/icons-material';
 import { ChapterMemberData } from '../services/ChapterDataLoader';
 
@@ -38,71 +39,45 @@ interface MemberDetailsProps {
   onBackToChapters: () => void;
 }
 
-interface MemberAnalysis {
-  memberName: string;
-  chapterName: string;
-  totalMembers: number;
-  // Performance stats
-  referralsGiven: number;
-  referralsReceived: number;
-  oneToOnes: number;
-  tyfcbAmount: number;
-  performanceScore: number;
-  // Gap analysis
-  missingOneToOnes: string[];
-  notReferredTo: string[];
-  notReferredBy: string[];
-  potentialConnections: string[];
-  recommendations: string[];
-}
-
-const generateMemberAnalysis = (memberName: string, chapterData: ChapterMemberData): MemberAnalysis => {
-  const otherMembers = chapterData.members.filter(m => m !== memberName);
-  
-  // Generate random performance data
-  const referralsGiven = Math.floor(Math.random() * 20) + 5;
-  const referralsReceived = Math.floor(Math.random() * 15) + 3;
-  const oneToOnes = Math.floor(Math.random() * 12) + 8;
-  const tyfcbAmount = Math.floor(Math.random() * 150000) + 20000;
-  
-  // Calculate performance score
-  const referralScore = Math.min(referralsGiven * 2, 40);
-  const receivedScore = Math.min(referralsReceived * 2, 30);
-  const otoScore = Math.min(oneToOnes * 2, 30);
-  const performanceScore = Math.round(referralScore + receivedScore + otoScore);
-  
-  // Generate gap analysis
-  const shuffled = [...otherMembers].sort(() => 0.5 - Math.random());
-  const missingOneToOnes = shuffled.slice(0, Math.floor(Math.random() * 8) + 3);
-  const notReferredTo = shuffled.slice(2, Math.floor(Math.random() * 6) + 4);
-  const notReferredBy = shuffled.slice(4, Math.floor(Math.random() * 5) + 3);
-  const potentialConnections = shuffled.slice(0, 5);
-  
-  // Generate recommendations
-  const recommendations = [
-    `Schedule one-to-ones with ${missingOneToOnes.slice(0, 3).join(', ')}`,
-    `Focus on referring business to ${notReferredTo.slice(0, 2).join(' and ')}`,
-    `Build stronger relationships with ${potentialConnections.slice(0, 2).join(' and ')}`,
-    'Attend more chapter events to increase visibility',
-    'Follow up on previous referrals to track success'
-  ];
-  
-  return {
-    memberName,
-    chapterName: chapterData.chapterName,
-    totalMembers: chapterData.memberCount,
-    referralsGiven,
-    referralsReceived,
-    oneToOnes,
-    tyfcbAmount,
-    performanceScore,
-    missingOneToOnes,
-    notReferredTo,
-    notReferredBy,
-    potentialConnections,
-    recommendations
+interface MemberAnalytics {
+  member: {
+    id: number;
+    full_name: string;
+    business_name: string;
+    classification: string;
+    email: string;
+    phone: string;
   };
-};
+  chapter: {
+    id: number;
+    name: string;
+    total_members: number;
+  };
+  performance: {
+    referrals_given: number;
+    referrals_received: number;
+    one_to_ones: number;
+    tyfcb_amount: number;
+    performance_score: number;
+  };
+  gaps: {
+    missing_one_to_ones: Array<{ id: number; name: string }>;
+    missing_referrals_to: Array<{ id: number; name: string }>;
+    missing_referrals_from: Array<{ id: number; name: string }>;
+    priority_connections: Array<{ id: number; name: string }>;
+  };
+  recommendations: string[];
+  completion_rates: {
+    oto_completion: number;
+    referral_given_coverage: number;
+    referral_received_coverage: number;
+  };
+  latest_report: {
+    id: number | null;
+    month_year: string | null;
+    processed_at: string | null;
+  };
+}
 
 const getPerformanceColor = (score: number): { color: 'success' | 'warning' | 'error'; icon: React.ReactElement } => {
   if (score >= 85) return { color: 'success', icon: <CheckCircle /> };
@@ -116,23 +91,78 @@ const MemberDetails: React.FC<MemberDetailsProps> = ({
   onBackToMembers,
   onBackToChapters,
 }) => {
-  const memberAnalysis = useMemo(() => 
-    generateMemberAnalysis(memberName, chapterData), 
-    [memberName, chapterData]
-  );
+  const [memberAnalytics, setMemberAnalytics] = useState<MemberAnalytics | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const performanceInfo = getPerformanceColor(memberAnalysis.performanceScore);
-  
-  const completionRates = useMemo(() => {
-    const totalPossibleOTOs = chapterData.memberCount - 1;
-    const totalPossibleReferrals = chapterData.memberCount - 1;
-    
-    return {
-      otoCompletion: Math.round((memberAnalysis.oneToOnes / totalPossibleOTOs) * 100),
-      referralGivenCompletion: Math.round((memberAnalysis.referralsGiven / totalPossibleReferrals) * 100),
-      referralReceivedCompletion: Math.round((memberAnalysis.referralsReceived / totalPossibleReferrals) * 100)
+  useEffect(() => {
+    const fetchMemberAnalytics = async () => {
+      setIsLoading(true);
+      setError(null);
+      
+      try {
+        const encodedMemberName = encodeURIComponent(memberName);
+        const response = await fetch(`/api/chapters/${chapterData.chapterId}/members/${encodedMemberName}/analytics/`);
+        
+        if (!response.ok) {
+          throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        setMemberAnalytics(data);
+        
+      } catch (error) {
+        console.error('Failed to load member analytics:', error);
+        setError(error instanceof Error ? error.message : 'Unknown error occurred');
+      } finally {
+        setIsLoading(false);
+      }
     };
-  }, [memberAnalysis, chapterData.memberCount]);
+    
+    fetchMemberAnalytics();
+  }, [chapterData.chapterId, memberName]);
+
+  if (isLoading) {
+    return (
+      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 8 }}>
+        <CircularProgress size={48} />
+        <Typography variant="h6" sx={{ mt: 2 }}>
+          Loading Member Analytics...
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+          Analyzing referrals, one-to-ones, and TYFCB data
+        </Typography>
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Box sx={{ py: 4 }}>
+        <Alert severity="error" sx={{ mb: 3 }}>
+          Failed to load member analytics: {error}
+        </Alert>
+        <Box sx={{ display: 'flex', gap: 2 }}>
+          <Link component="button" onClick={onBackToMembers}>
+            Back to Members
+          </Link>
+          <Link component="button" onClick={onBackToChapters}>
+            Back to Chapters
+          </Link>
+        </Box>
+      </Box>
+    );
+  }
+
+  if (!memberAnalytics) {
+    return (
+      <Alert severity="warning">
+        No analytics data available for this member.
+      </Alert>
+    );
+  }
+
+  const performanceInfo = getPerformanceColor(memberAnalytics.performance.performance_score);
 
   return (
     <Box>
@@ -153,9 +183,9 @@ const MemberDetails: React.FC<MemberDetailsProps> = ({
           onClick={onBackToMembers}
           sx={{ display: 'flex', alignItems: 'center' }}
         >
-          {chapterData.chapterName}
+          {memberAnalytics.chapter.name}
         </Link>
-        <Typography color="text.primary">{memberName}</Typography>
+        <Typography color="text.primary">{memberAnalytics.member.full_name}</Typography>
       </Breadcrumbs>
 
       {/* Header */}
@@ -163,14 +193,17 @@ const MemberDetails: React.FC<MemberDetailsProps> = ({
         <Person sx={{ mr: 2, fontSize: 40 }} />
         <Box sx={{ flexGrow: 1 }}>
           <Typography variant="h4" gutterBottom>
-            {memberName}
+            {memberAnalytics.member.full_name}
           </Typography>
           <Typography variant="subtitle1" color="text.secondary">
-            Member of {chapterData.chapterName}
+            {memberAnalytics.member.business_name} • {memberAnalytics.member.classification}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Member of {memberAnalytics.chapter.name}
           </Typography>
         </Box>
         <Chip
-          label={`${memberAnalysis.performanceScore}% Performance`}
+          label={`${memberAnalytics.performance.performance_score}% Performance`}
           color={performanceInfo.color}
           size="medium"
           icon={performanceInfo.icon}
@@ -188,11 +221,11 @@ const MemberDetails: React.FC<MemberDetailsProps> = ({
             <Box sx={{ mb: 2 }}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                 <Typography variant="body2">Overall Performance</Typography>
-                <Typography variant="body2">{memberAnalysis.performanceScore}%</Typography>
+                <Typography variant="body2">{memberAnalytics.performance.performance_score}%</Typography>
               </Box>
               <LinearProgress
                 variant="determinate"
-                value={memberAnalysis.performanceScore}
+                value={memberAnalytics.performance.performance_score}
                 color={performanceInfo.color}
                 sx={{ height: 8, borderRadius: 4 }}
               />
@@ -201,7 +234,7 @@ const MemberDetails: React.FC<MemberDetailsProps> = ({
             <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2 }}>
               <Box>
                 <Typography variant="h4" color="primary">
-                  {memberAnalysis.referralsGiven}
+                  {memberAnalytics.performance.referrals_given}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
                   Referrals Given
@@ -209,7 +242,7 @@ const MemberDetails: React.FC<MemberDetailsProps> = ({
               </Box>
               <Box>
                 <Typography variant="h4" color="primary">
-                  {memberAnalysis.referralsReceived}
+                  {memberAnalytics.performance.referrals_received}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
                   Referrals Received
@@ -217,7 +250,7 @@ const MemberDetails: React.FC<MemberDetailsProps> = ({
               </Box>
               <Box>
                 <Typography variant="h4" color="primary">
-                  {memberAnalysis.oneToOnes}
+                  {memberAnalytics.performance.one_to_ones}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
                   One-to-Ones
@@ -225,7 +258,7 @@ const MemberDetails: React.FC<MemberDetailsProps> = ({
               </Box>
               <Box>
                 <Typography variant="h4" color="primary">
-                  AED {(memberAnalysis.tyfcbAmount / 1000).toFixed(0)}K
+                  AED {(memberAnalytics.performance.tyfcb_amount / 1000).toFixed(0)}K
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
                   TYFCB Generated
@@ -244,11 +277,11 @@ const MemberDetails: React.FC<MemberDetailsProps> = ({
             <Box sx={{ mb: 2 }}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                 <Typography variant="body2">One-to-One Meetings</Typography>
-                <Typography variant="body2">{completionRates.otoCompletion}%</Typography>
+                <Typography variant="body2">{memberAnalytics.completion_rates.oto_completion}%</Typography>
               </Box>
               <LinearProgress
                 variant="determinate"
-                value={completionRates.otoCompletion}
+                value={memberAnalytics.completion_rates.oto_completion}
                 sx={{ height: 6, borderRadius: 3 }}
               />
             </Box>
@@ -256,11 +289,11 @@ const MemberDetails: React.FC<MemberDetailsProps> = ({
             <Box sx={{ mb: 2 }}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                 <Typography variant="body2">Referrals Given Coverage</Typography>
-                <Typography variant="body2">{completionRates.referralGivenCompletion}%</Typography>
+                <Typography variant="body2">{memberAnalytics.completion_rates.referral_given_coverage}%</Typography>
               </Box>
               <LinearProgress
                 variant="determinate"
-                value={completionRates.referralGivenCompletion}
+                value={memberAnalytics.completion_rates.referral_given_coverage}
                 sx={{ height: 6, borderRadius: 3 }}
               />
             </Box>
@@ -268,17 +301,17 @@ const MemberDetails: React.FC<MemberDetailsProps> = ({
             <Box>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                 <Typography variant="body2">Referrals Received Coverage</Typography>
-                <Typography variant="body2">{completionRates.referralReceivedCompletion}%</Typography>
+                <Typography variant="body2">{memberAnalytics.completion_rates.referral_received_coverage}%</Typography>
               </Box>
               <LinearProgress
                 variant="determinate"
-                value={completionRates.referralReceivedCompletion}
+                value={memberAnalytics.completion_rates.referral_received_coverage}
                 sx={{ height: 6, borderRadius: 3 }}
               />
             </Box>
             
             <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-              Based on {chapterData.memberCount - 1} possible connections
+              Based on {memberAnalytics.chapter.total_members - 1} possible connections
             </Typography>
           </CardContent>
         </Card>
@@ -296,23 +329,23 @@ const MemberDetails: React.FC<MemberDetailsProps> = ({
               Members you haven't met with yet
             </Typography>
             
-            {memberAnalysis.missingOneToOnes.length === 0 ? (
+            {memberAnalytics.gaps.missing_one_to_ones.length === 0 ? (
               <Alert severity="success">
                 Great! You've had one-to-ones with all chapter members.
               </Alert>
             ) : (
               <List dense>
-                {memberAnalysis.missingOneToOnes.slice(0, 8).map((member) => (
-                  <ListItem key={member} sx={{ px: 0 }}>
+                {memberAnalytics.gaps.missing_one_to_ones.slice(0, 8).map((member) => (
+                  <ListItem key={member.id} sx={{ px: 0 }}>
                     <ListItemIcon>
                       <Person fontSize="small" />
                     </ListItemIcon>
-                    <ListItemText primary={member} />
+                    <ListItemText primary={member.name} />
                   </ListItem>
                 ))}
-                {memberAnalysis.missingOneToOnes.length > 8 && (
+                {memberAnalytics.gaps.missing_one_to_ones.length > 8 && (
                   <Typography variant="body2" color="text.secondary" sx={{ mt: 1, ml: 5 }}>
-                    +{memberAnalysis.missingOneToOnes.length - 8} more members
+                    +{memberAnalytics.gaps.missing_one_to_ones.length - 8} more members
                   </Typography>
                 )}
               </List>
@@ -331,17 +364,17 @@ const MemberDetails: React.FC<MemberDetailsProps> = ({
             </Typography>
             
             <List dense>
-              {memberAnalysis.notReferredTo.slice(0, 8).map((member) => (
-                <ListItem key={member} sx={{ px: 0 }}>
+              {memberAnalytics.gaps.missing_referrals_to.slice(0, 8).map((member) => (
+                <ListItem key={member.id} sx={{ px: 0 }}>
                   <ListItemIcon>
                     <TrendingUp fontSize="small" />
                   </ListItemIcon>
-                  <ListItemText primary={member} />
+                  <ListItemText primary={member.name} />
                 </ListItem>
               ))}
-              {memberAnalysis.notReferredTo.length > 8 && (
+              {memberAnalytics.gaps.missing_referrals_to.length > 8 && (
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 1, ml: 5 }}>
-                  +{memberAnalysis.notReferredTo.length - 8} more members
+                  +{memberAnalytics.gaps.missing_referrals_to.length - 8} more members
                 </Typography>
               )}
             </List>
@@ -359,17 +392,17 @@ const MemberDetails: React.FC<MemberDetailsProps> = ({
             </Typography>
             
             <List dense>
-              {memberAnalysis.notReferredBy.slice(0, 8).map((member) => (
-                <ListItem key={member} sx={{ px: 0 }}>
+              {memberAnalytics.gaps.missing_referrals_from.slice(0, 8).map((member) => (
+                <ListItem key={member.id} sx={{ px: 0 }}>
                   <ListItemIcon>
                     <MonetizationOn fontSize="small" />
                   </ListItemIcon>
-                  <ListItemText primary={member} />
+                  <ListItemText primary={member.name} />
                 </ListItem>
               ))}
-              {memberAnalysis.notReferredBy.length > 8 && (
+              {memberAnalytics.gaps.missing_referrals_from.length > 8 && (
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 1, ml: 5 }}>
-                  +{memberAnalysis.notReferredBy.length - 8} more members
+                  +{memberAnalytics.gaps.missing_referrals_from.length - 8} more members
                 </Typography>
               )}
             </List>
@@ -388,7 +421,7 @@ const MemberDetails: React.FC<MemberDetailsProps> = ({
         </Typography>
         
         <List>
-          {memberAnalysis.recommendations.map((recommendation, index) => (
+          {memberAnalytics.recommendations.map((recommendation, index) => (
             <React.Fragment key={index}>
               <ListItem>
                 <ListItemIcon>
@@ -401,7 +434,7 @@ const MemberDetails: React.FC<MemberDetailsProps> = ({
                 </ListItemIcon>
                 <ListItemText primary={recommendation} />
               </ListItem>
-              {index < memberAnalysis.recommendations.length - 1 && <Divider />}
+              {index < memberAnalytics.recommendations.length - 1 && <Divider />}
             </React.Fragment>
           ))}
         </List>
@@ -409,7 +442,9 @@ const MemberDetails: React.FC<MemberDetailsProps> = ({
 
       <Box sx={{ mt: 4, pt: 3, borderTop: 1, borderColor: 'divider' }}>
         <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center' }}>
-          Analysis based on chapter membership of {chapterData.memberCount} members • Last updated: {new Date().toLocaleDateString()}
+          Analysis based on {memberAnalytics.chapter.total_members} members in {memberAnalytics.chapter.name} • 
+          {memberAnalytics.latest_report.month_year && ` Latest data from ${memberAnalytics.latest_report.month_year} • `}
+          Last updated: {new Date().toLocaleDateString()}
         </Typography>
       </Box>
     </Box>

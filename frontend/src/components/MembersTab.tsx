@@ -84,6 +84,8 @@ const MembersTab: React.FC<MembersTabProps> = ({ chapterData, onMemberSelect, on
   }, [chapterData.chapterId]);
 
   const handleAddMember = () => {
+    // Set default joined_date to today
+    const today = new Date().toISOString().split('T')[0];
     setFormData({
       first_name: '',
       last_name: '',
@@ -91,7 +93,7 @@ const MembersTab: React.FC<MembersTabProps> = ({ chapterData, onMemberSelect, on
       classification: '',
       email: '',
       phone: '',
-      joined_date: '',
+      joined_date: today,
       is_active: true,
     });
     setOpenAddDialog(true);

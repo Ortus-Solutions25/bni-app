@@ -242,7 +242,8 @@ def get_combination_matrix(request, chapter_id, report_id):
             members = result['members']
             matrix = result['matrix']
             
-            # Calculate combination counts for each member
+            # Calculate combination counts for each member using simple numeric mapping
+            # - (empty/0) = Neither, 1 = OTO only, 2 = Referral only, 3 = Both
             summaries = {
                 'neither': {},
                 'oto_only': {},
@@ -258,20 +259,33 @@ def get_combination_matrix(request, chapter_id, report_id):
                 
                 row_data = matrix[i] if i < len(matrix) else []
                 for j, value in enumerate(row_data):
-                    if isinstance(value, str) and '/' in str(value):
-                        parts = str(value).split('/')
-                        if len(parts) == 2:
-                            oto_val = int(parts[0]) if parts[0].isdigit() else 0
-                            ref_val = int(parts[1]) if parts[1].isdigit() else 0
-                            
-                            if oto_val == 0 and ref_val == 0:
-                                neither_count += 1
-                            elif oto_val > 0 and ref_val == 0:
-                                oto_only_count += 1
-                            elif oto_val == 0 and ref_val > 0:
-                                referral_only_count += 1
-                            elif oto_val > 0 and ref_val > 0:
-                                both_count += 1
+                    if i != j:  # Don't count self-relationships
+                        # Convert value to integer for comparison
+                        if isinstance(value, str):
+                            if value == '-' or value == '' or value == '0':
+                                int_value = 0
+                            else:
+                                try:
+                                    int_value = int(value)
+                                except (ValueError, TypeError):
+                                    int_value = 0
+                        elif isinstance(value, (int, float)):
+                            int_value = int(value)
+                        else:
+                            int_value = 0
+                        
+                        # Count based on simple numeric mapping
+                        if int_value == 0:
+                            neither_count += 1
+                        elif int_value == 1:
+                            oto_only_count += 1
+                        elif int_value == 2:
+                            referral_only_count += 1
+                        elif int_value == 3:
+                            both_count += 1
+                        else:
+                            # Any other value counts as neither
+                            neither_count += 1
                 
                 summaries['neither'][member] = neither_count
                 summaries['oto_only'][member] = oto_only_count
@@ -1097,28 +1111,43 @@ def download_all_matrices(request, chapter_id, report_id):
                 
                 # Row summary values based on matrix type
                 if matrix_type == "combination":
-                    # For combination matrix, count the different relationship types for this row
+                    # For combination matrix, use simple numeric mapping
+                    # - (empty/0) = Neither, 1 = OTO only, 2 = Referral only, 3 = Both
                     neither_count = 0
                     oto_only_count = 0
                     referral_only_count = 0
                     both_count = 0
                     
                     for col_idx_inner in range(len(row_data)):
-                        value = row_data[col_idx_inner] if col_idx_inner < len(row_data) else '0/0'
-                        if isinstance(value, str) and '/' in str(value):
-                            parts = str(value).split('/')
-                            if len(parts) == 2:
-                                oto_val = int(parts[0]) if parts[0].isdigit() else 0
-                                ref_val = int(parts[1]) if parts[1].isdigit() else 0
-                                
-                                if oto_val == 0 and ref_val == 0:
-                                    neither_count += 1
-                                elif oto_val > 0 and ref_val == 0:
-                                    oto_only_count += 1
-                                elif oto_val == 0 and ref_val > 0:
-                                    referral_only_count += 1
-                                elif oto_val > 0 and ref_val > 0:
-                                    both_count += 1
+                        if row_idx - 2 != col_idx_inner:  # Don't count self-relationships
+                            value = row_data[col_idx_inner] if col_idx_inner < len(row_data) else None
+                            
+                            # Convert value to integer for comparison
+                            if isinstance(value, str):
+                                if value == '-' or value == '' or value == '0':
+                                    int_value = 0
+                                else:
+                                    try:
+                                        int_value = int(value)
+                                    except (ValueError, TypeError):
+                                        int_value = 0
+                            elif isinstance(value, (int, float)):
+                                int_value = int(value)
+                            else:
+                                int_value = 0
+                            
+                            # Count based on simple numeric mapping
+                            if int_value == 0:
+                                neither_count += 1
+                            elif int_value == 1:
+                                oto_only_count += 1
+                            elif int_value == 2:
+                                referral_only_count += 1
+                            elif int_value == 3:
+                                both_count += 1
+                            else:
+                                # Any other value counts as neither
+                                neither_count += 1
                     
                     summary_values = [neither_count, oto_only_count, referral_only_count, both_count]
                     for col_offset, value in enumerate(summary_values):

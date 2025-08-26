@@ -53,11 +53,15 @@ interface MemberDetailsProps {
 interface MemberAnalytics {
   member: {
     id: number;
+    first_name: string;
+    last_name: string;
     full_name: string;
     business_name: string;
     classification: string;
     email: string;
     phone: string;
+    joined_date?: string;
+    is_active?: boolean;
   };
   chapter: {
     id: number;

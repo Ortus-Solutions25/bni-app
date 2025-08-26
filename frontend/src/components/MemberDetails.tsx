@@ -47,6 +47,7 @@ interface MemberDetailsProps {
   memberName: string;
   onBackToMembers: () => void;
   onBackToChapters: () => void;
+  onDataRefresh?: () => void;
 }
 
 interface MemberAnalytics {
@@ -100,6 +101,7 @@ const MemberDetails: React.FC<MemberDetailsProps> = ({
   memberName,
   onBackToMembers,
   onBackToChapters,
+  onDataRefresh,
 }) => {
   const [memberAnalytics, setMemberAnalytics] = useState<MemberAnalytics | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -208,6 +210,10 @@ const MemberDetails: React.FC<MemberDetailsProps> = ({
           }
         };
         fetchMemberAnalytics();
+        // Trigger parent data refresh
+        if (onDataRefresh) {
+          onDataRefresh();
+        }
       } else {
         const errorData = await response.json();
         setSnackbarMessage(`Error: ${errorData.error || 'Failed to update member'}`);
@@ -233,6 +239,10 @@ const MemberDetails: React.FC<MemberDetailsProps> = ({
         setSnackbarMessage(`Member "${memberAnalytics.member.full_name}" deleted successfully!`);
         setSnackbarOpen(true);
         setOpenDeleteDialog(false);
+        // Trigger parent data refresh
+        if (onDataRefresh) {
+          onDataRefresh();
+        }
         // Navigate back to members list
         setTimeout(() => {
           onBackToMembers();

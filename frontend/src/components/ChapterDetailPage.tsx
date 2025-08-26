@@ -27,6 +27,7 @@ interface ChapterDetailPageProps {
   chapterData: ChapterMemberData;
   onBackToChapters: () => void;
   onMemberSelect: (memberName: string) => void;
+  onDataRefresh?: () => void;
 }
 
 interface TabPanelProps {
@@ -62,6 +63,7 @@ const ChapterDetailPage: React.FC<ChapterDetailPageProps> = ({
   chapterData,
   onBackToChapters,
   onMemberSelect,
+  onDataRefresh,
 }) => {
   const [tabValue, setTabValue] = useState(0);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -177,7 +179,11 @@ const ChapterDetailPage: React.FC<ChapterDetailPageProps> = ({
         </TabPanel>
 
         <TabPanel value={tabValue} index={3}>
-          <MembersTab chapterData={chapterData} onMemberSelect={onMemberSelect} />
+          <MembersTab 
+            chapterData={chapterData} 
+            onMemberSelect={onMemberSelect} 
+            onMemberAdded={onDataRefresh}
+          />
         </TabPanel>
       </Paper>
     </Box>

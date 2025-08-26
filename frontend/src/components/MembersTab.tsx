@@ -33,9 +33,10 @@ interface Member {
 interface MembersTabProps {
   chapterData: ChapterMemberData;
   onMemberSelect: (memberName: string) => void;
+  onMemberAdded?: () => void;
 }
 
-const MembersTab: React.FC<MembersTabProps> = ({ chapterData, onMemberSelect }) => {
+const MembersTab: React.FC<MembersTabProps> = ({ chapterData, onMemberSelect, onMemberAdded }) => {
   const [members, setMembers] = useState<Member[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -121,6 +122,10 @@ const MembersTab: React.FC<MembersTabProps> = ({ chapterData, onMemberSelect }) 
         setSnackbarOpen(true);
         handleCloseDialog();
         fetchMembers();
+        // Trigger parent data refresh to update member counts
+        if (onMemberAdded) {
+          onMemberAdded();
+        }
       } else {
         const errorData = await response.json();
         setSnackbarMessage(`Error: ${errorData.error || 'Failed to add member'}`);

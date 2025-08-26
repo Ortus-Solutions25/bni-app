@@ -79,6 +79,7 @@ const ChapterRoutes: React.FC = () => {
           chapterData={chapterData}
           onBackToChapters={handleBackToChapters}
           onMemberSelect={handleMemberSelect}
+          onDataRefresh={handleChapterAdded}
         />} 
       />
       
@@ -89,6 +90,7 @@ const ChapterRoutes: React.FC = () => {
           chapterData={chapterData}
           onBackToMembers={handleBackToMembers}
           onBackToChapters={handleBackToChapters}
+          onDataRefresh={handleChapterAdded}
         />} 
       />
     </Routes>
@@ -100,7 +102,8 @@ const ChapterDetailRoute: React.FC<{
   chapterData: ChapterMemberData[];
   onBackToChapters: () => void;
   onMemberSelect: (chapterId: string, memberName: string) => void;
-}> = ({ chapterData, onBackToChapters, onMemberSelect }) => {
+  onDataRefresh: () => void;
+}> = ({ chapterData, onBackToChapters, onMemberSelect, onDataRefresh }) => {
   const { chapterId } = useParams<{ chapterId: string }>();
   
   const selectedChapter = chapterData.find(chapter => chapter.chapterId === chapterId);
@@ -114,6 +117,7 @@ const ChapterDetailRoute: React.FC<{
       chapterData={selectedChapter}
       onBackToChapters={onBackToChapters}
       onMemberSelect={(memberName: string) => onMemberSelect(chapterId!, memberName)}
+      onDataRefresh={onDataRefresh}
     />
   );
 };
@@ -123,7 +127,8 @@ const MemberDetailsRoute: React.FC<{
   chapterData: ChapterMemberData[];
   onBackToMembers: (chapterId: string) => void;
   onBackToChapters: () => void;
-}> = ({ chapterData, onBackToMembers, onBackToChapters }) => {
+  onDataRefresh: () => void;
+}> = ({ chapterData, onBackToMembers, onBackToChapters, onDataRefresh }) => {
   const { chapterId, memberName } = useParams<{ chapterId: string; memberName: string }>();
   
   const selectedChapter = chapterData.find(chapter => chapter.chapterId === chapterId);
@@ -139,6 +144,7 @@ const MemberDetailsRoute: React.FC<{
       memberName={decodedMemberName}
       onBackToMembers={() => onBackToMembers(chapterId!)}
       onBackToChapters={onBackToChapters}
+      onDataRefresh={onDataRefresh}
     />
   );
 };

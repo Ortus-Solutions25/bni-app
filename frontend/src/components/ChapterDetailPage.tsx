@@ -26,6 +26,7 @@ import FileUploadComponent from './FileUploadComponent';
 interface ChapterDetailPageProps {
   chapterData: ChapterMemberData;
   onBackToChapters: () => void;
+  onMemberSelect: (memberName: string) => void;
 }
 
 interface TabPanelProps {
@@ -60,6 +61,7 @@ function a11yProps(index: number) {
 const ChapterDetailPage: React.FC<ChapterDetailPageProps> = ({
   chapterData,
   onBackToChapters,
+  onMemberSelect,
 }) => {
   const [tabValue, setTabValue] = useState(0);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -175,7 +177,7 @@ const ChapterDetailPage: React.FC<ChapterDetailPageProps> = ({
         </TabPanel>
 
         <TabPanel value={tabValue} index={3}>
-          <MembersTab chapterData={chapterData} />
+          <MembersTab chapterData={chapterData} onMemberSelect={onMemberSelect} />
         </TabPanel>
       </Paper>
     </Box>

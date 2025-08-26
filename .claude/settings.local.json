@@ -15,7 +15,8 @@
       "Bash(python:*)",
       "Bash(npx playwright:*)",
       "Bash(node:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Read(//Users/nat/dev/freelance/pankaj_gupta/BNI-Palms-Analysis/**)"
     ],
     "deny": [],
     "ask": []

@@ -48,7 +48,6 @@ INSTALLED_APPS = [
     "drf_spectacular",
     "rest_framework_simplejwt",
     # Local apps
-    "accounts",
     "chapters",
     "analytics",
     "reports",

@@ -60,7 +60,7 @@ class TYFCB(models.Model):
     receiver = models.ForeignKey(Member, on_delete=models.CASCADE, related_name='tyfcbs_received')
     giver = models.ForeignKey(Member, on_delete=models.CASCADE, related_name='tyfcbs_given', null=True, blank=True)
     amount = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
-    currency = models.CharField(max_length=3, default='USD')
+    currency = models.CharField(max_length=3, default='AED')
     within_chapter = models.BooleanField(default=True)
     date_closed = models.DateField(auto_now_add=True)
     week_of = models.DateField(null=True, blank=True)
@@ -74,7 +74,7 @@ class TYFCB(models.Model):
     
     def __str__(self):
         giver_name = self.giver.full_name if self.giver else "External"
-        return f"{giver_name} -> {self.receiver} (${self.amount})"
+        return f"{giver_name} -> {self.receiver} (AED {self.amount})"
     
     def clean(self):
         if self.giver and self.giver == self.receiver:

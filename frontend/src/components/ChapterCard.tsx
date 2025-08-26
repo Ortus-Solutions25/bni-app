@@ -6,21 +6,24 @@ import {
   Typography,
   Box,
   CircularProgress,
+  IconButton,
 } from '@mui/material';
 import {
   People,
   Error as ErrorIcon,
+  Delete,
 } from '@mui/icons-material';
 import { ChapterMemberData } from '../services/ChapterDataLoader';
 
 interface ChapterCardProps {
   chapterData: ChapterMemberData;
   onClick: () => void;
+  onDelete?: (chapterId: string) => void;
   isLoading?: boolean;
 }
 
 
-const ChapterCard: React.FC<ChapterCardProps> = ({ chapterData, onClick, isLoading = false }) => {
+const ChapterCard: React.FC<ChapterCardProps> = ({ chapterData, onClick, onDelete, isLoading = false }) => {
   
   if (isLoading) {
     return (
@@ -49,12 +52,29 @@ const ChapterCard: React.FC<ChapterCardProps> = ({ chapterData, onClick, isLoadi
       <CardActionArea onClick={onClick} sx={{ height: '100%' }}>
         <CardContent sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-            <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+            <Typography variant="h6" component="div" sx={{ flexGrow: 1, pr: 1 }}>
               {chapterData.chapterName}
             </Typography>
-            {chapterData.loadError && (
-              <ErrorIcon color="error" />
-            )}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              {onDelete && (
+                <IconButton
+                  size="small"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete(chapterData.chapterId);
+                  }}
+                  sx={{
+                    color: 'error.main',
+                    '&:hover': { backgroundColor: 'error.light', color: 'white' },
+                  }}
+                >
+                  <Delete fontSize="small" />
+                </IconButton>
+              )}
+              {chapterData.loadError && (
+                <ErrorIcon color="error" />
+              )}
+            </Box>
           </Box>
 
           {chapterData.loadError ? (

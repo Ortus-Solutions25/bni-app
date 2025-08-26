@@ -44,6 +44,19 @@ const ChapterRoutes: React.FC = () => {
     navigate(`/chapter/${chapterId}`);
   };
 
+  const handleChapterAdded = async () => {
+    // Reload chapter data after adding a new chapter
+    setIsLoadingChapters(true);
+    try {
+      const chapters = await loadAllChapterData();
+      setChapterData(chapters);
+    } catch (error) {
+      console.error('Failed to reload chapter data:', error);
+    } finally {
+      setIsLoadingChapters(false);
+    }
+  };
+
   return (
     <Routes>
       {/* Chapters Dashboard */}
@@ -54,6 +67,7 @@ const ChapterRoutes: React.FC = () => {
             chapterData={chapterData}
             isLoading={isLoadingChapters}
             onChapterSelect={handleChapterSelect}
+            onChapterAdded={handleChapterAdded}
           />
         } 
       />

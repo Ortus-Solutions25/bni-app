@@ -74,146 +74,103 @@ class Member(models.Model):
         return ' '.join(parts)
 
 
-class MonthlyChapterReport(models.Model):
+class MonthlyReport(models.Model):
     """
-    Monthly performance report for each chapter.
-    Stores current month and last month data for comparison.
+    Store complete monthly data for a chapter including Excel files and processed matrices.
     """
     chapter = models.ForeignKey(Chapter, on_delete=models.CASCADE, related_name='monthly_reports')
-    report_month = models.DateField(help_text="First day of the month (e.g., 2024-12-01)")
+    month_year = models.CharField(max_length=7, help_text="e.g., '2024-06' for June 2024")
     
-    # Performance Metrics
-    total_referrals_given = models.IntegerField(default=0)
-    total_referrals_received = models.IntegerField(default=0)
-    total_one_to_ones = models.IntegerField(default=0)
-    total_tyfcb = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    # File Storage
+    slip_audit_file = models.FileField(upload_to='monthly_reports/slip_audits/')
+    member_names_file = models.FileField(upload_to='monthly_reports/member_names/', null=True, blank=True)
     
-    # Chapter Stats
-    active_member_count = models.IntegerField(default=0)
-    avg_referrals_per_member = models.FloatField(default=0)
-    avg_one_to_ones_per_member = models.FloatField(default=0)
+    # Processed Matrix Data (JSON)
+    referral_matrix_data = models.JSONField(default=dict, blank=True)
+    oto_matrix_data = models.JSONField(default=dict, blank=True)
+    combination_matrix_data = models.JSONField(default=dict, blank=True)
+    tyfcb_inside_data = models.JSONField(default=dict, blank=True)
+    tyfcb_outside_data = models.JSONField(default=dict, blank=True)
     
     # Metadata
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    processed_at = models.DateTimeField(null=True, blank=True)
     
     class Meta:
-        unique_together = ['chapter', 'report_month']
-        ordering = ['-report_month']
+        unique_together = ['chapter', 'month_year']
+        ordering = ['-month_year']
         
     def __str__(self):
-        return f"{self.chapter.name} - {self.report_month.strftime('%B %Y')}"
-    
-    @property
-    def performance_score(self):
-        """Calculate overall performance score (0-100)"""
-        if self.active_member_count == 0:
-            return 0
-        
-        # Weight different metrics
-        referral_score = min(self.avg_referrals_per_member * 10, 40)  # Max 40 points
-        oto_score = min(self.avg_one_to_ones_per_member * 5, 30)     # Max 30 points  
-        tyfcb_score = min(float(self.total_tyfcb) / 10000, 30)       # Max 30 points
-        
-        return round(referral_score + oto_score + tyfcb_score)
-    
-    def calculate_growth(self, previous_report):
-        """Calculate growth metrics compared to previous month"""
-        if not previous_report:
-            return {}
-            
-        def safe_percentage_change(current, previous):
-            if previous == 0:
-                return 100 if current > 0 else 0
-            return round(((current - previous) / previous) * 100, 1)
-        
-        return {
-            'referrals_growth': safe_percentage_change(
-                self.total_referrals_given, previous_report.total_referrals_given
-            ),
-            'one_to_ones_growth': safe_percentage_change(
-                self.total_one_to_ones, previous_report.total_one_to_ones
-            ),
-            'tyfcb_growth': safe_percentage_change(
-                float(self.total_tyfcb), float(previous_report.total_tyfcb)
-            ),
-            'member_count_change': self.active_member_count - previous_report.active_member_count,
-            'performance_score_change': self.performance_score - previous_report.performance_score
-        }
+        return f"{self.chapter.name} - {self.month_year}"
 
 
-class MemberMonthlyMetrics(models.Model):
+class MemberMonthlyStats(models.Model):
     """
-    Monthly performance metrics for individual members.
-    Tracks member performance month over month.
+    Individual member statistics for each monthly report.
     """
-    member = models.ForeignKey(Member, on_delete=models.CASCADE, related_name='monthly_metrics')
-    chapter_report = models.ForeignKey(MonthlyChapterReport, on_delete=models.CASCADE, related_name='member_metrics')
-    report_month = models.DateField()
+    member = models.ForeignKey(Member, on_delete=models.CASCADE, related_name='monthly_stats')
+    monthly_report = models.ForeignKey(MonthlyReport, on_delete=models.CASCADE, related_name='member_stats')
     
-    # Individual Performance
+    # Basic Stats
     referrals_given = models.IntegerField(default=0)
     referrals_received = models.IntegerField(default=0)
     one_to_ones_completed = models.IntegerField(default=0)
-    tyfcb_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    tyfcb_inside_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    tyfcb_outside_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     
-    # Performance Analysis
-    performance_score = models.FloatField(default=0)
-    
-    # One-to-One Analysis
-    total_possible_otos = models.IntegerField(default=0, help_text="Based on chapter member count")
-    oto_completion_rate = models.FloatField(default=0, help_text="Percentage of possible OTOs completed")
-    
-    # Metadata
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    # Missing Lists (JSON arrays of member IDs)
+    missing_otos = models.JSONField(default=list, blank=True, help_text="Member IDs they haven't done OTOs with")
+    missing_referrals_given_to = models.JSONField(default=list, blank=True, help_text="Member IDs they haven't given referrals to")
+    missing_referrals_received_from = models.JSONField(default=list, blank=True, help_text="Member IDs they haven't received referrals from")
+    priority_connections = models.JSONField(default=list, blank=True, help_text="Members appearing in multiple missing lists")
     
     class Meta:
-        unique_together = ['member', 'report_month']
-        ordering = ['-report_month', 'member__first_name']
+        unique_together = ['member', 'monthly_report']
+        ordering = ['member__first_name']
         
     def __str__(self):
-        return f"{self.member.full_name} - {self.report_month.strftime('%B %Y')}"
+        return f"{self.member.full_name} - {self.monthly_report.month_year}"
     
-    def calculate_performance_score(self):
-        """Calculate individual performance score (0-100)"""
-        # Similar to chapter calculation but individual metrics
-        referral_score = min(self.referrals_given * 2, 40)  # Max 40 points
-        received_score = min(self.referrals_received * 2, 30)  # Max 30 points
-        oto_score = min(self.oto_completion_rate, 30)  # Max 30 points (based on completion rate)
+    def calculate_missing_lists(self, all_chapter_members):
+        """Calculate the missing interaction lists for this member."""
+        from analytics.models import Referral, OneToOne, TYFCB
         
-        return round(referral_score + received_score + oto_score)
-    
-    def calculate_growth(self, previous_metrics):
-        """Calculate growth metrics compared to previous month"""
-        if not previous_metrics:
-            return {}
-            
-        def safe_percentage_change(current, previous):
-            if previous == 0:
-                return 100 if current > 0 else 0
-            return round(((current - previous) / previous) * 100, 1)
+        # Get all chapter member IDs except self
+        other_member_ids = set(all_chapter_members.exclude(id=self.member.id).values_list('id', flat=True))
         
-        return {
-            'referrals_given_growth': safe_percentage_change(
-                self.referrals_given, previous_metrics.referrals_given
-            ),
-            'referrals_received_growth': safe_percentage_change(
-                self.referrals_received, previous_metrics.referrals_received
-            ),
-            'one_to_ones_growth': safe_percentage_change(
-                self.one_to_ones_completed, previous_metrics.one_to_ones_completed
-            ),
-            'tyfcb_growth': safe_percentage_change(
-                float(self.tyfcb_amount), float(previous_metrics.tyfcb_amount)
-            ),
-            'performance_score_change': self.performance_score - previous_metrics.performance_score
-        }
-    
-    def save(self, *args, **kwargs):
-        # Auto-calculate performance score on save
-        if not self.performance_score:
-            self.performance_score = self.calculate_performance_score()
-        super().save(*args, **kwargs)
+        # Get interactions for this monthly report period
+        # Note: This would need date filtering based on monthly_report period
+        referrals_given = set(Referral.objects.filter(
+            giver=self.member
+        ).values_list('receiver_id', flat=True))
+        
+        referrals_received = set(Referral.objects.filter(
+            receiver=self.member
+        ).values_list('giver_id', flat=True))
+        
+        otos_done = set()
+        for oto in OneToOne.objects.filter(models.Q(member1=self.member) | models.Q(member2=self.member)):
+            other_member = oto.member2 if oto.member1 == self.member else oto.member1
+            otos_done.add(other_member.id)
+        
+        # Calculate missing lists
+        self.missing_otos = list(other_member_ids - otos_done)
+        self.missing_referrals_given_to = list(other_member_ids - referrals_given)
+        self.missing_referrals_received_from = list(other_member_ids - referrals_received)
+        
+        # Calculate priority connections (appear in multiple missing lists)
+        missing_sets = [
+            set(self.missing_otos),
+            set(self.missing_referrals_given_to), 
+            set(self.missing_referrals_received_from)
+        ]
+        
+        priority_members = set()
+        for i, set1 in enumerate(missing_sets):
+            for j, set2 in enumerate(missing_sets):
+                if i < j:  # Avoid duplicate comparisons
+                    priority_members.update(set1 & set2)
+        
+        self.priority_connections = list(priority_members)
 
 

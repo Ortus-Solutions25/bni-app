@@ -5,13 +5,10 @@ import {
   CardActionArea,
   Typography,
   Box,
-  Chip,
-  LinearProgress,
   CircularProgress,
 } from '@mui/material';
 import {
   People,
-  TrendingUp,
   Error as ErrorIcon,
 } from '@mui/icons-material';
 import { ChapterMemberData } from '../services/ChapterDataLoader';
@@ -22,27 +19,8 @@ interface ChapterCardProps {
   isLoading?: boolean;
 }
 
-const getPerformanceColor = (score: number): 'success' | 'warning' | 'error' => {
-  if (score >= 85) return 'success';
-  if (score >= 70) return 'warning';
-  return 'error';
-};
-
-const getPerformanceScore = (chapterData: ChapterMemberData): number => {
-  if (chapterData.loadError) return 0;
-  if (!chapterData.performanceMetrics) return 75;
-  
-  const { avgReferralsPerMember, avgOTOsPerMember, totalTYFCB } = chapterData.performanceMetrics;
-  const referralScore = Math.min(avgReferralsPerMember * 10, 40);
-  const otoScore = Math.min(avgOTOsPerMember * 5, 30);
-  const tyfcbScore = Math.min(totalTYFCB / 10000, 30);
-  
-  return Math.round(referralScore + otoScore + tyfcbScore);
-};
 
 const ChapterCard: React.FC<ChapterCardProps> = ({ chapterData, onClick, isLoading = false }) => {
-  const performanceScore = getPerformanceScore(chapterData);
-  const performanceColor = getPerformanceColor(performanceScore);
   
   if (isLoading) {
     return (
@@ -74,15 +52,8 @@ const ChapterCard: React.FC<ChapterCardProps> = ({ chapterData, onClick, isLoadi
             <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
               {chapterData.chapterName}
             </Typography>
-            {chapterData.loadError ? (
+            {chapterData.loadError && (
               <ErrorIcon color="error" />
-            ) : (
-              <Chip
-                label={`${performanceScore}%`}
-                color={performanceColor}
-                size="small"
-                icon={<TrendingUp />}
-              />
             )}
           </Box>
 
@@ -107,16 +78,6 @@ const ChapterCard: React.FC<ChapterCardProps> = ({ chapterData, onClick, isLoadi
               <Box sx={{ flexGrow: 1 }}>
                 {chapterData.performanceMetrics && (
                   <Box>
-                    <Typography variant="body2" sx={{ mb: 1 }}>
-                      Performance Overview
-                    </Typography>
-                    <LinearProgress 
-                      variant="determinate" 
-                      value={performanceScore} 
-                      color={performanceColor}
-                      sx={{ mb: 2 }}
-                    />
-                    
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                       <Typography variant="caption" color="text.secondary">
                         Avg Referrals:

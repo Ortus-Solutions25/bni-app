@@ -1,9 +1,52 @@
-import * as XLSX from 'xlsx';
+import { read, utils } from 'xlsx';
 
 export interface ChapterInfo {
   id: string;
   name: string;
   memberFile: string;
+}
+
+export interface MonthlyReport {
+  id: number;
+  month_year: string;
+  uploaded_at: string;
+  processed_at: string | null;
+  slip_audit_file: string | null;
+  member_names_file: string | null;
+  has_referral_matrix: boolean;
+  has_oto_matrix: boolean;
+  has_combination_matrix: boolean;
+}
+
+export interface MemberDetail {
+  member: {
+    id: number;
+    full_name: string;
+    first_name: string;
+    last_name: string;
+    business_name: string;
+    classification: string;
+    email: string;
+    phone: string;
+  };
+  stats: {
+    referrals_given: number;
+    referrals_received: number;
+    one_to_ones_completed: number;
+    tyfcb_inside_amount: number;
+    tyfcb_outside_amount: number;
+  };
+  missing_interactions: {
+    missing_otos: Array<{id: number, name: string}>;
+    missing_referrals_given_to: Array<{id: number, name: string}>;
+    missing_referrals_received_from: Array<{id: number, name: string}>;
+    priority_connections: Array<{id: number, name: string}>;
+  };
+  monthly_report: {
+    id: number;
+    month_year: string;
+    processed_at: string | null;
+  };
 }
 
 export interface ChapterMemberData {
@@ -14,6 +57,8 @@ export interface ChapterMemberData {
   memberFile: string;
   loadedAt: Date;
   loadError?: string;
+  monthlyReports?: MonthlyReport[];
+  currentReport?: MonthlyReport;
   performanceMetrics?: {
     avgReferralsPerMember: number;
     avgOTOsPerMember: number;
@@ -41,10 +86,10 @@ export const extractMemberNamesFromFile = async (file: File): Promise<string[]> 
     reader.onload = (e) => {
       try {
         const data = e.target?.result;
-        const workbook = XLSX.read(data, { type: 'binary' });
+        const workbook = read(data, { type: 'binary' });
         const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];
-        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+        const jsonData = utils.sheet_to_json(worksheet);
         
         const members: string[] = [];
         jsonData.forEach((row: any) => {
@@ -86,7 +131,7 @@ const loadChapterFile = async (memberFileName: string): Promise<string[]> => {
     }
     
     const arrayBuffer = await response.arrayBuffer();
-    const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+    const workbook = read(arrayBuffer, { type: 'array' });
     
     if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
       throw new Error(`No sheets found in ${memberFileName}`);
@@ -94,12 +139,12 @@ const loadChapterFile = async (memberFileName: string): Promise<string[]> => {
     
     const sheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[sheetName];
-    const jsonData = XLSX.utils.sheet_to_json(worksheet);
+    const jsonData = utils.sheet_to_json(worksheet);
     
     console.log(`Found ${jsonData.length} rows in ${memberFileName}`);
     
     const members: string[] = [];
-    jsonData.forEach((row: any, index) => {
+    jsonData.forEach((row: any, index: number) => {
       let firstName = '';
       let lastName = '';
       
@@ -126,41 +171,130 @@ const loadChapterFile = async (memberFileName: string): Promise<string[]> => {
 };
 
 export const loadAllChapterData = async (): Promise<ChapterMemberData[]> => {
-  const results: ChapterMemberData[] = [];
-  
-  for (const chapter of REAL_CHAPTERS) {
-    try {
-      const members = await loadChapterFile(chapter.memberFile);
-      
-      results.push({
-        chapterName: chapter.name,
-        chapterId: chapter.id,
-        members,
-        memberCount: members.length,
-        memberFile: chapter.memberFile,
-        loadedAt: new Date(),
-        performanceMetrics: generateMockPerformanceMetrics(members)
-      });
-    } catch (error) {
-      results.push({
-        chapterName: chapter.name,
-        chapterId: chapter.id,
-        members: [],
-        memberCount: 0,
-        memberFile: chapter.memberFile,
-        loadedAt: new Date(),
-        loadError: error instanceof Error ? error.message : 'Unknown error',
-        performanceMetrics: {
-          avgReferralsPerMember: 0,
-          avgOTOsPerMember: 0,
-          totalTYFCB: 0,
-          topPerformer: 'N/A'
-        }
-      });
+  try {
+    // Call the real backend API
+    const response = await fetch('/api/dashboard/');
+    
+    if (!response.ok) {
+      throw new Error(`API request failed: ${response.status} ${response.statusText}`);
     }
+    
+    const data = await response.json();
+    
+    // Transform API data to match our ChapterMemberData interface
+    const results: ChapterMemberData[] = data.chapters.map((chapter: any) => ({
+      chapterName: chapter.name,
+      chapterId: chapter.id.toString(), // Convert to string for consistency
+      members: [], // We'll fetch individual member lists when needed
+      memberCount: chapter.member_count,
+      memberFile: `${chapter.name.toLowerCase().replace(/\s+/g, '-')}.xls`,
+      loadedAt: new Date(),
+      performanceMetrics: {
+        avgReferralsPerMember: chapter.avg_referrals_per_member || 0,
+        avgOTOsPerMember: chapter.avg_otos_per_member || 0,
+        totalTYFCB: chapter.total_tyfcb || 0,
+        topPerformer: 'Loading...' // Will be loaded with chapter details
+      }
+    }));
+    
+    return results;
+    
+  } catch (error) {
+    console.error('Failed to load chapter data from API:', error);
+    
+    // Fallback to empty chapters with error indication
+    return REAL_CHAPTERS.map(chapter => ({
+      chapterName: chapter.name,
+      chapterId: chapter.id,
+      members: [],
+      memberCount: 0,
+      memberFile: chapter.memberFile,
+      loadedAt: new Date(),
+      loadError: error instanceof Error ? error.message : 'Unknown error',
+      performanceMetrics: {
+        avgReferralsPerMember: 0,
+        avgOTOsPerMember: 0,
+        totalTYFCB: 0,
+        topPerformer: 'N/A'
+      }
+    }));
   }
-  
-  return results;
+};
+
+export const loadMonthlyReports = async (chapterId: string): Promise<MonthlyReport[]> => {
+  try {
+    const response = await fetch(`/api/chapters/${chapterId}/reports/`);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to load monthly reports: ${response.status} ${response.statusText}`);
+    }
+    
+    const reports = await response.json();
+    return reports;
+  } catch (error) {
+    console.error(`Failed to load monthly reports for chapter ${chapterId}:`, error);
+    throw error;
+  }
+};
+
+export const loadMemberDetail = async (
+  chapterId: string, 
+  reportId: number, 
+  memberId: number
+): Promise<MemberDetail> => {
+  try {
+    const response = await fetch(
+      `/api/chapters/${chapterId}/reports/${reportId}/members/${memberId}/`
+    );
+    
+    if (!response.ok) {
+      throw new Error(`Failed to load member detail: ${response.status} ${response.statusText}`);
+    }
+    
+    const memberDetail = await response.json();
+    return memberDetail;
+  } catch (error) {
+    console.error(`Failed to load member detail for chapter ${chapterId}, report ${reportId}, member ${memberId}:`, error);
+    throw error;
+  }
+};
+
+export const loadMatrixData = async (
+  chapterId: string,
+  reportId: number,
+  matrixType: 'referral-matrix' | 'one-to-one-matrix' | 'combination-matrix'
+): Promise<any> => {
+  try {
+    const response = await fetch(
+      `/api/chapters/${chapterId}/reports/${reportId}/${matrixType}/`
+    );
+    
+    if (!response.ok) {
+      throw new Error(`Failed to load ${matrixType}: ${response.status} ${response.statusText}`);
+    }
+    
+    const matrixData = await response.json();
+    return matrixData;
+  } catch (error) {
+    console.error(`Failed to load ${matrixType} for chapter ${chapterId}, report ${reportId}:`, error);
+    throw error;
+  }
+};
+
+export const deleteMonthlyReport = async (chapterId: string, reportId: number): Promise<void> => {
+  try {
+    const response = await fetch(
+      `/api/chapters/${chapterId}/reports/${reportId}/`,
+      { method: 'DELETE' }
+    );
+    
+    if (!response.ok) {
+      throw new Error(`Failed to delete monthly report: ${response.status} ${response.statusText}`);
+    }
+  } catch (error) {
+    console.error(`Failed to delete monthly report ${reportId} for chapter ${chapterId}:`, error);
+    throw error;
+  }
 };
 
 export const generateMockPerformanceMetrics = (members: string[]): ChapterMemberData['performanceMetrics'] => {

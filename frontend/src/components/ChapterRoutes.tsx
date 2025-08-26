@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, useNavigate, useParams } from 'react-router-dom';
 import ChapterDashboard from './ChapterDashboard';
-import MemberDashboard from './MemberDashboard';
+import ChapterDetailPage from './ChapterDetailPage';
 import MemberDetails from './MemberDetails';
 import { ChapterMemberData, loadAllChapterData } from '../services/ChapterDataLoader';
 
@@ -29,19 +29,19 @@ const ChapterRoutes: React.FC = () => {
 
   // Navigation handlers
   const handleChapterSelect = (chapter: ChapterMemberData) => {
-    navigate(`/chapters/${chapter.chapterId}/members`);
+    navigate(`/chapter/${chapter.chapterId}`);
   };
 
   const handleMemberSelect = (chapterId: string, memberName: string) => {
-    navigate(`/chapters/${chapterId}/members/${encodeURIComponent(memberName)}`);
+    navigate(`/chapter/${chapterId}/members/${encodeURIComponent(memberName)}`);
   };
 
   const handleBackToChapters = () => {
-    navigate('/chapters');
+    navigate('/');
   };
 
   const handleBackToMembers = (chapterId: string) => {
-    navigate(`/chapters/${chapterId}/members`);
+    navigate(`/chapter/${chapterId}`);
   };
 
   return (
@@ -58,19 +58,19 @@ const ChapterRoutes: React.FC = () => {
         } 
       />
       
-      {/* Member Dashboard */}
+      {/* Chapter Detail Page (with 4 tabs as per user requirements) */}
       <Route 
-        path="/:chapterId/members" 
-        element={<MemberDashboardRoute 
+        path="/chapter/:chapterId" 
+        element={<ChapterDetailRoute 
           chapterData={chapterData}
-          onMemberSelect={handleMemberSelect}
           onBackToChapters={handleBackToChapters}
+          onMemberSelect={handleMemberSelect}
         />} 
       />
       
       {/* Member Details */}
       <Route 
-        path="/:chapterId/members/:memberName" 
+        path="/chapter/:chapterId/members/:memberName" 
         element={<MemberDetailsRoute 
           chapterData={chapterData}
           onBackToMembers={handleBackToMembers}
@@ -81,12 +81,12 @@ const ChapterRoutes: React.FC = () => {
   );
 };
 
-// Route component for Member Dashboard
-const MemberDashboardRoute: React.FC<{
+// Route component for Chapter Detail Page with 4 tabs
+const ChapterDetailRoute: React.FC<{
   chapterData: ChapterMemberData[];
-  onMemberSelect: (chapterId: string, memberName: string) => void;
   onBackToChapters: () => void;
-}> = ({ chapterData, onMemberSelect, onBackToChapters }) => {
+  onMemberSelect: (chapterId: string, memberName: string) => void;
+}> = ({ chapterData, onBackToChapters }) => {
   const { chapterId } = useParams<{ chapterId: string }>();
   
   const selectedChapter = chapterData.find(chapter => chapter.chapterId === chapterId);
@@ -96,9 +96,8 @@ const MemberDashboardRoute: React.FC<{
   }
 
   return (
-    <MemberDashboard
+    <ChapterDetailPage
       chapterData={selectedChapter}
-      onMemberSelect={(memberName: string) => onMemberSelect(chapterId!, memberName)}
       onBackToChapters={onBackToChapters}
     />
   );

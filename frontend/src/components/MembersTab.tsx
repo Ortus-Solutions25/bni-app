@@ -1,20 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Box,
-  Typography,
-  Paper,
-  CircularProgress,
-  Alert,
-  Chip,
-  Button,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
-  Snackbar,
-} from '@mui/material';
-import { People, Business, Email, Phone, PersonAdd } from '@mui/icons-material';
+  Users,
+  Building2,
+  Mail,
+  Phone,
+  UserPlus,
+  Loader2
+} from 'lucide-react';
+import { Card, CardContent } from './ui/card';
+import { Button } from './ui/button';
+import { Badge } from './ui/badge';
+import { Alert, AlertDescription } from './ui/alert';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
+import { Input } from './ui/input';
+import { useToast } from '../hooks/use-toast';
 import { ChapterMemberData } from '../services/ChapterDataLoader';
 
 interface Member {
@@ -52,8 +51,7 @@ const MembersTab: React.FC<MembersTabProps> = ({ chapterData, onMemberSelect, on
     is_active: true,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [snackbarMessage, setSnackbarMessage] = useState('');
-  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const { toast } = useToast();
 
   const fetchMembers = async () => {
     if (!chapterData.chapterId) return;
@@ -120,8 +118,11 @@ const MembersTab: React.FC<MembersTabProps> = ({ chapterData, onMemberSelect, on
       });
 
       if (response.ok) {
-        setSnackbarMessage('Member added successfully!');
-        setSnackbarOpen(true);
+        toast({
+          title: "Success!",
+          description: "Member added successfully!",
+          variant: "success"
+        });
         handleCloseDialog();
         fetchMembers();
         // Trigger parent data refresh to update member counts
@@ -130,206 +131,233 @@ const MembersTab: React.FC<MembersTabProps> = ({ chapterData, onMemberSelect, on
         }
       } else {
         const errorData = await response.json();
-        setSnackbarMessage(`Error: ${errorData.error || 'Failed to add member'}`);
-        setSnackbarOpen(true);
+        toast({
+          title: "Error",
+          description: errorData.error || 'Failed to add member',
+          variant: "destructive"
+        });
       }
     } catch (error) {
-      setSnackbarMessage('Failed to add member. Please try again.');
-      setSnackbarOpen(true);
+      toast({
+        title: "Error",
+        description: 'Failed to add member. Please try again.',
+        variant: "destructive"
+      });
     }
     setIsSubmitting(false);
   };
 
-  const handleCloseSnackbar = () => {
-    setSnackbarOpen(false);
-  };
 
   if (isLoading) {
     return (
-      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 4 }}>
-        <CircularProgress />
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+      <div className="flex flex-col items-center py-8">
+        <Loader2 className="h-8 w-8 animate-spin" />
+        <p className="mt-2 text-sm text-muted-foreground">
           Loading members...
-        </Typography>
-      </Box>
+        </p>
+      </div>
     );
   }
 
   if (error) {
     return (
-      <Alert severity="error">
-        Failed to load members: {error}
+      <Alert>
+        <AlertDescription>
+          Failed to load members: {error}
+        </AlertDescription>
       </Alert>
     );
   }
 
   return (
-    <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-        <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <People />
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <h2 className="text-xl font-semibold flex items-center gap-2">
+          <Users className="h-5 w-5" />
           Chapter Members
-        </Typography>
+        </h2>
         <Button
-          variant="contained"
-          startIcon={<PersonAdd />}
           onClick={handleAddMember}
-          size="small"
+          className="flex items-center gap-2"
+          size="sm"
         >
+          <UserPlus className="h-4 w-4" />
           Add Member
         </Button>
-      </Box>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+      </div>
+      <p className="text-sm text-muted-foreground">
         All {members.length} active members in {chapterData.chapterName}
-      </Typography>
-      
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(3, 1fr)' }, gap: 3 }}>
+      </p>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {members.map((member) => (
-          <Paper 
-            key={member.id} 
-            elevation={1} 
-            sx={{ 
-              p: 3, 
-              cursor: 'pointer', 
-              transition: 'all 0.2s',
-              '&:hover': { 
-                elevation: 4,
-                transform: 'translateY(-2px)'
-              } 
-            }}
+          <Card
+            key={member.id}
+            className="cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-1 dark:hover:shadow-lg dark:hover:shadow-gray-800/20"
             onClick={() => onMemberSelect(member.full_name)}
           >
-            <Box sx={{ mb: 2 }}>
-              <Typography variant="h6" fontWeight="medium" sx={{ mb: 1 }}>
-                {member.full_name}
-              </Typography>
-              {member.business_name && (
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                  <Business fontSize="small" color="action" />
-                  <Typography variant="body2" color="text.secondary">
-                    {member.business_name}
-                  </Typography>
-                </Box>
-              )}
-              {member.classification && (
-                <Chip 
-                  label={member.classification}
-                  size="small"
-                  variant="outlined"
-                  sx={{ mb: 2 }}
-                />
-              )}
-            </Box>
-            
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              {member.email && (
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Email fontSize="small" color="action" />
-                  <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
-                    {member.email}
-                  </Typography>
-                </Box>
-              )}
-              {member.phone && (
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Phone fontSize="small" color="action" />
-                  <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
-                    {member.phone}
-                  </Typography>
-                </Box>
-              )}
-            </Box>
-          </Paper>
+            <CardContent className="p-4">
+              <div className="mb-3">
+                <h3 className="font-semibold text-base mb-2">
+                  {member.full_name}
+                </h3>
+                {member.business_name && (
+                  <div className="flex items-center gap-2 mb-2">
+                    <Building2 className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">
+                      {member.business_name}
+                    </span>
+                  </div>
+                )}
+                {member.classification && (
+                  <Badge variant="outline" className="mb-2">
+                    {member.classification}
+                  </Badge>
+                )}
+              </div>
+
+              <div className="space-y-1">
+                {member.email && (
+                  <div className="flex items-center gap-2">
+                    <Mail className="h-3 w-3 text-muted-foreground" />
+                    <span className="text-xs text-muted-foreground">
+                      {member.email}
+                    </span>
+                  </div>
+                )}
+                {member.phone && (
+                  <div className="flex items-center gap-2">
+                    <Phone className="h-3 w-3 text-muted-foreground" />
+                    <span className="text-xs text-muted-foreground">
+                      {member.phone}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
         ))}
-      </Box>
-      
+      </div>
+
       {members.length === 0 && (
-        <Box sx={{ textAlign: 'center', py: 4 }}>
-          <Typography variant="body2" color="text.secondary">
+        <div className="text-center py-8">
+          <p className="text-sm text-muted-foreground">
             No active members found for this chapter.
-          </Typography>
-        </Box>
+          </p>
+        </div>
       )}
 
       {/* Add Member Dialog */}
-      <Dialog open={openAddDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
-        <DialogTitle>
-          Add New Member
-        </DialogTitle>
-        <DialogContent>
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2, pt: 1 }}>
-            <TextField
-              autoFocus
-              label="First Name"
-              variant="outlined"
-              value={formData.first_name}
-              onChange={handleFormChange('first_name')}
-              required
-            />
-            <TextField
-              label="Last Name"
-              variant="outlined"
-              value={formData.last_name}
-              onChange={handleFormChange('last_name')}
-              required
-            />
-            <TextField
-              label="Business Name"
-              variant="outlined"
-              value={formData.business_name}
-              onChange={handleFormChange('business_name')}
-              sx={{ gridColumn: { xs: '1', sm: '1 / -1' } }}
-            />
-            <TextField
-              label="Classification"
-              variant="outlined"
-              value={formData.classification}
-              onChange={handleFormChange('classification')}
-              placeholder="e.g., Accountant, Lawyer, Real Estate"
-            />
-            <TextField
-              label="Email"
-              type="email"
-              variant="outlined"
-              value={formData.email}
-              onChange={handleFormChange('email')}
-            />
-            <TextField
-              label="Phone"
-              variant="outlined"
-              value={formData.phone}
-              onChange={handleFormChange('phone')}
-            />
-            <TextField
-              label="Joined Date"
-              type="date"
-              variant="outlined"
-              value={formData.joined_date}
-              onChange={handleFormChange('joined_date')}
-              InputLabelProps={{ shrink: true }}
-            />
-          </Box>
+      <Dialog open={openAddDialog} onOpenChange={setOpenAddDialog}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Add New Member</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-4">
+            <div className="space-y-2">
+              <label htmlFor="first_name" className="text-sm font-medium">
+                First Name *
+              </label>
+              <Input
+                id="first_name"
+                autoFocus
+                placeholder="Enter first name"
+                value={formData.first_name}
+                onChange={handleFormChange('first_name')}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <label htmlFor="last_name" className="text-sm font-medium">
+                Last Name *
+              </label>
+              <Input
+                id="last_name"
+                placeholder="Enter last name"
+                value={formData.last_name}
+                onChange={handleFormChange('last_name')}
+                required
+              />
+            </div>
+            <div className="space-y-2 col-span-full">
+              <label htmlFor="business_name" className="text-sm font-medium">
+                Business Name
+              </label>
+              <Input
+                id="business_name"
+                placeholder="Enter business name"
+                value={formData.business_name}
+                onChange={handleFormChange('business_name')}
+              />
+            </div>
+            <div className="space-y-2">
+              <label htmlFor="classification" className="text-sm font-medium">
+                Classification
+              </label>
+              <Input
+                id="classification"
+                placeholder="e.g., Accountant, Lawyer, Real Estate"
+                value={formData.classification}
+                onChange={handleFormChange('classification')}
+              />
+            </div>
+            <div className="space-y-2">
+              <label htmlFor="email" className="text-sm font-medium">
+                Email
+              </label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="Enter email address"
+                value={formData.email}
+                onChange={handleFormChange('email')}
+              />
+            </div>
+            <div className="space-y-2">
+              <label htmlFor="phone" className="text-sm font-medium">
+                Phone
+              </label>
+              <Input
+                id="phone"
+                placeholder="Enter phone number"
+                value={formData.phone}
+                onChange={handleFormChange('phone')}
+              />
+            </div>
+            <div className="space-y-2">
+              <label htmlFor="joined_date" className="text-sm font-medium">
+                Joined Date
+              </label>
+              <Input
+                id="joined_date"
+                type="date"
+                value={formData.joined_date}
+                onChange={handleFormChange('joined_date')}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={handleCloseDialog}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSubmit}
+              disabled={isSubmitting || !formData.first_name || !formData.last_name}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Adding...
+                </>
+              ) : (
+                'Add Member'
+              )}
+            </Button>
+          </DialogFooter>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseDialog}>Cancel</Button>
-          <Button 
-            onClick={handleSubmit} 
-            variant="contained"
-            disabled={isSubmitting || !formData.first_name || !formData.last_name}
-          >
-            {isSubmitting ? 'Adding...' : 'Add Member'}
-          </Button>
-        </DialogActions>
       </Dialog>
 
-      {/* Success/Error Snackbar */}
-      <Snackbar
-        open={snackbarOpen}
-        autoHideDuration={6000}
-        onClose={handleCloseSnackbar}
-        message={snackbarMessage}
-      />
-    </Box>
+    </div>
   );
 };
 

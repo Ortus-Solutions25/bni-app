@@ -1,34 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Box,
-  Typography,
-  Paper,
-  CircularProgress,
-  Alert,
-  Tabs,
-  Tab,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Chip,
-  Tooltip,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Button,
-} from '@mui/material';
-import {
-  ViewModule,
+  Grid3x3,
   TrendingUp,
-  People,
-  MergeType,
-  AttachMoney,
+  Users,
+  GitMerge,
+  DollarSign,
   Download,
-} from '@mui/icons-material';
+  Loader2
+} from 'lucide-react';
+import { Card, CardContent } from './ui/card';
+import { Button } from './ui/button';
+import { Badge } from './ui/badge';
+import { Alert, AlertDescription } from './ui/alert';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 import { ChapterMemberData, MonthlyReport, loadMonthlyReports, loadMatrixData } from '../services/ChapterDataLoader';
 
 interface MatrixTabProps {
@@ -68,36 +55,8 @@ interface TYFCBData {
   processed_at: string;
 }
 
-interface TabPanelProps {
-  children?: React.ReactNode;
-  index: number;
-  value: number;
-}
-
-function TabPanel(props: TabPanelProps) {
-  const { children, value, index, ...other } = props;
-  return (
-    <div
-      role="tabpanel"
-      hidden={value !== index}
-      id={`matrix-tabpanel-${index}`}
-      aria-labelledby={`matrix-tab-${index}`}
-      {...other}
-    >
-      {value === index && <Box sx={{ py: 3 }}>{children}</Box>}
-    </div>
-  );
-}
-
-function a11yProps(index: number) {
-  return {
-    id: `matrix-tab-${index}`,
-    'aria-controls': `matrix-tabpanel-${index}`,
-  };
-}
-
 const MatrixTab: React.FC<MatrixTabProps> = ({ chapterData }) => {
-  const [tabValue, setTabValue] = useState(0);
+  const [tabValue, setTabValue] = useState('referral');
   const [selectedReport, setSelectedReport] = useState<MonthlyReport | null>(null);
   const [monthlyReports, setMonthlyReports] = useState<MonthlyReport[]>([]);
   const [referralMatrix, setReferralMatrix] = useState<MatrixData | null>(null);
@@ -112,14 +71,14 @@ const MatrixTab: React.FC<MatrixTabProps> = ({ chapterData }) => {
   useEffect(() => {
     const loadReports = async () => {
       if (!chapterData.chapterId) return;
-      
+
       setIsLoadingReports(true);
       setError(null);
-      
+
       try {
         const reports = await loadMonthlyReports(chapterData.chapterId);
         setMonthlyReports(reports);
-        
+
         // Select the most recent report by default
         if (reports.length > 0) {
           setSelectedReport(reports[0]);
@@ -130,7 +89,7 @@ const MatrixTab: React.FC<MatrixTabProps> = ({ chapterData }) => {
         setIsLoadingReports(false);
       }
     };
-    
+
     loadReports();
   }, [chapterData.chapterId]);
 
@@ -138,32 +97,32 @@ const MatrixTab: React.FC<MatrixTabProps> = ({ chapterData }) => {
   useEffect(() => {
     const fetchMatrices = async () => {
       if (!selectedReport || !chapterData.chapterId) return;
-      
+
       setIsLoadingMatrices(true);
       setError(null);
-      
+
       // Clear previous matrices
       setReferralMatrix(null);
       setOneToOneMatrix(null);
       setCombinationMatrix(null);
       setTyfcbData(null);
-      
+
       try {
         // Only load matrices that are available for this report
         const promises = [];
-        
+
         if (selectedReport.has_referral_matrix) {
           promises.push(loadMatrixData(chapterData.chapterId, selectedReport.id, 'referral-matrix'));
         } else {
           promises.push(Promise.resolve(null));
         }
-        
+
         if (selectedReport.has_oto_matrix) {
           promises.push(loadMatrixData(chapterData.chapterId, selectedReport.id, 'one-to-one-matrix'));
         } else {
           promises.push(Promise.resolve(null));
         }
-        
+
         if (selectedReport.has_combination_matrix) {
           promises.push(loadMatrixData(chapterData.chapterId, selectedReport.id, 'combination-matrix'));
         } else {
@@ -191,46 +150,41 @@ const MatrixTab: React.FC<MatrixTabProps> = ({ chapterData }) => {
         setIsLoadingMatrices(false);
       }
     };
-    
+
     if (selectedReport) {
       fetchMatrices();
     }
   }, [selectedReport, chapterData.chapterId]);
 
-  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
-    setTabValue(newValue);
-  };
-
-  const handleReportChange = (event: any) => {
-    const reportId = event.target.value;
-    const report = monthlyReports.find(r => r.id === reportId);
+  const handleReportChange = (reportId: string) => {
+    const report = monthlyReports.find(r => r.id === parseInt(reportId));
     setSelectedReport(report || null);
   };
 
   const handleDownloadExcel = async () => {
     if (!selectedReport) return;
-    
+
     try {
       // Fetch the Excel file from the API
       const response = await fetch(`/api/chapters/${chapterData.chapterId}/reports/${selectedReport.id}/download-matrices/`);
-      
+
       if (!response.ok) {
         throw new Error('Failed to download file');
       }
-      
+
       // Get the blob from the response
       const blob = await response.blob();
-      
+
       // Create a temporary URL for the blob
       const url = window.URL.createObjectURL(blob);
-      
+
       // Create a temporary anchor element and trigger download
       const link = document.createElement('a');
       link.href = url;
       link.download = `${chapterData.chapterName.replace(/ /g, '_')}_Matrices_${selectedReport.month_year}.xlsx`;
       document.body.appendChild(link);
       link.click();
-      
+
       // Clean up
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
@@ -243,8 +197,10 @@ const MatrixTab: React.FC<MatrixTabProps> = ({ chapterData }) => {
   const renderTYFCBReport = (tyfcbData: TYFCBData | null) => {
     if (!tyfcbData) {
       return (
-        <Alert severity="warning">
-          No TYFCB data available for this report
+        <Alert>
+          <AlertDescription>
+            No TYFCB data available for this report
+          </AlertDescription>
         </Alert>
       );
     }
@@ -265,129 +221,141 @@ const MatrixTab: React.FC<MatrixTabProps> = ({ chapterData }) => {
       .slice(0, 10);
 
     return (
-      <Box>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+      <div className="space-y-6">
+        <p className="text-sm text-muted-foreground">
           Thank You For Closed Business (TYFCB) report showing business closed through referrals
-        </Typography>
+        </p>
 
         {/* Summary Cards */}
-        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 2, mb: 3 }}>
-          <Paper sx={{ p: 2, textAlign: 'center' }}>
-            <Typography variant="h6" color="primary">
-              Total TYFCB
-            </Typography>
-            <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'success.main' }}>
-              AED {totalAmount.toLocaleString()}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {totalTransactions} transactions
-            </Typography>
-          </Paper>
-          
-          <Paper sx={{ p: 2, textAlign: 'center' }}>
-            <Typography variant="h6" color="primary">
-              Inside Chapter
-            </Typography>
-            <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
-              AED {inside.total_amount.toLocaleString()}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {inside.count} transactions
-            </Typography>
-          </Paper>
-          
-          <Paper sx={{ p: 2, textAlign: 'center' }}>
-            <Typography variant="h6" color="primary">
-              Outside Chapter
-            </Typography>
-            <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
-              AED {outside.total_amount.toLocaleString()}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {outside.count} transactions
-            </Typography>
-          </Paper>
-        </Box>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card>
+            <CardContent className="p-6 text-center">
+              <h3 className="text-lg font-semibold text-primary mb-2">
+                Total TYFCB
+              </h3>
+              <p className="text-3xl font-bold text-green-600 dark:text-green-400">
+                AED {totalAmount.toLocaleString()}
+              </p>
+              <p className="text-sm text-muted-foreground mt-1">
+                {totalTransactions} transactions
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-6 text-center">
+              <h3 className="text-lg font-semibold text-primary mb-2">
+                Inside Chapter
+              </h3>
+              <p className="text-3xl font-bold">
+                AED {inside.total_amount.toLocaleString()}
+              </p>
+              <p className="text-sm text-muted-foreground mt-1">
+                {inside.count} transactions
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-6 text-center">
+              <h3 className="text-lg font-semibold text-primary mb-2">
+                Outside Chapter
+              </h3>
+              <p className="text-3xl font-bold">
+                AED {outside.total_amount.toLocaleString()}
+              </p>
+              <p className="text-sm text-muted-foreground mt-1">
+                {outside.count} transactions
+              </p>
+            </CardContent>
+          </Card>
+        </div>
 
         {/* Top Performers Tables */}
-        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: 3 }}>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Inside Chapter Top Performers */}
-          <Paper sx={{ p: 2 }}>
-            <Typography variant="h6" gutterBottom color="primary">
-              Top Inside Chapter TYFCB
-            </Typography>
-            <TableContainer>
-              <Table size="small">
-                <TableHead>
-                  <TableRow>
-                    <TableCell sx={{ fontWeight: 'bold' }}>Member</TableCell>
-                    <TableCell align="right" sx={{ fontWeight: 'bold' }}>Amount</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {topInsideMembers.map(([member, amount], index) => (
-                    <TableRow key={member} hover>
-                      <TableCell>{member}</TableCell>
-                      <TableCell align="right" sx={{ fontWeight: 'medium', color: 'success.main' }}>
-                        AED {amount.toLocaleString()}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {topInsideMembers.length === 0 && (
+          <Card>
+            <CardContent className="p-4">
+              <h3 className="text-lg font-semibold text-primary mb-4">
+                Top Inside Chapter TYFCB
+              </h3>
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
                     <TableRow>
-                      <TableCell colSpan={2} align="center" sx={{ color: 'text.secondary' }}>
-                        No inside chapter TYFCB data
-                      </TableCell>
+                      <TableHead className="font-semibold">Member</TableHead>
+                      <TableHead className="text-right font-semibold">Amount</TableHead>
                     </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          </Paper>
+                  </TableHeader>
+                  <TableBody>
+                    {topInsideMembers.map(([member, amount], index) => (
+                      <TableRow key={member} className="hover:bg-muted/50">
+                        <TableCell>{member}</TableCell>
+                        <TableCell className="text-right font-medium text-green-600 dark:text-green-400">
+                          AED {amount.toLocaleString()}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {topInsideMembers.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={2} className="text-center text-muted-foreground">
+                          No inside chapter TYFCB data
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Outside Chapter Top Performers */}
-          <Paper sx={{ p: 2 }}>
-            <Typography variant="h6" gutterBottom color="primary">
-              Top Outside Chapter TYFCB
-            </Typography>
-            <TableContainer>
-              <Table size="small">
-                <TableHead>
-                  <TableRow>
-                    <TableCell sx={{ fontWeight: 'bold' }}>Member</TableCell>
-                    <TableCell align="right" sx={{ fontWeight: 'bold' }}>Amount</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {topOutsideMembers.map(([member, amount], index) => (
-                    <TableRow key={member} hover>
-                      <TableCell>{member}</TableCell>
-                      <TableCell align="right" sx={{ fontWeight: 'medium', color: 'success.main' }}>
-                        AED {amount.toLocaleString()}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {topOutsideMembers.length === 0 && (
+          <Card>
+            <CardContent className="p-4">
+              <h3 className="text-lg font-semibold text-primary mb-4">
+                Top Outside Chapter TYFCB
+              </h3>
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
                     <TableRow>
-                      <TableCell colSpan={2} align="center" sx={{ color: 'text.secondary' }}>
-                        No outside chapter TYFCB data
-                      </TableCell>
+                      <TableHead className="font-semibold">Member</TableHead>
+                      <TableHead className="text-right font-semibold">Amount</TableHead>
                     </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          </Paper>
-        </Box>
-      </Box>
+                  </TableHeader>
+                  <TableBody>
+                    {topOutsideMembers.map(([member, amount], index) => (
+                      <TableRow key={member} className="hover:bg-muted/50">
+                        <TableCell>{member}</TableCell>
+                        <TableCell className="text-right font-medium text-green-600 dark:text-green-400">
+                          AED {amount.toLocaleString()}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {topOutsideMembers.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={2} className="text-center text-muted-foreground">
+                          No outside chapter TYFCB data
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     );
   };
 
   const renderMatrix = (matrixData: MatrixData | null, title: string, description: string, matrixType: 'referral' | 'oto' | 'combination' = 'referral') => {
     if (!matrixData) {
       return (
-        <Alert severity="warning">
-          No data available for {title.toLowerCase()}
+        <Alert>
+          <AlertDescription>
+            No data available for {title.toLowerCase()}
+          </AlertDescription>
         </Alert>
       );
     }
@@ -397,304 +365,306 @@ const MatrixTab: React.FC<MatrixTabProps> = ({ chapterData }) => {
 
     if (!hasData) {
       return (
-        <Alert severity="info">
-          No {title.toLowerCase()} data available for this chapter yet. 
-          Data will appear after importing PALMS reports.
+        <Alert>
+          <AlertDescription>
+            No {title.toLowerCase()} data available for this chapter yet.
+            Data will appear after importing PALMS reports.
+          </AlertDescription>
         </Alert>
       );
     }
 
     return (
-      <Box>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          {description}
-        </Typography>
+      <TooltipProvider>
+        <div className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            {description}
+          </p>
 
-        {/* Legend for combination matrix */}
-        {legend && (
-          <Box sx={{ mb: 2 }}>
-            <Typography variant="subtitle2" gutterBottom>Legend:</Typography>
-            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-              {Object.entries(legend).map(([key, value]) => (
-                <Chip
-                  key={key}
-                  label={`${key}: ${value}`}
-                  size="small"
-                  variant="outlined"
-                />
-              ))}
-            </Box>
-          </Box>
-        )}
-
-        {/* Matrix Table */}
-        <TableContainer component={Paper} sx={{ maxHeight: 600, overflow: 'auto' }}>
-          <Table stickyHeader size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell sx={{ fontWeight: 'bold', minWidth: 120 }}>Giver \ Receiver</TableCell>
-                {members.map((member, index) => (
-                  <TableCell 
-                    key={index} 
-                    sx={{ 
-                      writingMode: 'vertical-rl', 
-                      textOrientation: 'mixed',
-                      minWidth: 40,
-                      maxWidth: 40,
-                      fontSize: '0.75rem',
-                      fontWeight: 'bold'
-                    }}
+          {/* Legend for combination matrix */}
+          {legend && (
+            <div>
+              <h4 className="text-sm font-semibold mb-2">Legend:</h4>
+              <div className="flex gap-2 flex-wrap">
+                {Object.entries(legend).map(([key, value]) => (
+                  <Badge
+                    key={key}
+                    variant="outline"
                   >
-                    <Tooltip title={member}>
-                      <span>{member.split(' ').map(n => n[0]).join('')}</span>
-                    </Tooltip>
-                  </TableCell>
+                    {key}: {value}
+                  </Badge>
                 ))}
-                {/* Summary columns based on matrix type */}
-                {matrixType === 'combination' && summaries ? (
-                  <>
-                    <TableCell sx={{ fontWeight: 'bold', minWidth: 80, fontSize: '0.75rem' }}>Neither</TableCell>
-                    <TableCell sx={{ fontWeight: 'bold', minWidth: 80, fontSize: '0.75rem' }}>OTO Only</TableCell>
-                    <TableCell sx={{ fontWeight: 'bold', minWidth: 80, fontSize: '0.75rem' }}>Referral Only</TableCell>
-                    <TableCell sx={{ fontWeight: 'bold', minWidth: 80, fontSize: '0.75rem' }}>OTO & Referral</TableCell>
-                  </>
-                ) : totals ? (
-                  <>
-                    <TableCell sx={{ fontWeight: 'bold', minWidth: 80, fontSize: '0.75rem' }}>
-                      {matrixType === 'oto' ? 'Total OTO' : 'Total Referrals'}
-                    </TableCell>
-                    <TableCell sx={{ fontWeight: 'bold', minWidth: 80, fontSize: '0.75rem' }}>
-                      {matrixType === 'oto' ? 'Unique OTO' : 'Unique Referrals'}
-                    </TableCell>
-                  </>
-                ) : null}
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {members.map((giver, i) => (
-                <TableRow key={i} hover>
-                  <TableCell sx={{ fontWeight: 'medium', fontSize: '0.875rem' }}>
-                    <Tooltip title={giver}>
-                      <span>{giver}</span>
-                    </Tooltip>
-                  </TableCell>
-                  {members.map((receiver, j) => (
-                    <TableCell 
-                      key={j}
-                      sx={{ 
-                        textAlign: 'center',
-                        backgroundColor: matrix[i][j] > 0 ? 'primary.light' : 'transparent',
-                        color: matrix[i][j] > 0 ? 'primary.contrastText' : 'text.primary',
-                        fontWeight: matrix[i][j] > 0 ? 'bold' : 'normal'
-                      }}
-                    >
-                      {matrix[i][j] || '-'}
-                    </TableCell>
+              </div>
+            </div>
+          )}
+
+          {/* Matrix Table */}
+          <div className="rounded-md border">
+            <div className="max-h-96 overflow-auto">
+              <Table>
+                <TableHeader className="sticky top-0 bg-background">
+                  <TableRow>
+                    <TableHead className="font-bold min-w-[120px] sticky left-0 bg-background">Giver \ Receiver</TableHead>
+                    {members.map((member, index) => (
+                      <TableHead
+                        key={index}
+                        className="font-bold min-w-[40px] max-w-[40px] text-xs p-2"
+                        style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}
+                      >
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="cursor-help">
+                              {member.split(' ').map(n => n[0]).join('')}
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{member}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TableHead>
+                    ))}
+                    {/* Summary columns based on matrix type */}
+                    {matrixType === 'combination' && summaries ? (
+                      <>
+                        <TableHead className="font-bold min-w-[80px] text-xs">Neither</TableHead>
+                        <TableHead className="font-bold min-w-[80px] text-xs">OTO Only</TableHead>
+                        <TableHead className="font-bold min-w-[80px] text-xs">Referral Only</TableHead>
+                        <TableHead className="font-bold min-w-[80px] text-xs">OTO & Referral</TableHead>
+                      </>
+                    ) : totals ? (
+                      <>
+                        <TableHead className="font-bold min-w-[80px] text-xs">
+                          {matrixType === 'oto' ? 'Total OTO' : 'Total Referrals'}
+                        </TableHead>
+                        <TableHead className="font-bold min-w-[80px] text-xs">
+                          {matrixType === 'oto' ? 'Unique OTO' : 'Unique Referrals'}
+                        </TableHead>
+                      </>
+                    ) : null}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {members.map((giver, i) => (
+                    <TableRow key={i} className="hover:bg-muted/50">
+                      <TableCell className="font-medium text-sm sticky left-0 bg-background">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="cursor-help">{giver}</span>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{giver}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TableCell>
+                      {members.map((receiver, j) => (
+                        <TableCell
+                          key={j}
+                          className={`text-center ${
+                            matrix[i][j] > 0
+                              ? 'bg-primary/20 dark:bg-primary/30 font-bold text-primary'
+                              : ''
+                          }`}
+                        >
+                          {matrix[i][j] || '-'}
+                        </TableCell>
+                      ))}
+                      {/* Summary values based on matrix type */}
+                      {matrixType === 'combination' && summaries ? (
+                        <>
+                          <TableCell className="font-bold text-center">
+                            {summaries.neither?.[giver] || 0}
+                          </TableCell>
+                          <TableCell className="font-bold text-center">
+                            {summaries.oto_only?.[giver] || 0}
+                          </TableCell>
+                          <TableCell className="font-bold text-center">
+                            {summaries.referral_only?.[giver] || 0}
+                          </TableCell>
+                          <TableCell className="font-bold text-center">
+                            {summaries.both?.[giver] || 0}
+                          </TableCell>
+                        </>
+                      ) : totals ? (
+                        <>
+                          <TableCell className="font-bold text-center">
+                            {totals.given?.[giver] || 0}
+                          </TableCell>
+                          <TableCell className="font-bold text-center">
+                            {totals.unique_given?.[giver] || 0}
+                          </TableCell>
+                        </>
+                      ) : null}
+                    </TableRow>
                   ))}
-                  {/* Summary values based on matrix type */}
-                  {matrixType === 'combination' && summaries ? (
-                    <>
-                      <TableCell sx={{ fontWeight: 'bold', textAlign: 'center' }}>
-                        {summaries.neither?.[giver] || 0}
-                      </TableCell>
-                      <TableCell sx={{ fontWeight: 'bold', textAlign: 'center' }}>
-                        {summaries.oto_only?.[giver] || 0}
-                      </TableCell>
-                      <TableCell sx={{ fontWeight: 'bold', textAlign: 'center' }}>
-                        {summaries.referral_only?.[giver] || 0}
-                      </TableCell>
-                      <TableCell sx={{ fontWeight: 'bold', textAlign: 'center' }}>
-                        {summaries.both?.[giver] || 0}
-                      </TableCell>
-                    </>
-                  ) : totals ? (
-                    <>
-                      <TableCell sx={{ fontWeight: 'bold', textAlign: 'center' }}>
-                        {totals.given?.[giver] || 0}
-                      </TableCell>
-                      <TableCell sx={{ fontWeight: 'bold', textAlign: 'center' }}>
-                        {totals.unique_given?.[giver] || 0}
-                      </TableCell>
-                    </>
-                  ) : null}
-                </TableRow>
-              ))}
-              {/* Totals received row */}
-              {totals?.received && (
-                <TableRow>
-                  <TableCell sx={{ fontWeight: 'bold' }}>Total Received</TableCell>
-                  {members.map((member, i) => (
-                    <TableCell key={i} sx={{ fontWeight: 'bold', textAlign: 'center' }}>
-                      {totals.received?.[member] || 0}
-                    </TableCell>
-                  ))}
-                  <TableCell />
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      </Box>
+                  {/* Totals received row */}
+                  {totals?.received && (
+                    <TableRow>
+                      <TableCell className="font-bold sticky left-0 bg-background">Total Received</TableCell>
+                      {members.map((member, i) => (
+                        <TableCell key={i} className="font-bold text-center">
+                          {totals.received?.[member] || 0}
+                        </TableCell>
+                      ))}
+                      <TableCell />
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        </div>
+      </TooltipProvider>
     );
   };
 
   if (isLoadingReports) {
     return (
-      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 4 }}>
-        <CircularProgress />
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+      <div className="flex flex-col items-center py-8">
+        <Loader2 className="h-8 w-8 animate-spin" />
+        <p className="mt-2 text-sm text-muted-foreground">
           Loading monthly reports...
-        </Typography>
-      </Box>
+        </p>
+      </div>
     );
   }
 
   if (error) {
     return (
-      <Alert severity="error">
-        {error}
+      <Alert>
+        <AlertDescription>
+          {error}
+        </AlertDescription>
       </Alert>
     );
   }
 
   return (
-    <Box>
-      <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-        <ViewModule />
-        Matrices & Reports
-      </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        Interactive matrices and TYFCB reports showing relationships and business results for {chapterData.chapterName}
-      </Typography>
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-xl font-semibold flex items-center gap-2 mb-2">
+          <Grid3x3 className="h-5 w-5" />
+          Matrices & Reports
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          Interactive matrices and TYFCB reports showing relationships and business results for {chapterData.chapterName}
+        </p>
+      </div>
 
       {/* Report Selection */}
       {monthlyReports.length > 0 && (
-        <Box sx={{ mb: 3, display: 'flex', gap: 2, alignItems: 'center' }}>
-          <FormControl sx={{ minWidth: 300 }}>
-            <InputLabel>Select Monthly Report</InputLabel>
-            <Select
-              value={selectedReport?.id || ''}
-              label="Select Monthly Report"
-              onChange={handleReportChange}
-            >
-              {monthlyReports.map((report) => (
-                <MenuItem key={report.id} value={report.id}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                    <span>{report.month_year}</span>
-                    <Box sx={{ display: 'flex', gap: 1 }}>
-                      {report.has_referral_matrix && <Chip label="Ref" size="small" />}
-                      {report.has_oto_matrix && <Chip label="OTO" size="small" />}
-                      {report.has_combination_matrix && <Chip label="Combo" size="small" />}
-                    </Box>
-                  </Box>
-                </MenuItem>
-              ))}
+        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+          <div className="w-full sm:w-80">
+            <Select value={selectedReport?.id?.toString() || ''} onValueChange={handleReportChange}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select Monthly Report" />
+              </SelectTrigger>
+              <SelectContent>
+                {monthlyReports.map((report) => (
+                  <SelectItem key={report.id} value={report.id.toString()}>
+                    <div className="flex justify-between items-center w-full">
+                      <span>{report.month_year}</span>
+                      <div className="flex gap-1 ml-4">
+                        {report.has_referral_matrix && <Badge variant="secondary">Ref</Badge>}
+                        {report.has_oto_matrix && <Badge variant="secondary">OTO</Badge>}
+                        {report.has_combination_matrix && <Badge variant="secondary">Combo</Badge>}
+                      </div>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
             </Select>
-          </FormControl>
+          </div>
           {selectedReport && (
             <Button
-              variant="contained"
-              startIcon={<Download />}
               onClick={handleDownloadExcel}
-              sx={{ height: 56 }}
+              className="flex items-center gap-2"
             >
+              <Download className="h-4 w-4" />
               Download All Matrices
             </Button>
           )}
-        </Box>
+        </div>
       )}
 
       {/* No Reports State */}
       {monthlyReports.length === 0 && (
-        <Alert severity="info">
-          No monthly reports have been uploaded yet for {chapterData.chapterName}. 
-          Use the "Upload Palms Data" tab to upload PALMS slip audit reports.
+        <Alert>
+          <AlertDescription>
+            No monthly reports have been uploaded yet for {chapterData.chapterName}.
+            Use the "Upload Palms Data" tab to upload PALMS slip audit reports.
+          </AlertDescription>
         </Alert>
       )}
 
       {/* Loading Matrices */}
       {isLoadingMatrices && (
-        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 4 }}>
-          <CircularProgress />
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+        <div className="flex flex-col items-center py-8">
+          <Loader2 className="h-8 w-8 animate-spin" />
+          <p className="mt-2 text-sm text-muted-foreground">
             Loading matrices for {selectedReport?.month_year}...
-          </Typography>
-        </Box>
+          </p>
+        </div>
       )}
 
       {/* Matrix Content - only show if we have a selected report and not loading */}
       {selectedReport && !isLoadingMatrices && monthlyReports.length > 0 && (
-        <Box>
-          {/* Matrix Tabs */}
-          <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-            <Tabs
-              value={tabValue}
-              onChange={handleTabChange}
-              aria-label="matrix tabs"
-              variant="scrollable"
-              scrollButtons="auto"
-            >
-              <Tab 
-                label="Referral Matrix" 
-                icon={<TrendingUp />} 
-                iconPosition="start"
-                {...a11yProps(0)} 
-              />
-              <Tab 
-                label="One-to-One Matrix" 
-                icon={<People />} 
-                iconPosition="start"
-                {...a11yProps(1)} 
-              />
-              <Tab 
-                label="Combination Matrix" 
-                icon={<MergeType />} 
-                iconPosition="start"
-                {...a11yProps(2)} 
-              />
-              <Tab 
-                label="TYFCB Report" 
-                icon={<AttachMoney />} 
-                iconPosition="start"
-                {...a11yProps(3)} 
-              />
-            </Tabs>
-          </Box>
+        <Tabs value={tabValue} onValueChange={setTabValue}>
+          <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4">
+            <TabsTrigger value="referral" className="flex items-center gap-2">
+              <TrendingUp className="h-4 w-4" />
+              <span className="hidden sm:inline">Referral Matrix</span>
+              <span className="sm:hidden">Referral</span>
+            </TabsTrigger>
+            <TabsTrigger value="oto" className="flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              <span className="hidden sm:inline">One-to-One Matrix</span>
+              <span className="sm:hidden">One-to-One</span>
+            </TabsTrigger>
+            <TabsTrigger value="combination" className="flex items-center gap-2">
+              <GitMerge className="h-4 w-4" />
+              <span className="hidden sm:inline">Combination Matrix</span>
+              <span className="sm:hidden">Combination</span>
+            </TabsTrigger>
+            <TabsTrigger value="tyfcb" className="flex items-center gap-2">
+              <DollarSign className="h-4 w-4" />
+              <span className="hidden sm:inline">TYFCB Report</span>
+              <span className="sm:hidden">TYFCB</span>
+            </TabsTrigger>
+          </TabsList>
 
-          {/* Matrix Content */}
-          <TabPanel value={tabValue} index={0}>
+          <TabsContent value="referral" className="mt-6">
             {renderMatrix(
               referralMatrix,
               "Referral Matrix",
               "Shows who has given referrals to whom. Numbers represent the count of referrals given.",
               'referral'
             )}
-          </TabPanel>
+          </TabsContent>
 
-          <TabPanel value={tabValue} index={1}>
+          <TabsContent value="oto" className="mt-6">
             {renderMatrix(
               oneToOneMatrix,
-              "One-to-One Matrix", 
+              "One-to-One Matrix",
               "Tracks one-to-one meetings between members. Numbers represent the count of meetings.",
               'oto'
             )}
-          </TabPanel>
+          </TabsContent>
 
-          <TabPanel value={tabValue} index={2}>
+          <TabsContent value="combination" className="mt-6">
             {renderMatrix(
               combinationMatrix,
               "Combination Matrix",
               "Combined view showing both referrals and one-to-ones using coded values.",
               'combination'
             )}
-          </TabPanel>
+          </TabsContent>
 
-          <TabPanel value={tabValue} index={3}>
+          <TabsContent value="tyfcb" className="mt-6">
             {renderTYFCBReport(tyfcbData)}
-          </TabPanel>
-        </Box>
+          </TabsContent>
+        </Tabs>
       )}
-    </Box>
+    </div>
   );
 };
 

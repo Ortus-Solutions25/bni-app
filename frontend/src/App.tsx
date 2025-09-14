@@ -3,8 +3,11 @@ import {
   BrowserRouter as Router,
   Routes,
   Route,
+  useNavigate,
+  useLocation,
 } from "react-router-dom";
-import { BarChart3 } from "lucide-react";
+import { BarChart3, Settings, Home } from "lucide-react";
+import { Button } from "./components/ui/button";
 
 // Import components
 import ChapterRoutes from "./components/ChapterRoutes";
@@ -12,7 +15,7 @@ import ChapterRoutes from "./components/ChapterRoutes";
 function App() {
   return (
     <Router>
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <div className="dark min-h-screen bg-background text-foreground">
         <AppContent />
       </div>
     </Router>
@@ -20,26 +23,54 @@ function App() {
 }
 
 function AppContent() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const isAdminPage = location.pathname.startsWith('/admin');
+  const isHomePage = location.pathname === '/';
+
   return (
     <div className="flex h-screen">
       {/* Main Content Area - Full Width */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Fixed Header */}
-        <header className="sticky top-0 z-40 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
+        <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
           <div className="flex h-16 items-center justify-between px-6">
             <div className="flex items-center gap-3">
               <BarChart3 className="h-7 w-7 text-primary" />
               <div className="flex flex-col">
-                <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
+                <h1 className="text-xl font-semibold text-foreground">
                   📊 BNI PALMS Analysis
                 </h1>
-                <span className="text-sm text-gray-500 dark:text-gray-400">
+                <span className="text-sm text-muted-foreground">
                   Professional Business Analytics
                 </span>
               </div>
             </div>
             <div className="flex items-center gap-4">
-              <span className="text-sm text-gray-500 dark:text-gray-400 font-medium">
+              {!isHomePage && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => navigate('/')}
+                  className="flex items-center gap-2"
+                >
+                  <Home className="h-4 w-4" />
+                  <span className="hidden sm:inline">Dashboard</span>
+                </Button>
+              )}
+              <Button
+                variant={isAdminPage ? "default" : "ghost"}
+                size="sm"
+                onClick={() => navigate(isAdminPage ? '/' : '/admin')}
+                className="flex items-center gap-2"
+              >
+                <Settings className="h-4 w-4" />
+                <span className="hidden sm:inline">
+                  {isAdminPage ? 'Exit Admin' : 'Admin'}
+                </span>
+              </Button>
+              <span className="text-sm text-muted-foreground font-medium">
                 Version 2.0
               </span>
             </div>

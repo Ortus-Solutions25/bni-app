@@ -1,45 +1,48 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Box,
-  Typography,
   Card,
   CardContent,
-  Breadcrumbs,
-  Link,
-  Chip,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemIcon,
-  Divider,
-  Alert,
-  Paper,
-  LinearProgress,
-  CircularProgress,
-  Button,
-  IconButton,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
-  Snackbar,
-} from '@mui/material';
+  CardHeader,
+  CardTitle,
+} from './ui/card';
 import {
-  Business,
-  Person,
-  NavigateNext,
-  PersonAdd,
-  PersonOff,
-  SwapHoriz,
-  MonetizationOn,
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from './ui/breadcrumb';
+import { Badge } from './ui/badge';
+import { Alert, AlertDescription } from './ui/alert';
+import { Progress } from './ui/progress';
+import { Button } from './ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from './ui/dialog';
+import { Input } from './ui/input';
+import { Separator } from './ui/separator';
+import { useToast } from '../hooks/use-toast';
+import {
+  Building2,
+  User,
+  ChevronRight,
+  UserPlus,
+  UserMinus,
+  ArrowLeftRight,
+  DollarSign,
   CheckCircle,
-  Warning,
-  Error as ErrorIcon,
+  AlertTriangle,
+  AlertCircle,
   TrendingUp,
   Edit,
-  Delete,
-} from '@mui/icons-material';
+  Trash2,
+  Loader2,
+} from 'lucide-react';
 import { ChapterMemberData } from '../services/ChapterDataLoader';
 
 interface MemberDetailsProps {
@@ -94,10 +97,10 @@ interface MemberAnalytics {
   };
 }
 
-const getPerformanceColor = (score: number): { color: 'success' | 'warning' | 'error'; icon: React.ReactElement } => {
-  if (score >= 85) return { color: 'success', icon: <CheckCircle /> };
-  if (score >= 70) return { color: 'warning', icon: <Warning /> };
-  return { color: 'error', icon: <ErrorIcon /> };
+const getPerformanceColor = (score: number): { variant: 'success' | 'secondary' | 'destructive'; icon: React.ReactElement } => {
+  if (score >= 85) return { variant: 'success', icon: <CheckCircle className="w-4 h-4" /> };
+  if (score >= 70) return { variant: 'secondary', icon: <AlertTriangle className="w-4 h-4" /> };
+  return { variant: 'destructive', icon: <AlertCircle className="w-4 h-4" /> };
 };
 
 const MemberDetails: React.FC<MemberDetailsProps> = ({
@@ -123,8 +126,7 @@ const MemberDetails: React.FC<MemberDetailsProps> = ({
     is_active: true,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [snackbarMessage, setSnackbarMessage] = useState('');
-  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     const fetchMemberAnalytics = async () => {
@@ -201,8 +203,10 @@ const MemberDetails: React.FC<MemberDetailsProps> = ({
       });
 
       if (response.ok) {
-        setSnackbarMessage('Member updated successfully!');
-        setSnackbarOpen(true);
+        toast({
+          title: "Success",
+          description: "Member updated successfully!",
+        });
         setOpenEditDialog(false);
         // Refresh member analytics
         const fetchMemberAnalytics = async () => {
@@ -220,12 +224,18 @@ const MemberDetails: React.FC<MemberDetailsProps> = ({
         }
       } else {
         const errorData = await response.json();
-        setSnackbarMessage(`Error: ${errorData.error || 'Failed to update member'}`);
-        setSnackbarOpen(true);
+        toast({
+          title: "Error",
+          description: `Error: ${errorData.error || 'Failed to update member'}`,
+          variant: "destructive",
+        });
       }
     } catch (error) {
-      setSnackbarMessage('Failed to update member. Please try again.');
-      setSnackbarOpen(true);
+      toast({
+        title: "Error",
+        description: 'Failed to update member. Please try again.',
+        variant: "destructive",
+      });
     }
     setIsSubmitting(false);
   };
@@ -240,8 +250,10 @@ const MemberDetails: React.FC<MemberDetailsProps> = ({
       });
 
       if (response.ok) {
-        setSnackbarMessage(`Member "${memberAnalytics.member.full_name}" deleted successfully!`);
-        setSnackbarOpen(true);
+        toast({
+          title: "Success",
+          description: `Member "${memberAnalytics.member.full_name}" deleted successfully!`,
+        });
         setOpenDeleteDialog(false);
         // Trigger parent data refresh
         if (onDataRefresh) {
@@ -253,56 +265,65 @@ const MemberDetails: React.FC<MemberDetailsProps> = ({
         }, 1500);
       } else {
         const errorData = await response.json();
-        setSnackbarMessage(`Error: ${errorData.error || 'Failed to delete member'}`);
-        setSnackbarOpen(true);
+        toast({
+          title: "Error",
+          description: `Error: ${errorData.error || 'Failed to delete member'}`,
+          variant: "destructive",
+        });
       }
     } catch (error) {
-      setSnackbarMessage('Failed to delete member. Please try again.');
-      setSnackbarOpen(true);
+      toast({
+        title: "Error",
+        description: 'Failed to delete member. Please try again.',
+        variant: "destructive",
+      });
     }
     setIsSubmitting(false);
   };
 
-  const handleCloseSnackbar = () => {
-    setSnackbarOpen(false);
-  };
 
   if (isLoading) {
     return (
-      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 8 }}>
-        <CircularProgress size={48} />
-        <Typography variant="h6" sx={{ mt: 2 }}>
+      <div className="flex flex-col items-center py-8">
+        <Loader2 className="h-12 w-12 animate-spin mb-4" />
+        <h2 className="text-xl font-semibold mb-2">
           Loading Member Analytics...
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+        </h2>
+        <p className="text-muted-foreground">
           Analyzing referrals, one-to-ones, and TYFCB data
-        </Typography>
-      </Box>
+        </p>
+      </div>
     );
   }
 
   if (error) {
     return (
-      <Box sx={{ py: 4 }}>
-        <Alert severity="error" sx={{ mb: 3 }}>
-          Failed to load member analytics: {error}
+      <div className="py-4">
+        <Alert variant="destructive" className="mb-3">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            Failed to load member analytics: {error}
+          </AlertDescription>
         </Alert>
-        <Box sx={{ display: 'flex', gap: 2 }}>
-          <Link component="button" onClick={onBackToMembers}>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={onBackToMembers}>
             Back to Members
-          </Link>
-          <Link component="button" onClick={onBackToChapters}>
+          </Button>
+          <Button variant="outline" onClick={onBackToChapters}>
             Back to Chapters
-          </Link>
-        </Box>
-      </Box>
+          </Button>
+        </div>
+      </div>
     );
   }
 
   if (!memberAnalytics) {
     return (
-      <Alert severity="warning">
-        No analytics data available for this member.
+      <Alert variant="warning">
+        <AlertTriangle className="h-4 w-4" />
+        <AlertDescription>
+          No analytics data available for this member.
+        </AlertDescription>
       </Alert>
     );
   }
@@ -310,407 +331,425 @@ const MemberDetails: React.FC<MemberDetailsProps> = ({
   const performanceInfo = getPerformanceColor(memberAnalytics.performance.performance_score);
 
   return (
-    <Box>
+    <div>
       {/* Breadcrumbs */}
-      <Breadcrumbs separator={<NavigateNext fontSize="small" />} sx={{ mb: 3 }}>
-        <Link
-          component="button"
-          variant="body1"
-          onClick={onBackToChapters}
-          sx={{ display: 'flex', alignItems: 'center' }}
-        >
-          <Business sx={{ mr: 0.5 }} fontSize="inherit" />
-          Chapters
-        </Link>
-        <Link
-          component="button"
-          variant="body1"
-          onClick={onBackToMembers}
-          sx={{ display: 'flex', alignItems: 'center' }}
-        >
-          {memberAnalytics.chapter.name}
-        </Link>
-        <Typography color="text.primary">{memberAnalytics.member.full_name}</Typography>
-      </Breadcrumbs>
+      <Breadcrumb className="mb-6">
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <button
+                onClick={onBackToChapters}
+                className="flex items-center hover:text-foreground"
+              >
+                <Building2 className="w-4 h-4 mr-2" />
+                Chapters
+              </button>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator>
+            <ChevronRight className="w-4 h-4" />
+          </BreadcrumbSeparator>
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <button
+                onClick={onBackToMembers}
+                className="hover:text-foreground"
+              >
+                {memberAnalytics.chapter.name}
+              </button>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator>
+            <ChevronRight className="w-4 h-4" />
+          </BreadcrumbSeparator>
+          <BreadcrumbItem>
+            <BreadcrumbPage>{memberAnalytics.member.full_name}</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
 
       {/* Header */}
-      <Box sx={{ display: 'flex', alignItems: 'center', mb: 4 }}>
-        <Person sx={{ mr: 2, fontSize: 40 }} />
-        <Box sx={{ flexGrow: 1 }}>
-          <Typography variant="h4" gutterBottom>
+      <div className="flex items-center mb-8">
+        <User className="mr-4 h-10 w-10 text-muted-foreground" />
+        <div className="flex-1">
+          <h1 className="text-3xl font-bold mb-2">
             {memberAnalytics.member.full_name}
-          </Typography>
-          <Typography variant="subtitle1" color="text.secondary">
+          </h1>
+          <p className="text-lg text-muted-foreground mb-1">
             {memberAnalytics.member.business_name} • {memberAnalytics.member.classification}
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
+          </p>
+          <p className="text-sm text-muted-foreground">
             Member of {memberAnalytics.chapter.name}
-          </Typography>
-        </Box>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <IconButton
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={handleEditMember}
-            color="primary"
-            size="medium"
-            sx={{ '&:hover': { backgroundColor: 'primary.light', color: 'white' } }}
+            className="hover:bg-primary hover:text-primary-foreground"
           >
-            <Edit />
-          </IconButton>
-          <IconButton
+            <Edit className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={handleDeleteMember}
-            color="error"
-            size="medium"
-            sx={{ '&:hover': { backgroundColor: 'error.light', color: 'white' } }}
+            className="hover:bg-destructive hover:text-destructive-foreground"
           >
-            <Delete />
-          </IconButton>
-          <Chip
-            label={`${memberAnalytics.performance.performance_score}% Performance`}
-            color={performanceInfo.color}
-            size="medium"
-            icon={performanceInfo.icon}
-            sx={{ fontSize: '1rem', px: 2, py: 1 }}
-          />
-        </Box>
-      </Box>
+            <Trash2 className="h-4 w-4" />
+          </Button>
+          <Badge variant={performanceInfo.variant} className="text-sm px-3 py-1">
+            {performanceInfo.icon}
+            <span className="ml-1">{memberAnalytics.performance.performance_score}% Performance</span>
+          </Badge>
+        </div>
+      </div>
 
       {/* Performance Overview */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' }, gap: 3, mb: 4 }}>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         <Card>
-          <CardContent>
-            <Typography variant="h6" gutterBottom>
+          <CardHeader>
+            <CardTitle className="flex items-center text-lg">
               📊 Performance Summary
-            </Typography>
-            <Box sx={{ mb: 2 }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                <Typography variant="body2">Overall Performance</Typography>
-                <Typography variant="body2">{memberAnalytics.performance.performance_score}%</Typography>
-              </Box>
-              <LinearProgress
-                variant="determinate"
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="mb-4">
+              <div className="flex justify-between mb-2">
+                <span className="text-sm">Overall Performance</span>
+                <span className="text-sm font-medium">{memberAnalytics.performance.performance_score}%</span>
+              </div>
+              <Progress
                 value={memberAnalytics.performance.performance_score}
-                color={performanceInfo.color}
-                sx={{ height: 8, borderRadius: 4 }}
+                className="h-3"
               />
-            </Box>
-            
-            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2 }}>
-              <Box>
-                <Typography variant="h4" color="primary">
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <div className="text-2xl font-bold text-primary mb-1">
                   {memberAnalytics.performance.referrals_given}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
+                </div>
+                <div className="text-sm text-muted-foreground">
                   Referrals Given
-                </Typography>
-              </Box>
-              <Box>
-                <Typography variant="h4" color="primary">
+                </div>
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-primary mb-1">
                   {memberAnalytics.performance.referrals_received}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
+                </div>
+                <div className="text-sm text-muted-foreground">
                   Referrals Received
-                </Typography>
-              </Box>
-              <Box>
-                <Typography variant="h4" color="primary">
+                </div>
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-primary mb-1">
                   {memberAnalytics.performance.one_to_ones}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
+                </div>
+                <div className="text-sm text-muted-foreground">
                   One-to-Ones
-                </Typography>
-              </Box>
-              <Box>
-                <Typography variant="h4" color="primary">
+                </div>
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-primary mb-1">
                   AED {(memberAnalytics.performance.tyfcb_amount / 1000).toFixed(0)}K
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
+                </div>
+                <div className="text-sm text-muted-foreground">
                   TYFCB Generated
-                </Typography>
-              </Box>
-            </Box>
+                </div>
+              </div>
+            </div>
           </CardContent>
         </Card>
         
         <Card>
-          <CardContent>
-            <Typography variant="h6" gutterBottom>
+          <CardHeader>
+            <CardTitle className="flex items-center text-lg">
               📈 Completion Rates
-            </Typography>
-            
-            <Box sx={{ mb: 2 }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                <Typography variant="body2">One-to-One Meetings</Typography>
-                <Typography variant="body2">{memberAnalytics.completion_rates.oto_completion}%</Typography>
-              </Box>
-              <LinearProgress
-                variant="determinate"
-                value={memberAnalytics.completion_rates.oto_completion}
-                sx={{ height: 6, borderRadius: 3 }}
-              />
-            </Box>
-            
-            <Box sx={{ mb: 2 }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                <Typography variant="body2">Referrals Given Coverage</Typography>
-                <Typography variant="body2">{memberAnalytics.completion_rates.referral_given_coverage}%</Typography>
-              </Box>
-              <LinearProgress
-                variant="determinate"
-                value={memberAnalytics.completion_rates.referral_given_coverage}
-                sx={{ height: 6, borderRadius: 3 }}
-              />
-            </Box>
-            
-            <Box>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                <Typography variant="body2">Referrals Received Coverage</Typography>
-                <Typography variant="body2">{memberAnalytics.completion_rates.referral_received_coverage}%</Typography>
-              </Box>
-              <LinearProgress
-                variant="determinate"
-                value={memberAnalytics.completion_rates.referral_received_coverage}
-                sx={{ height: 6, borderRadius: 3 }}
-              />
-            </Box>
-            
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div>
+                <div className="flex justify-between mb-2">
+                  <span className="text-sm">One-to-One Meetings</span>
+                  <span className="text-sm font-medium">{memberAnalytics.completion_rates.oto_completion}%</span>
+                </div>
+                <Progress
+                  value={memberAnalytics.completion_rates.oto_completion}
+                  className="h-2"
+                />
+              </div>
+
+              <div>
+                <div className="flex justify-between mb-2">
+                  <span className="text-sm">Referrals Given Coverage</span>
+                  <span className="text-sm font-medium">{memberAnalytics.completion_rates.referral_given_coverage}%</span>
+                </div>
+                <Progress
+                  value={memberAnalytics.completion_rates.referral_given_coverage}
+                  className="h-2"
+                />
+              </div>
+
+              <div>
+                <div className="flex justify-between mb-2">
+                  <span className="text-sm">Referrals Received Coverage</span>
+                  <span className="text-sm font-medium">{memberAnalytics.completion_rates.referral_received_coverage}%</span>
+                </div>
+                <Progress
+                  value={memberAnalytics.completion_rates.referral_received_coverage}
+                  className="h-2"
+                />
+              </div>
+            </div>
+
+            <p className="text-sm text-muted-foreground mt-4">
               Based on {memberAnalytics.chapter.total_members - 1} possible connections
-            </Typography>
+            </p>
           </CardContent>
         </Card>
-      </Box>
+      </div>
 
       {/* Gap Analysis */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' }, gap: 3, mb: 4 }}>
-        <Card sx={{ height: '100%' }}>
-          <CardContent>
-            <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
-              <PersonAdd sx={{ mr: 1 }} />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <Card className="h-full">
+          <CardHeader>
+            <CardTitle className="flex items-center text-lg">
+              <UserPlus className="mr-2 h-5 w-5" />
               Missing One-to-Ones
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-4">
               Members you haven't met with yet
-            </Typography>
+            </p>
             
             {memberAnalytics.gaps.missing_one_to_ones.length === 0 ? (
-              <Alert severity="success">
-                Great! You've had one-to-ones with all chapter members.
+              <Alert className="border-green-200 bg-green-50">
+                <CheckCircle className="h-4 w-4" />
+                <AlertDescription>
+                  Great! You've had one-to-ones with all chapter members.
+                </AlertDescription>
               </Alert>
             ) : (
-              <List dense>
+              <div className="space-y-2">
                 {memberAnalytics.gaps.missing_one_to_ones.slice(0, 8).map((member) => (
-                  <ListItem key={member.id} sx={{ px: 0 }}>
-                    <ListItemIcon>
-                      <Person fontSize="small" />
-                    </ListItemIcon>
-                    <ListItemText primary={member.name} />
-                  </ListItem>
+                  <div key={member.id} className="flex items-center py-2">
+                    <User className="h-4 w-4 mr-3 text-muted-foreground" />
+                    <span className="text-sm">{member.name}</span>
+                  </div>
                 ))}
                 {memberAnalytics.gaps.missing_one_to_ones.length > 8 && (
-                  <Typography variant="body2" color="text.secondary" sx={{ mt: 1, ml: 5 }}>
+                  <p className="text-sm text-muted-foreground mt-2 ml-7">
                     +{memberAnalytics.gaps.missing_one_to_ones.length - 8} more members
-                  </Typography>
+                  </p>
                 )}
-              </List>
+              </div>
             )}
           </CardContent>
         </Card>
-        
-        <Card sx={{ height: '100%' }}>
-          <CardContent>
-            <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
-              <SwapHoriz sx={{ mr: 1 }} />
+
+        <Card className="h-full">
+          <CardHeader>
+            <CardTitle className="flex items-center text-lg">
+              <ArrowLeftRight className="mr-2 h-5 w-5" />
               Referral Opportunities
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-4">
               Members you could refer business to
-            </Typography>
+            </p>
             
-            <List dense>
+            <div className="space-y-2">
               {memberAnalytics.gaps.missing_referrals_to.slice(0, 8).map((member) => (
-                <ListItem key={member.id} sx={{ px: 0 }}>
-                  <ListItemIcon>
-                    <TrendingUp fontSize="small" />
-                  </ListItemIcon>
-                  <ListItemText primary={member.name} />
-                </ListItem>
+                <div key={member.id} className="flex items-center py-2">
+                  <TrendingUp className="h-4 w-4 mr-3 text-muted-foreground" />
+                  <span className="text-sm">{member.name}</span>
+                </div>
               ))}
               {memberAnalytics.gaps.missing_referrals_to.length > 8 && (
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 1, ml: 5 }}>
+                <p className="text-sm text-muted-foreground mt-2 ml-7">
                   +{memberAnalytics.gaps.missing_referrals_to.length - 8} more members
-                </Typography>
+                </p>
               )}
-            </List>
+            </div>
           </CardContent>
         </Card>
-        
-        <Card sx={{ height: '100%' }}>
-          <CardContent>
-            <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
-              <PersonOff sx={{ mr: 1 }} />
+
+        <Card className="h-full">
+          <CardHeader>
+            <CardTitle className="flex items-center text-lg">
+              <UserMinus className="mr-2 h-5 w-5" />
               Potential Referral Sources
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-4">
               Members who could refer business to you
-            </Typography>
+            </p>
             
-            <List dense>
+            <div className="space-y-2">
               {memberAnalytics.gaps.missing_referrals_from.slice(0, 8).map((member) => (
-                <ListItem key={member.id} sx={{ px: 0 }}>
-                  <ListItemIcon>
-                    <MonetizationOn fontSize="small" />
-                  </ListItemIcon>
-                  <ListItemText primary={member.name} />
-                </ListItem>
+                <div key={member.id} className="flex items-center py-2">
+                  <DollarSign className="h-4 w-4 mr-3 text-muted-foreground" />
+                  <span className="text-sm">{member.name}</span>
+                </div>
               ))}
               {memberAnalytics.gaps.missing_referrals_from.length > 8 && (
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 1, ml: 5 }}>
+                <p className="text-sm text-muted-foreground mt-2 ml-7">
                   +{memberAnalytics.gaps.missing_referrals_from.length - 8} more members
-                </Typography>
+                </p>
               )}
-            </List>
+            </div>
           </CardContent>
         </Card>
-      </Box>
+      </div>
 
       {/* Action Recommendations */}
-      <Paper elevation={1} sx={{ p: 3 }}>
-        <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
-          <CheckCircle sx={{ mr: 1 }} />
-          Recommended Actions
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Prioritized recommendations to improve your networking effectiveness
-        </Typography>
+      <Card className="mb-8">
+        <CardHeader>
+          <CardTitle className="flex items-center text-lg">
+            <CheckCircle className="mr-2 h-5 w-5" />
+            Recommended Actions
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground mb-4">
+            Prioritized recommendations to improve your networking effectiveness
+          </p>
         
-        <List>
-          {memberAnalytics.recommendations.map((recommendation, index) => (
-            <React.Fragment key={index}>
-              <ListItem>
-                <ListItemIcon>
-                  <Chip
-                    label={index + 1}
-                    size="small"
-                    color="primary"
-                    sx={{ minWidth: 32, height: 24 }}
-                  />
-                </ListItemIcon>
-                <ListItemText primary={recommendation} />
-              </ListItem>
-              {index < memberAnalytics.recommendations.length - 1 && <Divider />}
-            </React.Fragment>
-          ))}
-        </List>
-      </Paper>
+          <div className="space-y-4">
+            {memberAnalytics.recommendations.map((recommendation, index) => (
+              <div key={index}>
+                <div className="flex items-start py-3">
+                  <Badge variant="default" className="mr-3 mt-1">
+                    {index + 1}
+                  </Badge>
+                  <span className="text-sm">{recommendation}</span>
+                </div>
+                {index < memberAnalytics.recommendations.length - 1 && (
+                  <Separator className="my-2" />
+                )}
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
-      <Box sx={{ mt: 4, pt: 3, borderTop: 1, borderColor: 'divider' }}>
-        <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center' }}>
-          Analysis based on {memberAnalytics.chapter.total_members} members in {memberAnalytics.chapter.name} • 
+      <div className="mt-8 pt-6 border-t">
+        <p className="text-sm text-muted-foreground text-center">
+          Analysis based on {memberAnalytics.chapter.total_members} members in {memberAnalytics.chapter.name} •
           {memberAnalytics.latest_report.month_year && ` Latest data from ${memberAnalytics.latest_report.month_year} • `}
           Last updated: {new Date().toLocaleDateString()}
-        </Typography>
-      </Box>
+        </p>
+      </div>
 
       {/* Edit Member Dialog */}
-      <Dialog open={openEditDialog} onClose={handleCloseEditDialog} maxWidth="sm" fullWidth>
-        <DialogTitle>Edit Member</DialogTitle>
-        <DialogContent>
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2, pt: 1 }}>
-            <TextField
-              autoFocus
-              label="First Name"
-              variant="outlined"
+      <Dialog open={openEditDialog} onOpenChange={setOpenEditDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Member</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-4">
+            <Input
+              placeholder="First Name"
               value={formData.first_name}
               onChange={handleFormChange('first_name')}
               required
             />
-            <TextField
-              label="Last Name"
-              variant="outlined"
+            <Input
+              placeholder="Last Name"
               value={formData.last_name}
               onChange={handleFormChange('last_name')}
               required
             />
-            <TextField
-              label="Business Name"
-              variant="outlined"
+            <Input
+              placeholder="Business Name"
               value={formData.business_name}
               onChange={handleFormChange('business_name')}
-              sx={{ gridColumn: { xs: '1', sm: '1 / -1' } }}
+              className="sm:col-span-2"
             />
-            <TextField
-              label="Classification"
-              variant="outlined"
+            <Input
+              placeholder="Classification (e.g., Accountant, Lawyer)"
               value={formData.classification}
               onChange={handleFormChange('classification')}
-              placeholder="e.g., Accountant, Lawyer, Real Estate"
             />
-            <TextField
-              label="Email"
+            <Input
+              placeholder="Email"
               type="email"
-              variant="outlined"
               value={formData.email}
               onChange={handleFormChange('email')}
             />
-            <TextField
-              label="Phone"
-              variant="outlined"
+            <Input
+              placeholder="Phone"
               value={formData.phone}
               onChange={handleFormChange('phone')}
             />
-            <TextField
-              label="Joined Date"
+            <Input
+              placeholder="Joined Date"
               type="date"
-              variant="outlined"
               value={formData.joined_date}
               onChange={handleFormChange('joined_date')}
-              InputLabelProps={{ shrink: true }}
             />
-          </Box>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={handleCloseEditDialog}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleUpdateMember}
+              disabled={isSubmitting || !formData.first_name || !formData.last_name}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                'Update Member'
+              )}
+            </Button>
+          </DialogFooter>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseEditDialog}>Cancel</Button>
-          <Button 
-            onClick={handleUpdateMember} 
-            variant="contained"
-            disabled={isSubmitting || !formData.first_name || !formData.last_name}
-          >
-            {isSubmitting ? 'Updating...' : 'Update Member'}
-          </Button>
-        </DialogActions>
       </Dialog>
 
       {/* Delete Confirmation Dialog */}
-      <Dialog open={openDeleteDialog} onClose={handleCloseDeleteDialog}>
-        <DialogTitle>Delete Member</DialogTitle>
+      <Dialog open={openDeleteDialog} onOpenChange={setOpenDeleteDialog}>
         <DialogContent>
-          <Typography>
-            Are you sure you want to delete "{memberAnalytics?.member.full_name}"? 
-            This action cannot be undone and will remove all associated data including 
+          <DialogHeader>
+            <DialogTitle>Delete Member</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground py-4">
+            Are you sure you want to delete "{memberAnalytics?.member.full_name}"?
+            This action cannot be undone and will remove all associated data including
             performance metrics, referral history, and analytics.
-          </Typography>
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={handleCloseDeleteDialog}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmDelete}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                'Delete Member'
+              )}
+            </Button>
+          </DialogFooter>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseDeleteDialog}>Cancel</Button>
-          <Button 
-            onClick={handleConfirmDelete} 
-            color="error"
-            variant="contained"
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? 'Deleting...' : 'Delete Member'}
-          </Button>
-        </DialogActions>
       </Dialog>
 
-      {/* Success/Error Snackbar */}
-      <Snackbar
-        open={snackbarOpen}
-        autoHideDuration={6000}
-        onClose={handleCloseSnackbar}
-        message={snackbarMessage}
-      />
-    </Box>
+    </div>
   );
 };
 

@@ -1,22 +1,14 @@
 import React, { useState } from 'react';
 import {
-  Box,
-  Typography,
-  Tabs,
-  Tab,
-  Paper,
-  Breadcrumbs,
-  Link,
-  IconButton,
-} from '@mui/material';
-import {
-  ArrowBack,
-  Business,
+  ArrowLeft,
+  Building2,
   History,
-  ViewModule,
+  Grid3X3,
   CloudUpload,
-  People,
-} from '@mui/icons-material';
+  Users
+} from 'lucide-react';
+import { Button } from './ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { ChapterMemberData } from '../services/ChapterDataLoader';
 import PreviousDataTab from './PreviousDataTab';
 import MembersTab from './MembersTab';
@@ -30,34 +22,6 @@ interface ChapterDetailPageProps {
   onDataRefresh?: () => void;
 }
 
-interface TabPanelProps {
-  children?: React.ReactNode;
-  index: number;
-  value: number;
-}
-
-function TabPanel(props: TabPanelProps) {
-  const { children, value, index, ...other } = props;
-
-  return (
-    <div
-      role="tabpanel"
-      hidden={value !== index}
-      id={`chapter-tabpanel-${index}`}
-      aria-labelledby={`chapter-tab-${index}`}
-      {...other}
-    >
-      {value === index && <Box sx={{ p: 3 }}>{children}</Box>}
-    </div>
-  );
-}
-
-function a11yProps(index: number) {
-  return {
-    id: `chapter-tab-${index}`,
-    "aria-controls": `chapter-tabpanel-${index}`,
-  };
-}
 
 const ChapterDetailPage: React.FC<ChapterDetailPageProps> = ({
   chapterData,
@@ -65,128 +29,104 @@ const ChapterDetailPage: React.FC<ChapterDetailPageProps> = ({
   onMemberSelect,
   onDataRefresh,
 }) => {
-  const [tabValue, setTabValue] = useState(0);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
-    setTabValue(newValue);
-  };
-
   const handleUploadSuccess = () => {
-    // Trigger refresh of other tabs by incrementing counter
     setRefreshTrigger(prev => prev + 1);
-    // Switch to Previous Data tab to show the results
-    setTabValue(0);
   };
 
   return (
-    <Box>
+    <div className="space-y-6 animate-fade-in">
       {/* Breadcrumb Navigation */}
-      <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 2 }}>
-        <IconButton 
+      <div className="flex items-center gap-4 p-4">
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={onBackToChapters}
-          sx={{ color: 'primary.main' }}
+          className="flex items-center gap-2"
         >
-          <ArrowBack />
-        </IconButton>
-        
-        <Breadcrumbs aria-label="breadcrumb">
-          <Link 
-            underline="hover" 
-            color="inherit" 
-            href="#" 
-            onClick={(e) => {
-              e.preventDefault();
-              onBackToChapters();
-            }}
-            sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}
+          <ArrowLeft className="h-4 w-4" />
+          Back to Chapters
+        </Button>
+
+        <nav className="flex items-center space-x-2 text-sm text-muted-foreground">
+          <button
+            onClick={onBackToChapters}
+            className="flex items-center gap-1 hover:text-foreground"
           >
-            <Business fontSize="inherit" />
+            <Building2 className="h-4 w-4" />
             BNI Chapters
-          </Link>
-          <Typography 
-            color="text.primary"
-            sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}
-          >
-            <Business fontSize="inherit" />
+          </button>
+          <span>/</span>
+          <span className="flex items-center gap-1 text-foreground font-medium">
+            <Building2 className="h-4 w-4" />
             {chapterData.chapterName}
-          </Typography>
-        </Breadcrumbs>
-      </Box>
+          </span>
+        </nav>
+      </div>
 
       {/* Chapter Header */}
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="h4" gutterBottom>
+      <div className="px-4 space-y-2">
+        <h1 className="text-3xl font-bold text-foreground">
           {chapterData.chapterName}
-        </Typography>
-        <Typography variant="body1" color="text.secondary">
+        </h1>
+        <p className="text-muted-foreground">
           {chapterData.memberCount} members • Loaded {chapterData.loadedAt.toLocaleDateString()}
-        </Typography>
-      </Box>
+        </p>
+      </div>
 
       {/* Tab Navigation */}
-      <Paper elevation={0}>
-        <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-          <Tabs
-            value={tabValue}
-            onChange={handleTabChange}
-            aria-label="chapter detail tabs"
-            variant="scrollable"
-            scrollButtons="auto"
-          >
-            <Tab 
-              label="Previous Data" 
-              icon={<History />} 
-              iconPosition="start"
-              {...a11yProps(0)} 
-            />
-            <Tab 
-              label="Matrices" 
-              icon={<ViewModule />} 
-              iconPosition="start"
-              {...a11yProps(1)} 
-            />
-            <Tab 
-              label="Upload Palms Data" 
-              icon={<CloudUpload />} 
-              iconPosition="start"
-              {...a11yProps(2)} 
-            />
-            <Tab 
-              label="Members" 
-              icon={<People />} 
-              iconPosition="start"
-              {...a11yProps(3)} 
-            />
-          </Tabs>
-        </Box>
+      <div className="px-4">
+        <Tabs defaultValue="previous" className="w-full">
+          <TabsList className="grid grid-cols-4 w-full lg:w-auto">
+            <TabsTrigger value="previous" className="flex items-center gap-2">
+              <History className="h-4 w-4" />
+              <span className="hidden sm:inline">Previous Data</span>
+              <span className="sm:hidden">Data</span>
+            </TabsTrigger>
+            <TabsTrigger value="matrices" className="flex items-center gap-2">
+              <Grid3X3 className="h-4 w-4" />
+              <span className="hidden sm:inline">Matrices</span>
+              <span className="sm:hidden">Matrix</span>
+            </TabsTrigger>
+            <TabsTrigger value="upload" className="flex items-center gap-2">
+              <CloudUpload className="h-4 w-4" />
+              <span className="hidden sm:inline">Upload Data</span>
+              <span className="sm:hidden">Upload</span>
+            </TabsTrigger>
+            <TabsTrigger value="members" className="flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              <span className="hidden sm:inline">Members</span>
+              <span className="sm:hidden">Members</span>
+            </TabsTrigger>
+          </TabsList>
 
-        {/* Tab Content */}
-        <TabPanel value={tabValue} index={0}>
-          <PreviousDataTab chapterData={chapterData} />
-        </TabPanel>
+          <TabsContent value="previous" className="mt-6">
+            <PreviousDataTab chapterData={chapterData} />
+          </TabsContent>
 
-        <TabPanel value={tabValue} index={1}>
-          <MatrixTab chapterData={chapterData} />
-        </TabPanel>
+          <TabsContent value="matrices" className="mt-6">
+            <MatrixTab chapterData={chapterData} />
+          </TabsContent>
 
-        <TabPanel value={tabValue} index={2}>
-          <FileUploadComponent
-            chapterId={chapterData.chapterId}
-            chapterName={chapterData.chapterName}
-            onUploadSuccess={handleUploadSuccess}
-          />
-        </TabPanel>
+          <TabsContent value="upload" className="mt-6">
+            <FileUploadComponent
+              chapterId={chapterData.chapterId}
+              chapterName={chapterData.chapterName}
+              onUploadSuccess={handleUploadSuccess}
+            />
+          </TabsContent>
 
-        <TabPanel value={tabValue} index={3}>
-          <MembersTab 
-            chapterData={chapterData} 
-            onMemberSelect={onMemberSelect} 
-            onMemberAdded={onDataRefresh}
-          />
-        </TabPanel>
-      </Paper>
-    </Box>
+          <TabsContent value="members" className="mt-6">
+            <MembersTab
+              chapterData={chapterData}
+              onMemberSelect={onMemberSelect}
+              onMemberAdded={onDataRefresh}
+            />
+          </TabsContent>
+        </Tabs>
+      </div>
+    </div>
   );
 };
 

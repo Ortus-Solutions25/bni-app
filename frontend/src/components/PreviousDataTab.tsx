@@ -1,27 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Box,
-  Typography,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Card,
-  CardContent,
-  CircularProgress,
-  Alert,
-  Chip,
-  Button,
-  IconButton,
-} from '@mui/material';
-import {
-  CalendarMonth,
+  Calendar,
   TrendingUp,
-  People,
-  AttachMoney,
-  Delete,
-  Refresh,
-} from '@mui/icons-material';
+  Users,
+  DollarSign,
+  Trash2,
+  RefreshCw,
+  Loader2,
+} from 'lucide-react';
+import { Card, CardContent } from './ui/card';
+import { Button } from './ui/button';
+import { Badge } from './ui/badge';
+import { Alert, AlertDescription } from './ui/alert';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { ChapterMemberData, MonthlyReport, loadMonthlyReports, deleteMonthlyReport } from '../services/ChapterDataLoader';
 
 interface PreviousDataTabProps {
@@ -39,11 +30,11 @@ const PreviousDataTab: React.FC<PreviousDataTabProps> = ({ chapterData }) => {
   const loadReports = async () => {
     setIsLoading(true);
     setError(null);
-    
+
     try {
       const reports = await loadMonthlyReports(chapterData.chapterId);
       setMonthlyReports(reports);
-      
+
       // Select the most recent report by default
       if (reports.length > 0) {
         setSelectedReport(reports[0]);
@@ -61,9 +52,8 @@ const PreviousDataTab: React.FC<PreviousDataTabProps> = ({ chapterData }) => {
     }
   }, [chapterData.chapterId]);
 
-  const handleReportChange = (event: any) => {
-    const reportId = event.target.value;
-    const report = monthlyReports.find(r => r.id === reportId);
+  const handleReportChange = (reportId: string) => {
+    const report = monthlyReports.find(r => r.id === parseInt(reportId));
     setSelectedReport(report || null);
   };
 
@@ -75,10 +65,10 @@ const PreviousDataTab: React.FC<PreviousDataTabProps> = ({ chapterData }) => {
     setIsDeleting(true);
     try {
       await deleteMonthlyReport(chapterData.chapterId, reportToDelete.id);
-      
+
       // Reload reports after deletion
       await loadReports();
-      
+
       // Clear selection if the deleted report was selected
       if (selectedReport?.id === reportToDelete.id) {
         setSelectedReport(null);
@@ -100,175 +90,209 @@ const PreviousDataTab: React.FC<PreviousDataTabProps> = ({ chapterData }) => {
   };
 
   return (
-    <Box>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
-        <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <CalendarMonth />
+    <div className="space-y-6">
+      <div className="flex items-center gap-3">
+        <h2 className="text-xl font-semibold flex items-center gap-2">
+          <Calendar className="h-5 w-5" />
           Monthly Reports
-        </Typography>
+        </h2>
         <Button
-          startIcon={<Refresh />}
           onClick={loadReports}
           disabled={isLoading}
-          size="small"
+          size="sm"
+          variant="outline"
+          className="flex items-center gap-2"
         >
+          <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
           Refresh
         </Button>
-      </Box>
+      </div>
 
       {/* Error State */}
       {error && (
-        <Alert severity="error" sx={{ mb: 3 }}>
-          {error}
+        <Alert>
+          <AlertDescription>
+            {error}
+          </AlertDescription>
         </Alert>
       )}
 
       {/* Report Selection */}
       {monthlyReports.length > 0 && (
-        <Box sx={{ mb: 3, maxWidth: 400 }}>
-          <FormControl fullWidth>
-            <InputLabel>Select Monthly Report</InputLabel>
-            <Select
-              value={selectedReport?.id || ''}
-              label="Select Monthly Report"
-              onChange={handleReportChange}
-            >
+        <div className="w-full max-w-md">
+          <Select value={selectedReport?.id?.toString() || ''} onValueChange={handleReportChange}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select Monthly Report" />
+            </SelectTrigger>
+            <SelectContent>
               {monthlyReports.map((report) => (
-                <MenuItem key={report.id} value={report.id}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                <SelectItem key={report.id} value={report.id.toString()}>
+                  <div className="flex justify-between items-center w-full">
                     <span>{report.month_year}</span>
-                    <Box sx={{ display: 'flex', gap: 1 }}>
-                      {report.has_referral_matrix && <Chip label="Referrals" size="small" />}
-                      {report.has_oto_matrix && <Chip label="OTOs" size="small" />}
-                      {report.has_combination_matrix && <Chip label="Combined" size="small" />}
-                    </Box>
-                  </Box>
-                </MenuItem>
+                    <div className="flex gap-1 ml-4">
+                      {report.has_referral_matrix && <Badge variant="secondary">Referrals</Badge>}
+                      {report.has_oto_matrix && <Badge variant="secondary">OTOs</Badge>}
+                      {report.has_combination_matrix && <Badge variant="secondary">Combined</Badge>}
+                    </div>
+                  </div>
+                </SelectItem>
               ))}
-            </Select>
-          </FormControl>
-        </Box>
+            </SelectContent>
+          </Select>
+        </div>
       )}
 
       {/* Loading State */}
       {isLoading && (
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 4 }}>
-          <CircularProgress />
-          <Typography variant="body1" sx={{ ml: 2 }}>
-            Loading monthly reports...
-          </Typography>
-        </Box>
+        <div className="flex justify-center items-center py-8">
+          <div className="flex items-center gap-2">
+            <Loader2 className="h-5 w-5 animate-spin" />
+            <span className="text-sm text-muted-foreground">
+              Loading monthly reports...
+            </span>
+          </div>
+        </div>
       )}
 
       {/* Selected Report Display */}
       {!isLoading && selectedReport && (
-        <Box>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-            <Box>
-              <Typography variant="h5" gutterBottom>
+        <div className="space-y-6">
+          <div className="flex justify-between items-start">
+            <div className="space-y-2">
+              <h3 className="text-2xl font-semibold">
                 {chapterData.chapterName} - {selectedReport.month_year}
-              </Typography>
-              <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
-                <Chip 
-                  label={`Uploaded: ${new Date(selectedReport.uploaded_at).toLocaleDateString()}`}
-                  size="small"
-                  variant="outlined"
-                />
+              </h3>
+              <div className="flex gap-2 flex-wrap">
+                <Badge variant="outline">
+                  Uploaded: {new Date(selectedReport.uploaded_at).toLocaleDateString()}
+                </Badge>
                 {selectedReport.processed_at && (
-                  <Chip 
-                    label={`Processed: ${new Date(selectedReport.processed_at).toLocaleDateString()}`}
-                    size="small"
-                    color="success"
-                  />
+                  <Badge variant="success">
+                    Processed: {new Date(selectedReport.processed_at).toLocaleDateString()}
+                  </Badge>
                 )}
-              </Box>
-            </Box>
-            
-            <IconButton
-              color="error"
+              </div>
+            </div>
+
+            <Button
               onClick={() => handleDeleteReport(selectedReport)}
               disabled={isDeleting}
-              title="Delete this report"
+              variant="destructive"
+              size="sm"
+              className="flex items-center gap-2"
             >
-              <Delete />
-            </IconButton>
-          </Box>
+              {isDeleting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Trash2 className="h-4 w-4" />
+              )}
+              Delete Report
+            </Button>
+          </div>
 
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' }, gap: 3 }}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
             {/* Report Files */}
             <Card>
-              <CardContent>
-                <Typography variant="h6" gutterBottom>
+              <CardContent className="p-6">
+                <h4 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                  <Calendar className="h-5 w-5" />
                   Files
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                  Slip Audit: {selectedReport.slip_audit_file ? '✅ Uploaded' : '❌ Missing'}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Member Names: {selectedReport.member_names_file ? '✅ Uploaded' : '❌ Not provided'}
-                </Typography>
+                </h4>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Slip Audit:</span>
+                    <Badge variant={selectedReport.slip_audit_file ? "success" : "destructive"}>
+                      {selectedReport.slip_audit_file ? 'Uploaded' : 'Missing'}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Member Names:</span>
+                    <Badge variant={selectedReport.member_names_file ? "success" : "outline"}>
+                      {selectedReport.member_names_file ? 'Uploaded' : 'Not provided'}
+                    </Badge>
+                  </div>
+                </div>
               </CardContent>
             </Card>
 
             {/* Matrix Data Status */}
             <Card>
-              <CardContent>
-                <Typography variant="h6" gutterBottom>
+              <CardContent className="p-6">
+                <h4 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5" />
                   Processed Data
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                  Referral Matrix: {selectedReport.has_referral_matrix ? '✅ Available' : '❌ Not processed'}
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                  One-to-One Matrix: {selectedReport.has_oto_matrix ? '✅ Available' : '❌ Not processed'}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Combination Matrix: {selectedReport.has_combination_matrix ? '✅ Available' : '❌ Not processed'}
-                </Typography>
+                </h4>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Referral Matrix:</span>
+                    <Badge variant={selectedReport.has_referral_matrix ? "success" : "destructive"}>
+                      {selectedReport.has_referral_matrix ? 'Available' : 'Not processed'}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">One-to-One Matrix:</span>
+                    <Badge variant={selectedReport.has_oto_matrix ? "success" : "destructive"}>
+                      {selectedReport.has_oto_matrix ? 'Available' : 'Not processed'}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Combination Matrix:</span>
+                    <Badge variant={selectedReport.has_combination_matrix ? "success" : "destructive"}>
+                      {selectedReport.has_combination_matrix ? 'Available' : 'Not processed'}
+                    </Badge>
+                  </div>
+                </div>
               </CardContent>
             </Card>
 
             {/* Actions */}
             <Card>
-              <CardContent>
-                <Typography variant="h6" gutterBottom>
+              <CardContent className="p-6">
+                <h4 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                  <Users className="h-5 w-5" />
                   Actions
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  Use the "Matrices" tab to view detailed referral and OTO data for this month.
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Use the "Members" tab to see individual member performance and missing connections.
-                </Typography>
+                </h4>
+                <div className="space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    Use the "Matrices" tab to view detailed referral and OTO data for this month.
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Use the "Members" tab to see individual member performance and missing connections.
+                  </p>
+                </div>
               </CardContent>
             </Card>
-          </Box>
+          </div>
 
           {/* Processing Status Alert */}
-          {selectedReport.processed_at ? (
-            <Box sx={{ mt: 4 }}>
-              <Alert severity="success">
-                This report has been successfully processed and matrix data is available in the "Matrices" tab.
+          <div>
+            {selectedReport.processed_at ? (
+              <Alert>
+                <AlertDescription className="text-green-800 dark:text-green-200">
+                  This report has been successfully processed and matrix data is available in the "Matrices" tab.
+                </AlertDescription>
               </Alert>
-            </Box>
-          ) : (
-            <Box sx={{ mt: 4 }}>
-              <Alert severity="warning">
-                This report is still being processed. Matrix data will be available once processing is complete.
+            ) : (
+              <Alert>
+                <AlertDescription className="text-amber-800 dark:text-amber-200">
+                  This report is still being processed. Matrix data will be available once processing is complete.
+                </AlertDescription>
               </Alert>
-            </Box>
-          )}
-        </Box>
+            )}
+          </div>
+        </div>
       )}
 
       {/* No Reports State */}
       {!isLoading && monthlyReports.length === 0 && !error && (
-        <Alert severity="info">
-          No monthly reports have been uploaded yet for {chapterData.chapterName}. 
-          Use the "Upload Palms Data" tab to upload PALMS slip audit reports.
+        <Alert>
+          <AlertDescription>
+            No monthly reports have been uploaded yet for {chapterData.chapterName}.
+            Use the "Upload Palms Data" tab to upload PALMS slip audit reports.
+          </AlertDescription>
         </Alert>
       )}
-    </Box>
+    </div>
   );
 };
 

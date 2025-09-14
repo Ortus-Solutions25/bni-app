@@ -4,10 +4,9 @@ import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Alert, AlertDescription } from './ui/alert';
 import { Input } from './ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import ChapterCard from './ChapterCard';
 import { ChapterMemberData, generateMockPerformanceMetrics } from '../services/ChapterDataLoader';
-import { cn, formatNumber } from '../lib/utils';
+import { formatNumber } from '../lib/utils';
 
 interface ChapterDashboardProps {
   chapterData: ChapterMemberData[];
@@ -117,7 +116,7 @@ const ChapterDashboard: React.FC<ChapterDashboardProps> = ({
   };
 
   const handleDeleteChapter = async (chapterId: string) => {
-    if (!confirm('Are you sure you want to delete this chapter?')) return;
+    if (!window.confirm('Are you sure you want to delete this chapter?')) return;
 
     try {
       const response = await fetch(`http://localhost:8000/api/chapters/${chapterId}/delete/`, {
@@ -320,16 +319,15 @@ const ChapterDashboard: React.FC<ChapterDashboardProps> = ({
           </h2>
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">Sort by:</span>
-            <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortOption)}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="name">Chapter Name</SelectItem>
-                <SelectItem value="memberCount">Member Count</SelectItem>
-                <SelectItem value="performance">Performance</SelectItem>
-              </SelectContent>
-            </Select>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as SortOption)}
+              className="px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+            >
+              <option value="name">Chapter Name</option>
+              <option value="memberCount">Member Count</option>
+              <option value="performance">Performance</option>
+            </select>
           </div>
         </div>
 

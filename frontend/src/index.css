@@ -31,24 +31,24 @@
 
   .dark {
     /* Happy Hues Palette #10 - Dark Theme */
-    --background: 162 36% 72%;       /* #abd1c6 - Background */
-    --foreground: 180 100% 6%;       /* #001e1d - Headline */
-    --card: 182 100% 14%;            /* #004643 - Card background */
-    --card-foreground: 0 0% 100%;    /* #fffffe - Card headline */
-    --popover: 182 100% 14%;         /* #004643 - Popover background */
-    --popover-foreground: 0 0% 100%; /* #fffffe - Popover text */
+    --background: 182 100% 14%;      /* #004643 - Background (darker teal) */
+    --foreground: 0 0% 100%;         /* #fffffe - Headline (white) */
+    --card: 162 36% 72%;             /* #abd1c6 - Card background (lighter teal) */
+    --card-foreground: 180 100% 6%;  /* #001e1d - Card headline (dark) */
+    --popover: 162 36% 72%;          /* #abd1c6 - Popover background */
+    --popover-foreground: 180 100% 6%; /* #001e1d - Popover text */
     --primary: 42 94% 68%;           /* #f9bc60 - Button/Primary */
     --primary-foreground: 180 100% 6%; /* #001e1d - Button text */
     --secondary: 0 58% 58%;          /* #e16162 - Secondary/Tertiary */
     --secondary-foreground: 0 0% 100%; /* #fffffe - Secondary text */
-    --muted: 182 100% 14%;           /* #004643 - Muted elements */
-    --muted-foreground: 162 36% 72%; /* #abd1c6 - Paragraph text */
+    --muted: 162 36% 72%;            /* #abd1c6 - Muted elements */
+    --muted-foreground: 180 100% 6%; /* #001e1d - Paragraph text (dark) */
     --accent: 42 94% 68%;            /* #f9bc60 - Accent */
     --accent-foreground: 180 100% 6%; /* #001e1d - Accent text */
     --destructive: 0 58% 58%;        /* #e16162 - Destructive actions */
     --destructive-foreground: 0 0% 100%; /* #fffffe - Destructive text */
-    --border: 182 100% 14%;          /* #004643 - Border color */
-    --input: 182 100% 14%;           /* #004643 - Input background */
+    --border: 162 36% 72%;           /* #abd1c6 - Border color */
+    --input: 162 36% 72%;            /* #abd1c6 - Input background */
     --ring: 42 94% 68%;              /* #f9bc60 - Focus ring */
   }
 

@@ -14,7 +14,6 @@
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^13.5.0",
     "@types/jest": "^27.5.2",
-    "@types/node": "^16.18.126",
     "@types/react": "^19.1.11",
     "@types/react-dom": "^19.1.7",
     "axios": "^1.11.0",
@@ -53,7 +52,11 @@
     ]
   },
   "devDependencies": {
+    "@types/node": "^24.4.0",
     "@types/react-router-dom": "^5.3.3",
-    "@types/xlsx": "^0.0.35"
+    "@types/xlsx": "^0.0.35",
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.13"
   }
 }

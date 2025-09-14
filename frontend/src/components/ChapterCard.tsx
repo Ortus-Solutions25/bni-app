@@ -1,8 +1,8 @@
 import React from 'react';
 import { Users, AlertCircle, Trash2, Loader2 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { cn, formatCurrency } from '@/lib/utils';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { Button } from './ui/button';
+import { cn, formatCurrency } from '../lib/utils';
 import { ChapterMemberData } from '../services/ChapterDataLoader';
 
 interface ChapterCardProps {

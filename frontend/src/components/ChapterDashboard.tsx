@@ -1,13 +1,13 @@
 import React, { useState, useMemo } from 'react';
 import { Building2, Plus, Loader2, ArrowUpDown, AlertCircle, CheckCircle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Button } from './ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { Alert, AlertDescription } from './ui/alert';
+import { Input } from './ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import ChapterCard from './ChapterCard';
 import { ChapterMemberData, generateMockPerformanceMetrics } from '../services/ChapterDataLoader';
-import { cn, formatNumber } from '@/lib/utils';
+import { cn, formatNumber } from '../lib/utils';
 
 interface ChapterDashboardProps {
   chapterData: ChapterMemberData[];

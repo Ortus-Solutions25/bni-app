@@ -6,57 +6,59 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 199 89% 48%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96%;
-    --secondary-foreground: 222.2 84% 4.9%;
-    --muted: 210 40% 96%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96%;
-    --accent-foreground: 222.2 84% 4.9%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 199 89% 48%;
+    /* Light theme fallback - Happy Hues Palette #10 Light Variant */
+    --background: 182 100% 14%;      /* #004643 - Background */
+    --foreground: 0 0% 100%;         /* #fffffe - Headline */
+    --card: 182 100% 14%;            /* #004643 - Card background */
+    --card-foreground: 0 0% 100%;    /* #fffffe - Card headline */
+    --popover: 182 100% 14%;         /* #004643 - Popover background */
+    --popover-foreground: 0 0% 100%; /* #fffffe - Popover text */
+    --primary: 42 94% 68%;           /* #f9bc60 - Button/Primary */
+    --primary-foreground: 180 100% 6%; /* #001e1d - Button text */
+    --secondary: 0 58% 58%;          /* #e16162 - Secondary/Tertiary */
+    --secondary-foreground: 0 0% 100%; /* #fffffe - Secondary text */
+    --muted: 162 36% 72%;            /* #abd1c6 - Paragraph/muted */
+    --muted-foreground: 162 36% 72%; /* #abd1c6 - Paragraph text */
+    --accent: 42 94% 68%;            /* #f9bc60 - Accent */
+    --accent-foreground: 180 100% 6%; /* #001e1d - Accent text */
+    --destructive: 0 58% 58%;        /* #e16162 - Destructive actions */
+    --destructive-foreground: 0 0% 100%; /* #fffffe - Destructive text */
+    --border: 162 36% 72%;           /* #abd1c6 - Border color */
+    --input: 162 36% 72%;            /* #abd1c6 - Input background */
+    --ring: 42 94% 68%;              /* #f9bc60 - Focus ring */
     --radius: 0.5rem;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 199 89% 48%;
-    --primary-foreground: 222.2 84% 4.9%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 199 89% 48%;
+    /* Happy Hues Palette #10 - Dark Theme */
+    --background: 162 36% 72%;       /* #abd1c6 - Background */
+    --foreground: 180 100% 6%;       /* #001e1d - Headline */
+    --card: 182 100% 14%;            /* #004643 - Card background */
+    --card-foreground: 0 0% 100%;    /* #fffffe - Card headline */
+    --popover: 182 100% 14%;         /* #004643 - Popover background */
+    --popover-foreground: 0 0% 100%; /* #fffffe - Popover text */
+    --primary: 42 94% 68%;           /* #f9bc60 - Button/Primary */
+    --primary-foreground: 180 100% 6%; /* #001e1d - Button text */
+    --secondary: 0 58% 58%;          /* #e16162 - Secondary/Tertiary */
+    --secondary-foreground: 0 0% 100%; /* #fffffe - Secondary text */
+    --muted: 182 100% 14%;           /* #004643 - Muted elements */
+    --muted-foreground: 162 36% 72%; /* #abd1c6 - Paragraph text */
+    --accent: 42 94% 68%;            /* #f9bc60 - Accent */
+    --accent-foreground: 180 100% 6%; /* #001e1d - Accent text */
+    --destructive: 0 58% 58%;        /* #e16162 - Destructive actions */
+    --destructive-foreground: 0 0% 100%; /* #fffffe - Destructive text */
+    --border: 182 100% 14%;          /* #004643 - Border color */
+    --input: 182 100% 14%;           /* #004643 - Input background */
+    --ring: 42 94% 68%;              /* #f9bc60 - Focus ring */
   }
-}
 
-@layer base {
   * {
     @apply border-border;
   }
+
   body {
-    @apply bg-background text-foreground font-sans;
+    @apply bg-background text-foreground;
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     margin: 0;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;

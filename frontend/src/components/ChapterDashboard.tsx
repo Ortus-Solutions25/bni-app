@@ -1,9 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { Building2, Plus, Loader2, ArrowUpDown, AlertCircle, CheckCircle } from 'lucide-react';
-import { Button } from './ui/button';
+import { Building2, ArrowUpDown, Loader2, CheckCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { Alert, AlertDescription } from './ui/alert';
-import { Input } from './ui/input';
 import ChapterCard from './ChapterCard';
 import { ChapterMemberData, generateMockPerformanceMetrics } from '../services/ChapterDataLoader';
 import { formatNumber } from '../lib/utils';
@@ -24,15 +21,6 @@ const ChapterDashboard: React.FC<ChapterDashboardProps> = ({
   onChapterAdded,
 }) => {
   const [sortBy, setSortBy] = useState<SortOption>('name');
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [formData, setFormData] = useState({
-    name: '',
-    location: '',
-    meeting_day: '',
-    meeting_time: '',
-  });
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [notification, setNotification] = useState<{type: 'success' | 'error', message: string} | null>(null);
 
   const processedChapterData = useMemo(() => {
     return chapterData.map(chapter => ({
@@ -74,65 +62,7 @@ const ChapterDashboard: React.FC<ChapterDashboardProps> = ({
     return { totalMembers, successfulLoads, totalChapters, avgMembersPerChapter };
   }, [processedChapterData]);
 
-  const handleAddChapter = () => {
-    setFormData({
-      name: '',
-      location: '',
-      meeting_day: '',
-      meeting_time: '',
-    });
-    setShowAddForm(true);
-  };
 
-  const handleFormChange = (field: string) => (event: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData(prev => ({ ...prev, [field]: event.target.value }));
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-    try {
-      const response = await fetch('http://localhost:8000/api/chapters/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      });
-
-      if (response.ok) {
-        setNotification({type: 'success', message: 'Chapter added successfully!'});
-        setShowAddForm(false);
-        setFormData({ name: '', location: '', meeting_day: '', meeting_time: '' });
-        onChapterAdded?.();
-      } else {
-        const errorData = await response.json();
-        setNotification({type: 'error', message: errorData.error || 'Failed to add chapter'});
-      }
-    } catch (error) {
-      setNotification({type: 'error', message: 'Failed to add chapter. Please try again.'});
-    }
-    setIsSubmitting(false);
-  };
-
-  const handleDeleteChapter = async (chapterId: string) => {
-    if (!window.confirm('Are you sure you want to delete this chapter?')) return;
-
-    try {
-      const response = await fetch(`http://localhost:8000/api/chapters/${chapterId}/delete/`, {
-        method: 'DELETE',
-      });
-
-      if (response.ok) {
-        setNotification({type: 'success', message: 'Chapter deleted successfully'});
-        onChapterAdded?.(); // Refresh data
-      } else {
-        setNotification({type: 'error', message: 'Failed to delete chapter'});
-      }
-    } catch (error) {
-      setNotification({type: 'error', message: 'Failed to delete chapter'});
-    }
-  };
 
   if (isLoading && chapterData.length === 0) {
     return (
@@ -157,29 +87,11 @@ const ChapterDashboard: React.FC<ChapterDashboardProps> = ({
             BNI Chapter Dashboard
           </h1>
           <p className="text-muted-foreground mt-1">
-            Manage and analyze your business networking chapters
+            View and analyze your business networking chapters
           </p>
         </div>
-        <Button onClick={handleAddChapter} className="w-full sm:w-auto">
-          <Plus className="h-4 w-4 mr-2" />
-          Add Chapter
-        </Button>
       </div>
 
-      {/* Notification */}
-      {notification && (
-        <Alert
-          variant={notification.type === 'error' ? 'destructive' : 'default'}
-          className="mb-6"
-        >
-          {notification.type === 'success' ? (
-            <CheckCircle className="h-4 w-4" />
-          ) : (
-            <AlertCircle className="h-4 w-4" />
-          )}
-          <AlertDescription>{notification.message}</AlertDescription>
-        </Alert>
-      )}
 
       {/* Dashboard Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -238,77 +150,6 @@ const ChapterDashboard: React.FC<ChapterDashboardProps> = ({
         </Card>
       </div>
 
-      {/* Add Chapter Form */}
-      {showAddForm && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Add New Chapter</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label htmlFor="name" className="text-sm font-medium">Chapter Name</label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={handleFormChange('name')}
-                    placeholder="Enter chapter name"
-                    required
-                  />
-                </div>
-                <div>
-                  <label htmlFor="location" className="text-sm font-medium">Location</label>
-                  <Input
-                    id="location"
-                    value={formData.location}
-                    onChange={handleFormChange('location')}
-                    placeholder="Enter location"
-                    required
-                  />
-                </div>
-                <div>
-                  <label htmlFor="meeting_day" className="text-sm font-medium">Meeting Day</label>
-                  <Input
-                    id="meeting_day"
-                    value={formData.meeting_day}
-                    onChange={handleFormChange('meeting_day')}
-                    placeholder="e.g., Tuesday"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="meeting_time" className="text-sm font-medium">Meeting Time</label>
-                  <Input
-                    id="meeting_time"
-                    value={formData.meeting_time}
-                    onChange={handleFormChange('meeting_time')}
-                    placeholder="e.g., 9:00 AM"
-                  />
-                </div>
-              </div>
-              <div className="flex gap-2 pt-4">
-                <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Adding...
-                    </>
-                  ) : (
-                    'Add Chapter'
-                  )}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setShowAddForm(false)}
-                >
-                  Cancel
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Controls and Chapters */}
       <div className="space-y-6">
@@ -339,7 +180,6 @@ const ChapterDashboard: React.FC<ChapterDashboardProps> = ({
                 key={chapter.chapterId}
                 chapterData={chapter}
                 onClick={() => onChapterSelect(chapter)}
-                onDelete={handleDeleteChapter}
                 isLoading={isLoading}
               />
             ))}
@@ -349,13 +189,9 @@ const ChapterDashboard: React.FC<ChapterDashboardProps> = ({
             <CardContent>
               <Building2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
               <h3 className="text-lg font-semibold mb-2">No chapters found</h3>
-              <p className="text-muted-foreground mb-4">
-                Get started by adding your first BNI chapter
+              <p className="text-muted-foreground">
+                Contact your administrator to add BNI chapters
               </p>
-              <Button onClick={handleAddChapter}>
-                <Plus className="h-4 w-4 mr-2" />
-                Add First Chapter
-              </Button>
             </CardContent>
           </Card>
         )}

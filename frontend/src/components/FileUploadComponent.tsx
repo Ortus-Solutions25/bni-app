@@ -1,24 +1,19 @@
 import React, { useState, useCallback } from 'react';
 import {
-  Box,
-  Typography,
-  Paper,
-  Button,
-  CircularProgress,
-  Alert,
-  TextField,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Chip,
-} from '@mui/material';
-import {
   CloudUpload,
   CheckCircle,
-  Error,
-  Delete,
-} from '@mui/icons-material';
+  AlertTriangle,
+  Trash2,
+  Loader2,
+  File,
+  Info,
+} from 'lucide-react';
+import { Card, CardContent } from './ui/card';
+import { Button } from './ui/button';
+import { Badge } from './ui/badge';
+import { Alert, AlertDescription } from './ui/alert';
+import { Input } from './ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { useDropzone } from 'react-dropzone';
 
 interface UploadFile {
@@ -55,9 +50,9 @@ const FileUploadComponent: React.FC<FileUploadComponentProps> = ({
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const newFiles = acceptedFiles.map(file => {
       // Try to determine file type based on name
-      const isSlipAudit = file.name.toLowerCase().includes('slip') || 
+      const isSlipAudit = file.name.toLowerCase().includes('slip') ||
                          file.name.toLowerCase().includes('audit');
-      
+
       return {
         file,
         name: file.name,
@@ -65,7 +60,7 @@ const FileUploadComponent: React.FC<FileUploadComponentProps> = ({
         type: (isSlipAudit ? 'slip_audit' : 'member_names') as 'slip_audit' | 'member_names'
       };
     });
-    
+
     setFiles(prev => [...prev, ...newFiles]);
     setUploadResult(null);
   }, []);
@@ -84,7 +79,7 @@ const FileUploadComponent: React.FC<FileUploadComponentProps> = ({
   };
 
   const changeFileType = (index: number, newType: 'slip_audit' | 'member_names') => {
-    setFiles(prev => prev.map((file, i) => 
+    setFiles(prev => prev.map((file, i) =>
       i === index ? { ...file, type: newType } : file
     ));
   };
@@ -112,12 +107,12 @@ const FileUploadComponent: React.FC<FileUploadComponentProps> = ({
     try {
       const formData = new FormData();
       formData.append('slip_audit_file', slipAuditFile.file);
-      
+
       const memberNamesFile = files.find(f => f.type === 'member_names');
       if (memberNamesFile) {
         formData.append('member_names_file', memberNamesFile.file);
       }
-      
+
       formData.append('chapter_id', chapterId);
       formData.append('month_year', monthYear);
       formData.append('upload_option', uploadOption);
@@ -131,7 +126,7 @@ const FileUploadComponent: React.FC<FileUploadComponentProps> = ({
 
       if (response.ok) {
         setUploadResult({
-          type: 'success', 
+          type: 'success',
           message: `Successfully uploaded and processed ${files.length} file(s) for ${monthYear}`
         });
         setFiles([]);
@@ -155,189 +150,203 @@ const FileUploadComponent: React.FC<FileUploadComponentProps> = ({
   };
 
   return (
-    <Box>
-      <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-        <CloudUpload />
-        Upload Palms Data
-      </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        Upload slip audit reports from PALMS for {chapterName}
-      </Typography>
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-xl font-semibold flex items-center gap-2 mb-2">
+          <CloudUpload className="h-5 w-5" />
+          Upload Palms Data
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          Upload slip audit reports from PALMS for {chapterName}
+        </p>
+      </div>
 
-      {/* Upload Form */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: '1fr', gap: 3, maxWidth: 800 }}>
-        
-        {/* Month/Year Input */}
-        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-          <TextField
-            label="Report Month"
-            type="month"
-            value={monthYear}
-            onChange={(e) => setMonthYear(e.target.value)}
-            variant="outlined"
-            sx={{ minWidth: 200 }}
-            InputLabelProps={{
-              shrink: true,
-            }}
-            helperText="Select the month for this report"
-          />
-          
-          <FormControl sx={{ minWidth: 200 }}>
-            <InputLabel>Upload Option</InputLabel>
-            <Select
-              value={uploadOption}
-              label="Upload Option"
-              onChange={(e) => setUploadOption(e.target.value as 'slip_only' | 'slip_and_members')}
-            >
-              <MenuItem value="slip_only">Slip Audit Only</MenuItem>
-              <MenuItem value="slip_and_members">Slip Audit + Member Names</MenuItem>
+      <div className="space-y-6 max-w-4xl">
+
+        {/* Month/Year and Upload Option */}
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="space-y-2 flex-1 max-w-xs">
+            <label htmlFor="month-year" className="text-sm font-medium">
+              Report Month
+            </label>
+            <Input
+              id="month-year"
+              type="month"
+              value={monthYear}
+              onChange={(e) => setMonthYear(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              Select the month for this report
+            </p>
+          </div>
+
+          <div className="space-y-2 flex-1 max-w-xs">
+            <label className="text-sm font-medium">Upload Option</label>
+            <Select value={uploadOption} onValueChange={(value) => setUploadOption(value as 'slip_only' | 'slip_and_members')}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="slip_only">Slip Audit Only</SelectItem>
+                <SelectItem value="slip_and_members">Slip Audit + Member Names</SelectItem>
+              </SelectContent>
             </Select>
-          </FormControl>
-        </Box>
+          </div>
+        </div>
 
         {/* File Drop Zone */}
-        <Paper
-          {...getRootProps()}
-          elevation={1}
-          sx={{
-            p: 4,
-            textAlign: 'center',
-            border: '2px dashed',
-            borderColor: isDragActive ? 'primary.main' : 'grey.300',
-            backgroundColor: isDragActive ? 'action.hover' : 'background.paper',
-            cursor: 'pointer',
-            transition: 'all 0.2s ease'
-          }}
-        >
-          <input {...getInputProps()} />
-          <CloudUpload sx={{ fontSize: 48, color: 'primary.main', mb: 2 }} />
-          <Typography variant="h6" gutterBottom>
-            {isDragActive ? 'Drop files here...' : 'Drop PALMS Files Here'}
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Or click to select files
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Supported formats: .xls, .xlsx
-          </Typography>
-        </Paper>
+        <Card>
+          <CardContent className="p-0">
+            <div
+              {...getRootProps()}
+              className={`
+                p-8 text-center border-2 border-dashed rounded-lg cursor-pointer transition-all duration-200
+                ${isDragActive
+                  ? 'border-primary bg-primary/5 dark:bg-primary/10'
+                  : 'border-muted-foreground/25 hover:border-primary/50 hover:bg-muted/20'
+                }
+              `}
+            >
+              <input {...getInputProps()} />
+              <div className="flex flex-col items-center space-y-4">
+                <CloudUpload className={`h-12 w-12 ${isDragActive ? 'text-primary' : 'text-muted-foreground'}`} />
+                <div>
+                  <h3 className="text-lg font-medium">
+                    {isDragActive ? 'Drop files here...' : 'Drop PALMS Files Here'}
+                  </h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Or click to select files
+                  </p>
+                </div>
+                <Badge variant="outline">
+                  Supported formats: .xls, .xlsx
+                </Badge>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Selected Files */}
         {files.length > 0 && (
-          <Paper elevation={1} sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              Selected Files ({files.length})
-            </Typography>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              {files.map((file, index) => (
-                <Box
-                  key={index}
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    p: 2,
-                    border: '1px solid',
-                    borderColor: 'divider',
-                    borderRadius: 1
-                  }}
-                >
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flex: 1 }}>
-                    <Typography variant="body1" fontWeight="medium">
-                      {file.name}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {file.size}
-                    </Typography>
-                    <FormControl size="small" sx={{ minWidth: 150 }}>
-                      <InputLabel>File Type</InputLabel>
-                      <Select
-                        value={file.type}
-                        label="File Type"
-                        onChange={(e) => changeFileType(index, e.target.value as 'slip_audit' | 'member_names')}
-                      >
-                        <MenuItem value="slip_audit">Slip Audit</MenuItem>
-                        <MenuItem value="member_names">Member Names</MenuItem>
-                      </Select>
-                    </FormControl>
-                    <Chip
-                      label={file.type === 'slip_audit' ? 'Slip Audit' : 'Member Names'}
-                      color={file.type === 'slip_audit' ? 'primary' : 'secondary'}
-                      size="small"
-                    />
-                  </Box>
-                  <Button
-                    onClick={() => removeFile(index)}
-                    color="error"
-                    size="small"
-                    startIcon={<Delete />}
+          <Card>
+            <CardContent className="p-6">
+              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <File className="h-5 w-5" />
+                Selected Files ({files.length})
+              </h3>
+              <div className="space-y-3">
+                {files.map((file, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center justify-between p-3 border rounded-lg"
                   >
-                    Remove
-                  </Button>
-                </Box>
-              ))}
-            </Box>
-          </Paper>
+                    <div className="flex items-center gap-3 flex-1">
+                      <File className="h-5 w-5 text-muted-foreground" />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium truncate">
+                          {file.name}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {file.size}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Select
+                          value={file.type}
+                          onValueChange={(value) => changeFileType(index, value as 'slip_audit' | 'member_names')}
+                        >
+                          <SelectTrigger className="w-40">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="slip_audit">Slip Audit</SelectItem>
+                            <SelectItem value="member_names">Member Names</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Badge variant={file.type === 'slip_audit' ? 'default' : 'secondary'}>
+                          {file.type === 'slip_audit' ? 'Slip Audit' : 'Member Names'}
+                        </Badge>
+                      </div>
+                    </div>
+                    <Button
+                      onClick={() => removeFile(index)}
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         )}
 
         {/* Upload Button */}
-        <Box sx={{ display: 'flex', justifyContent: 'flex-start' }}>
+        <div className="flex justify-start">
           <Button
-            variant="contained"
-            size="large"
             onClick={handleUpload}
             disabled={isUploading || files.length === 0 || !monthYear}
-            startIcon={isUploading ? <CircularProgress size={20} /> : <CloudUpload />}
+            size="lg"
+            className="flex items-center gap-2"
           >
+            {isUploading ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <CloudUpload className="h-5 w-5" />
+            )}
             {isUploading ? 'Uploading...' : 'Upload & Process Files'}
           </Button>
-        </Box>
+        </div>
 
         {/* Upload Result */}
         {uploadResult && (
-          <Alert
-            severity={uploadResult.type}
-            icon={uploadResult.type === 'success' ? <CheckCircle /> : <Error />}
-          >
-            {uploadResult.message}
+          <Alert>
+            {uploadResult.type === 'success' ? (
+              <CheckCircle className="h-4 w-4" />
+            ) : (
+              <AlertTriangle className="h-4 w-4" />
+            )}
+            <AlertDescription className={uploadResult.type === 'success' ? 'text-green-800 dark:text-green-200' : 'text-red-800 dark:text-red-200'}>
+              {uploadResult.message}
+            </AlertDescription>
           </Alert>
         )}
 
         {/* Instructions */}
-        <Paper elevation={1} sx={{ p: 3 }}>
-          <Typography variant="h6" gutterBottom>
-            📋 Upload Instructions
-          </Typography>
-          <Box component="ol" sx={{ pl: 2, '& li': { mb: 1 } }}>
-            <li>
-              <Typography variant="body2">
-                Select the month/year in YYYY-MM format (e.g., 2024-08 for August 2024)
-              </Typography>
-            </li>
-            <li>
-              <Typography variant="body2">
-                Upload slip audit reports exported from PALMS system (.xls or .xlsx files)
-              </Typography>
-            </li>
-            <li>
-              <Typography variant="body2">
-                Optionally upload member names file if you have updated member information
-              </Typography>
-            </li>
-            <li>
-              <Typography variant="body2">
-                Files will be processed automatically and matrices will be generated
-              </Typography>
-            </li>
-            <li>
-              <Typography variant="body2">
-                Use "Previous Data" tab to view processed results after upload
-              </Typography>
-            </li>
-          </Box>
-        </Paper>
-      </Box>
-    </Box>
+        <Card>
+          <CardContent className="p-6">
+            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <Info className="h-5 w-5" />
+              Upload Instructions
+            </h3>
+            <div className="space-y-3 text-sm">
+              <div className="flex gap-2">
+                <span className="font-medium text-primary min-w-[20px]">1.</span>
+                <span>Select the month/year in YYYY-MM format (e.g., 2024-08 for August 2024)</span>
+              </div>
+              <div className="flex gap-2">
+                <span className="font-medium text-primary min-w-[20px]">2.</span>
+                <span>Upload slip audit reports exported from PALMS system (.xls or .xlsx files)</span>
+              </div>
+              <div className="flex gap-2">
+                <span className="font-medium text-primary min-w-[20px]">3.</span>
+                <span>Optionally upload member names file if you have updated member information</span>
+              </div>
+              <div className="flex gap-2">
+                <span className="font-medium text-primary min-w-[20px]">4.</span>
+                <span>Files will be processed automatically and matrices will be generated</span>
+              </div>
+              <div className="flex gap-2">
+                <span className="font-medium text-primary min-w-[20px]">5.</span>
+                <span>Use "Previous Data" tab to view processed results after upload</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
   );
 };
 

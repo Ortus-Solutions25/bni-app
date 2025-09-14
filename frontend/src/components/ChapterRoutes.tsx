@@ -3,6 +3,7 @@ import { Routes, Route, useNavigate, useParams } from 'react-router-dom';
 import ChapterDashboard from './ChapterDashboard';
 import ChapterDetailPage from './ChapterDetailPage';
 import MemberDetails from './MemberDetails';
+import AdminDashboard from './AdminDashboard';
 import { ChapterMemberData, loadAllChapterData } from '../services/ChapterDataLoader';
 
 const ChapterRoutes: React.FC = () => {
@@ -60,8 +61,8 @@ const ChapterRoutes: React.FC = () => {
   return (
     <Routes>
       {/* Chapters Dashboard */}
-      <Route 
-        path="/" 
+      <Route
+        path="/"
         element={
           <ChapterDashboard
             chapterData={chapterData}
@@ -69,29 +70,35 @@ const ChapterRoutes: React.FC = () => {
             onChapterSelect={handleChapterSelect}
             onChapterAdded={handleChapterAdded}
           />
-        } 
+        }
       />
-      
+
+      {/* Admin Dashboard */}
+      <Route
+        path="/admin"
+        element={<AdminDashboard />}
+      />
+
       {/* Chapter Detail Page (with 4 tabs as per user requirements) */}
-      <Route 
-        path="/chapter/:chapterId" 
-        element={<ChapterDetailRoute 
+      <Route
+        path="/chapter/:chapterId"
+        element={<ChapterDetailRoute
           chapterData={chapterData}
           onBackToChapters={handleBackToChapters}
           onMemberSelect={handleMemberSelect}
           onDataRefresh={handleChapterAdded}
-        />} 
+        />}
       />
-      
+
       {/* Member Details */}
-      <Route 
-        path="/chapter/:chapterId/members/:memberName" 
-        element={<MemberDetailsRoute 
+      <Route
+        path="/chapter/:chapterId/members/:memberName"
+        element={<MemberDetailsRoute
           chapterData={chapterData}
           onBackToMembers={handleBackToMembers}
           onBackToChapters={handleBackToChapters}
           onDataRefresh={handleChapterAdded}
-        />} 
+        />}
       />
     </Routes>
   );

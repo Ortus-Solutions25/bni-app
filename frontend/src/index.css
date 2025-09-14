@@ -1,13 +1,123 @@
-body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@layer base {
+  :root {
+    /* Light theme fallback - Happy Hues Palette #4 Light Variant */
+    --background: 233 18% 9%;        /* #16161a - Background */
+    --foreground: 0 0% 100%;         /* #fffffe - Headline */
+    --card: 233 18% 9%;              /* #16161a - Card background */
+    --card-foreground: 0 0% 100%;    /* #fffffe - Card headline */
+    --popover: 233 18% 9%;           /* #16161a - Popover background */
+    --popover-foreground: 0 0% 100%; /* #fffffe - Popover text */
+    --primary: 252 83% 65%;          /* #7f5af0 - Button/Primary */
+    --primary-foreground: 0 0% 100%; /* #fffffe - Button text */
+    --secondary: 162 69% 50%;        /* #2cb67d - Secondary/Tertiary */
+    --secondary-foreground: 0 0% 100%; /* #fffffe - Secondary text */
+    --muted: 215 19% 63%;            /* #94a1b2 - Paragraph/muted */
+    --muted-foreground: 215 19% 63%; /* #94a1b2 - Paragraph text */
+    --accent: 162 69% 50%;           /* #2cb67d - Accent */
+    --accent-foreground: 0 0% 100%;  /* #fffffe - Accent text */
+    --destructive: 0 58% 58%;        /* #e16162 - Destructive actions */
+    --destructive-foreground: 0 0% 100%; /* #fffffe - Destructive text */
+    --border: 215 19% 63%;           /* #94a1b2 - Border color */
+    --input: 215 19% 63%;            /* #94a1b2 - Input background */
+    --ring: 252 83% 65%;             /* #7f5af0 - Focus ring */
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    /* Happy Hues Palette #4 - Dark Theme */
+    --background: 230 7% 16%;        /* #242629 - Background */
+    --foreground: 0 0% 100%;         /* #fffffe - Headline */
+    --card: 233 18% 9%;              /* #16161a - Card background (darker) */
+    --card-foreground: 0 0% 100%;    /* #fffffe - Card headline */
+    --popover: 233 18% 9%;           /* #16161a - Popover background */
+    --popover-foreground: 0 0% 100%; /* #fffffe - Popover text */
+    --primary: 252 83% 65%;          /* #7f5af0 - Button/Primary (purple) */
+    --primary-foreground: 0 0% 100%; /* #fffffe - Button text */
+    --secondary: 162 69% 50%;        /* #2cb67d - Secondary (green) */
+    --secondary-foreground: 0 0% 100%; /* #fffffe - Secondary text */
+    --muted: 233 18% 9%;             /* #16161a - Muted elements (darker) */
+    --muted-foreground: 215 19% 63%; /* #94a1b2 - Paragraph text */
+    --accent: 162 69% 50%;           /* #2cb67d - Accent (green) */
+    --accent-foreground: 0 0% 100%;  /* #fffffe - Accent text */
+    --destructive: 0 58% 58%;        /* #e16162 - Destructive actions */
+    --destructive-foreground: 0 0% 100%; /* #fffffe - Destructive text */
+    --border: 215 19% 63%;           /* #94a1b2 - Border color */
+    --input: 233 18% 9%;             /* #16161a - Input background */
+    --ring: 252 83% 65%;             /* #7f5af0 - Focus ring (purple) */
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    margin: 0;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  code {
+    font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;
+  }
 }
 
-code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-    monospace;
+/* Professional scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-gray-100 dark:bg-gray-800;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-gray-300 dark:bg-gray-600 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-gray-400 dark:bg-gray-500;
+}
+
+/* Custom animations */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out;
+}
+
+/* Professional focus styles */
+.focus-visible {
+  @apply outline-none ring-2 ring-primary ring-offset-2 ring-offset-background;
+}
+
+/* Loading skeleton animation */
+@keyframes skeleton-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.animate-skeleton {
+  animation: skeleton-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }

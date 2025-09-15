@@ -3,6 +3,7 @@ import { Building2, ArrowUpDown, Loader2, CheckCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import ChapterCard from './ChapterCard';
+import ChapterErrorBoundary from './ChapterErrorBoundary';
 import { ChapterMemberData, generateMockPerformanceMetrics } from '../services/ChapterDataLoader';
 import { formatNumber } from '../lib/utils';
 
@@ -80,7 +81,8 @@ const ChapterDashboard: React.FC<ChapterDashboardProps> = ({
   }
 
   return (
-    <div className="space-y-8 animate-fade-in">
+    <ChapterErrorBoundary>
+      <div className="space-y-8 animate-fade-in">
       {/* Header Section */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -199,6 +201,7 @@ const ChapterDashboard: React.FC<ChapterDashboardProps> = ({
         )}
       </div>
     </div>
+    </ChapterErrorBoundary>
   );
 };
 

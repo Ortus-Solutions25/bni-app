@@ -14,6 +14,7 @@ import PreviousDataTab from './PreviousDataTab';
 import MembersTab from './MembersTab';
 import MatrixTab from './MatrixTab';
 import FileUploadComponent from './FileUploadComponent';
+import FileUploadErrorBoundary from './FileUploadErrorBoundary';
 
 interface ChapterDetailPageProps {
   chapterData: ChapterMemberData;
@@ -110,11 +111,13 @@ const ChapterDetailPage: React.FC<ChapterDetailPageProps> = ({
           </TabsContent>
 
           <TabsContent value="upload" className="mt-6">
-            <FileUploadComponent
-              chapterId={chapterData.chapterId}
-              chapterName={chapterData.chapterName}
-              onUploadSuccess={handleUploadSuccess}
-            />
+            <FileUploadErrorBoundary>
+              <FileUploadComponent
+                chapterId={chapterData.chapterId}
+                chapterName={chapterData.chapterName}
+                onUploadSuccess={handleUploadSuccess}
+              />
+            </FileUploadErrorBoundary>
           </TabsContent>
 
           <TabsContent value="members" className="mt-6">

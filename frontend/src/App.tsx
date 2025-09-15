@@ -11,14 +11,24 @@ import { Button } from "./components/ui/button";
 
 // Import components
 import ChapterRoutes from "./components/ChapterRoutes";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 function App() {
   return (
-    <Router>
-      <div className="dark min-h-screen bg-background text-foreground">
-        <AppContent />
-      </div>
-    </Router>
+    <ErrorBoundary
+      level="global"
+      onError={(error, errorInfo) => {
+        console.error('Global error:', error, errorInfo);
+      }}
+    >
+      <Router>
+        <div className="dark min-h-screen bg-background text-foreground">
+          <ErrorBoundary level="route">
+            <AppContent />
+          </ErrorBoundary>
+        </div>
+      </Router>
+    </ErrorBoundary>
   );
 }
 

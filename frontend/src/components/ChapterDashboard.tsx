@@ -82,7 +82,7 @@ const ChapterDashboard: React.FC<ChapterDashboardProps> = ({
 
   return (
     <ChapterErrorBoundary>
-      <div className="space-y-8 animate-fade-in">
+      <div className="space-y-8 animate-fade-in" data-testid="chapter-dashboard">
       {/* Header Section */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -97,7 +97,7 @@ const ChapterDashboard: React.FC<ChapterDashboardProps> = ({
 
 
       {/* Dashboard Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6" data-testid="dashboard-stats">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Chapters</CardTitle>

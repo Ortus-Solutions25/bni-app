@@ -35,9 +35,18 @@ const ChapterCard: React.FC<ChapterCardProps> = ({ chapterData, onClick, onDelet
         "border-l-4 border-l-primary/30"
       )}
       onClick={onClick}
+      data-testid={`chapter-card-${chapterData.chapterId}`}
+      tabIndex={0}
+      role="button"
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onClick();
+        }
+      }}
     >
       <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-3">
-        <CardTitle className="text-lg font-semibold line-clamp-2 pr-2">
+        <CardTitle className="text-lg font-semibold line-clamp-2 pr-2" data-testid={`chapter-name-${chapterData.chapterId}`}>
           {chapterData.chapterName}
         </CardTitle>
         <div className="flex items-center gap-1">

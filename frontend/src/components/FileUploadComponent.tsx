@@ -15,6 +15,7 @@ import { Alert, AlertDescription } from './ui/alert';
 import { Input } from './ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { useDropzone } from 'react-dropzone';
+import { useApiError } from '@/hooks/useApiError';
 
 interface UploadFile {
   file: File;
@@ -46,6 +47,7 @@ const FileUploadComponent: React.FC<FileUploadComponentProps> = ({
   const [uploadOption, setUploadOption] = useState<'slip_only' | 'slip_and_members'>('slip_only');
   const [isUploading, setIsUploading] = useState(false);
   const [uploadResult, setUploadResult] = useState<{type: 'success' | 'error', message: string} | null>(null);
+  const { handleError } = useApiError();
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const newFiles = acceptedFiles.map(file => {
@@ -140,9 +142,10 @@ const FileUploadComponent: React.FC<FileUploadComponentProps> = ({
         });
       }
     } catch (error: any) {
+      handleError(error);
       setUploadResult({
         type: 'error',
-        message: error instanceof Error ? error.message : 'Upload failed'
+        message: 'Upload failed. Please try again.'
       });
     } finally {
       setIsUploading(false);

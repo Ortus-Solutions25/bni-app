@@ -6,12 +6,16 @@ import {
   useNavigate,
   useLocation,
 } from "react-router-dom";
+import { QueryClientProvider } from '@tanstack/react-query';
 import { BarChart3, Settings, Home } from "lucide-react";
 import { Button } from "./components/ui/button";
 
 // Import components
 import ChapterRoutes from "./components/ChapterRoutes";
 import ErrorBoundary from "./components/ErrorBoundary";
+import { ErrorToastProvider } from "./components/ErrorToast";
+import { useNetworkStatus } from "./hooks/useNetworkStatus";
+import { queryClient } from "./lib/queryClient";
 
 function App() {
   return (
@@ -21,13 +25,17 @@ function App() {
         console.error('Global error:', error, errorInfo);
       }}
     >
-      <Router>
-        <div className="dark min-h-screen bg-background text-foreground">
-          <ErrorBoundary level="route">
-            <AppContent />
-          </ErrorBoundary>
-        </div>
-      </Router>
+      <QueryClientProvider client={queryClient}>
+        <ErrorToastProvider>
+          <Router>
+            <div className="dark min-h-screen bg-background text-foreground">
+              <ErrorBoundary level="route">
+                <AppContent />
+              </ErrorBoundary>
+            </div>
+          </Router>
+        </ErrorToastProvider>
+      </QueryClientProvider>
     </ErrorBoundary>
   );
 }
@@ -35,6 +43,9 @@ function App() {
 function AppContent() {
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Initialize network status monitoring
+  useNetworkStatus();
 
   const isAdminPage = location.pathname.startsWith('/admin');
   const isHomePage = location.pathname === '/';

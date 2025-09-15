@@ -1,10 +1,23 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { Routes, Route, useNavigate, useParams } from 'react-router-dom';
 import ChapterDashboard from './ChapterDashboard';
-import ChapterDetailPage from './ChapterDetailPage';
-import MemberDetails from './MemberDetails';
-import AdminDashboard from './AdminDashboard';
 import { ChapterMemberData, loadAllChapterData } from '../services/ChapterDataLoader';
+
+const ChapterDetailPage = lazy(() => import('./ChapterDetailPage'));
+const MemberDetails = lazy(() => import('./MemberDetails'));
+const AdminDashboard = lazy(() => import('./AdminDashboard'));
+
+const LoadingFallback: React.FC = () => (
+  <div className="flex items-center justify-center min-h-[400px]">
+    <div className="text-center space-y-4">
+      <div className="animate-spin h-12 w-12 border-4 border-primary border-t-transparent rounded-full mx-auto"></div>
+      <div>
+        <p className="text-lg font-medium">Loading...</p>
+        <p className="text-sm text-muted-foreground">Please wait</p>
+      </div>
+    </div>
+  </div>
+);
 
 const ChapterRoutes: React.FC = () => {
   const [chapterData, setChapterData] = useState<ChapterMemberData[]>([]);
@@ -76,7 +89,11 @@ const ChapterRoutes: React.FC = () => {
       {/* Admin Dashboard */}
       <Route
         path="/admin"
-        element={<AdminDashboard />}
+        element={
+          <Suspense fallback={<LoadingFallback />}>
+            <AdminDashboard />
+          </Suspense>
+        }
       />
 
       {/* Chapter Detail Page (with 4 tabs as per user requirements) */}
@@ -120,12 +137,14 @@ const ChapterDetailRoute: React.FC<{
   }
 
   return (
-    <ChapterDetailPage
-      chapterData={selectedChapter}
-      onBackToChapters={onBackToChapters}
-      onMemberSelect={(memberName: string) => onMemberSelect(chapterId!, memberName)}
-      onDataRefresh={onDataRefresh}
-    />
+    <Suspense fallback={<LoadingFallback />}>
+      <ChapterDetailPage
+        chapterData={selectedChapter}
+        onBackToChapters={onBackToChapters}
+        onMemberSelect={(memberName: string) => onMemberSelect(chapterId!, memberName)}
+        onDataRefresh={onDataRefresh}
+      />
+    </Suspense>
   );
 };
 
@@ -146,13 +165,15 @@ const MemberDetailsRoute: React.FC<{
   }
 
   return (
-    <MemberDetails
-      chapterData={selectedChapter}
-      memberName={decodedMemberName}
-      onBackToMembers={() => onBackToMembers(chapterId!)}
-      onBackToChapters={onBackToChapters}
-      onDataRefresh={onDataRefresh}
-    />
+    <Suspense fallback={<LoadingFallback />}>
+      <MemberDetails
+        chapterData={selectedChapter}
+        memberName={decodedMemberName}
+        onBackToMembers={() => onBackToMembers(chapterId!)}
+        onBackToChapters={onBackToChapters}
+        onDataRefresh={onDataRefresh}
+      />
+    </Suspense>
   );
 };
 

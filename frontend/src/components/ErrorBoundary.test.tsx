@@ -111,7 +111,10 @@ describe('ErrorBoundary', () => {
     const originalEnv = process.env.NODE_ENV;
 
     console.error = jest.fn();
-    process.env.NODE_ENV = 'development';
+    Object.defineProperty(process.env, 'NODE_ENV', {
+      value: 'development',
+      configurable: true
+    });
 
     render(
       <ErrorBoundary>
@@ -122,7 +125,10 @@ describe('ErrorBoundary', () => {
     expect(screen.getByText('Error Details')).toBeInTheDocument();
 
     console.error = originalError;
-    process.env.NODE_ENV = originalEnv;
+    Object.defineProperty(process.env, 'NODE_ENV', {
+      value: originalEnv,
+      configurable: true
+    });
   });
 
   it('hides error details in production mode', () => {
@@ -130,7 +136,10 @@ describe('ErrorBoundary', () => {
     const originalEnv = process.env.NODE_ENV;
 
     console.error = jest.fn();
-    process.env.NODE_ENV = 'production';
+    Object.defineProperty(process.env, 'NODE_ENV', {
+      value: 'production',
+      configurable: true
+    });
 
     render(
       <ErrorBoundary>
@@ -141,6 +150,9 @@ describe('ErrorBoundary', () => {
     expect(screen.queryByText('Error Details')).not.toBeInTheDocument();
 
     console.error = originalError;
-    process.env.NODE_ENV = originalEnv;
+    Object.defineProperty(process.env, 'NODE_ENV', {
+      value: originalEnv,
+      configurable: true
+    });
   });
 });

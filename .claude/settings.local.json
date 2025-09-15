@@ -20,7 +20,9 @@
       "Bash(find:*)",
       "Bash(npm audit:*)",
       "WebFetch(domain:github.com)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(npm test:*)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []

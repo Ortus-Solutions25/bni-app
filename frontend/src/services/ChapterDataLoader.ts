@@ -1,4 +1,5 @@
 import { read, utils } from 'xlsx';
+import { validateExcelFile, sanitizeSheetData, ExcelSecurityError } from '../utils/excelSecurity';
 
 export interface ChapterInfo {
   id: string;
@@ -81,42 +82,102 @@ export const REAL_CHAPTERS: ChapterInfo[] = [
 
 export const extractMemberNamesFromFile = async (file: File): Promise<string[]> => {
   return new Promise((resolve, reject) => {
+    try {
+      // Validate file before processing
+      validateExcelFile(file);
+    } catch (error) {
+      reject(error);
+      return;
+    }
+
     const reader = new FileReader();
-    
+
     reader.onload = (e) => {
       try {
         const data = e.target?.result;
-        const workbook = read(data, { type: 'binary' });
+
+        if (!data) {
+          throw new ExcelSecurityError('Failed to read file data');
+        }
+
+        // Read with security options
+        const workbook = read(data, {
+          type: 'binary',
+          // Security options to prevent vulnerabilities
+          raw: false,
+          cellDates: false,
+          cellNF: false,
+          cellHTML: false
+        });
+
+        // Validate number of sheets
+        if (workbook.SheetNames.length > 10) {
+          throw new ExcelSecurityError('Too many sheets in workbook');
+        }
+
         const sheetName = workbook.SheetNames[0];
+        if (!sheetName) {
+          throw new ExcelSecurityError('No sheets found in workbook');
+        }
+
         const worksheet = workbook.Sheets[sheetName];
+        if (!worksheet) {
+          throw new ExcelSecurityError('Failed to read worksheet');
+        }
+
         const jsonData = utils.sheet_to_json(worksheet);
-        
+
+        // Sanitize the data before processing
+        const sanitizedData = sanitizeSheetData(jsonData);
+
         const members: string[] = [];
-        jsonData.forEach((row: any) => {
+        sanitizedData.forEach((row: any) => {
           let firstName = '';
           let lastName = '';
-          
+
           Object.keys(row).forEach(key => {
             const lowerKey = key.toLowerCase();
             if (lowerKey.includes('first') && lowerKey.includes('name')) {
-              firstName = row[key]?.toString().trim() || '';
+              const value = row[key];
+              firstName = (typeof value === 'string' || typeof value === 'number')
+                ? value.toString().trim()
+                : '';
             } else if (lowerKey.includes('last') && lowerKey.includes('name')) {
-              lastName = row[key]?.toString().trim() || '';
+              const value = row[key];
+              lastName = (typeof value === 'string' || typeof value === 'number')
+                ? value.toString().trim()
+                : '';
             }
           });
-          
-          if (firstName && lastName) {
-            members.push(`${firstName} ${lastName}`);
+
+          // Additional validation for member names
+          if (firstName && lastName && firstName.length <= 50 && lastName.length <= 50) {
+            // Sanitize names to remove potential harmful characters
+            const sanitizedFirstName = firstName.replace(/[^\w\s\-\'\.]/g, '').trim();
+            const sanitizedLastName = lastName.replace(/[^\w\s\-\'\.]/g, '').trim();
+
+            if (sanitizedFirstName && sanitizedLastName) {
+              members.push(`${sanitizedFirstName} ${sanitizedLastName}`);
+            }
           }
         });
-        
+
+        // Limit number of members to prevent DoS
+        if (members.length > 1000) {
+          throw new ExcelSecurityError('Too many members in file. Maximum allowed: 1000');
+        }
+
         resolve(members);
       } catch (error) {
-        reject(error);
+        if (error instanceof ExcelSecurityError) {
+          reject(error);
+        } else {
+          reject(new ExcelSecurityError(`Failed to process Excel file: ${error instanceof Error ? error.message : 'Unknown error'}`));
+        }
       }
     };
-    
-    reader.onerror = () => reject(new Error('Failed to read file'));
+
+    reader.onerror = () => reject(new ExcelSecurityError('Failed to read file'));
     reader.readAsBinaryString(file);
   });
 };

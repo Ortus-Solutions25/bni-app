@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Calendar,
   TrendingUp,
   Users,
-  DollarSign,
   Trash2,
   RefreshCw,
   Loader2,
@@ -27,7 +26,7 @@ const PreviousDataTab: React.FC<PreviousDataTabProps> = ({ chapterData }) => {
   const [error, setError] = useState<string | null>(null);
 
   // Load monthly reports when component mounts
-  const loadReports = async () => {
+  const loadReports = useCallback(async () => {
     setIsLoading(true);
     setError(null);
 
@@ -44,13 +43,13 @@ const PreviousDataTab: React.FC<PreviousDataTabProps> = ({ chapterData }) => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [chapterData.chapterId]);
 
   useEffect(() => {
     if (chapterData.chapterId) {
       loadReports();
     }
-  }, [chapterData.chapterId]);
+  }, [chapterData.chapterId, loadReports]);
 
   const handleReportChange = (reportId: string) => {
     const report = monthlyReports.find(r => r.id === parseInt(reportId));
@@ -78,15 +77,6 @@ const PreviousDataTab: React.FC<PreviousDataTabProps> = ({ chapterData }) => {
     } finally {
       setIsDeleting(false);
     }
-  };
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount);
   };
 
   return (

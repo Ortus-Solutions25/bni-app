@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Building2, ArrowUpDown, Loader2, CheckCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import ChapterCard from './ChapterCard';
 import { ChapterMemberData, generateMockPerformanceMetrics } from '../services/ChapterDataLoader';
 import { formatNumber } from '../lib/utils';
@@ -160,15 +161,16 @@ const ChapterDashboard: React.FC<ChapterDashboardProps> = ({
           </h2>
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">Sort by:</span>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as SortOption)}
-              className="px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-            >
-              <option value="name">Chapter Name</option>
-              <option value="memberCount">Member Count</option>
-              <option value="performance">Performance</option>
-            </select>
+            <Select value={sortBy} onValueChange={(value: SortOption) => setSortBy(value)}>
+              <SelectTrigger className="w-40">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="name">Chapter Name</SelectItem>
+                <SelectItem value="memberCount">Member Count</SelectItem>
+                <SelectItem value="performance">Performance</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
 

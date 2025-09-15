@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   ArrowLeft,
   Building2,
@@ -29,10 +29,10 @@ const ChapterDetailPage: React.FC<ChapterDetailPageProps> = ({
   onMemberSelect,
   onDataRefresh,
 }) => {
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
-
   const handleUploadSuccess = () => {
-    setRefreshTrigger(prev => prev + 1);
+    if (onDataRefresh) {
+      onDataRefresh();
+    }
   };
 
   return (

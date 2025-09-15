@@ -5,19 +5,16 @@ import {
   Building2,
   Users,
   Database,
-  BarChart3,
   FileSpreadsheet,
   Calendar,
   Info,
   CheckCircle,
   AlertTriangle,
   UserPlus,
-  UserMinus,
   Download,
   Upload,
   Edit,
   Trash2,
-  Search,
   Plus,
   Loader2,
 } from 'lucide-react';
@@ -29,7 +26,6 @@ import { Alert, AlertDescription } from './ui/alert';
 import { Input } from './ui/input';
 import { Badge } from './ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import FileUploadComponent from './FileUploadComponent';
 import { ChapterMemberData, loadAllChapterData } from '../services/ChapterDataLoader';
 
@@ -68,8 +64,6 @@ const MemberManagementTab: React.FC<{
     if (searchTerm) {
       filtered = filtered.filter(member =>
         member.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        member.business?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        member.classification?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         member.chapterName.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
@@ -97,9 +91,9 @@ const MemberManagementTab: React.FC<{
 
   const exportAllMemberData = () => {
     const csvContent = "data:text/csv;charset=utf-8,"
-      + "Name,Business,Classification,Chapter,Email,Phone,Join Date,Status\n"
+      + "Name,Chapter\n"
       + filteredMembers.map(member =>
-          `${member.name || ''},"${member.business || ''}","${member.classification || ''}","${member.chapterName}","${member.email || ''}","${member.phone || ''}","${member.joinDate || ''}","${member.active ? 'Active' : 'Inactive'}"`
+          `"${member.name || ''}","${member.chapterName}"`
         ).join("\n");
 
     const encodedUri = encodeURI(csvContent);
@@ -205,11 +199,12 @@ const MemberManagementTab: React.FC<{
                       checked={selectedMembers.length === filteredMembers.length && filteredMembers.length > 0}
                       onChange={(e) => {
                         if (e.target.checked) {
-                          setSelectedMembers(filteredMembers.map(member => member.memberId));
+                          setSelectedMembers(filteredMembers.map((member, index) => `${member.chapterName}-${index}`));
                         } else {
                           setSelectedMembers([]);
                         }
                       }}
+                      aria-label="Select all members"
                     />
                   </TableHead>
                   <TableHead>Name</TableHead>
@@ -221,32 +216,31 @@ const MemberManagementTab: React.FC<{
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredMembers.map((member) => (
-                  <TableRow key={member.memberId}>
+                {filteredMembers.map((member, index) => (
+                  <TableRow key={`${member.chapterName}-${index}`}>
                     <TableCell>
                       <input
                         type="checkbox"
-                        checked={selectedMembers.includes(member.memberId)}
-                        onChange={(e) => handleMemberSelect(member.memberId, e.target.checked)}
+                        checked={selectedMembers.includes(`${member.chapterName}-${index}`)}
+                        onChange={(e) => handleMemberSelect(`${member.chapterName}-${index}`, e.target.checked)}
+                        aria-label={`Select ${member.name}`}
                       />
                     </TableCell>
                     <TableCell className="font-medium">{member.name || 'N/A'}</TableCell>
-                    <TableCell>{member.business || 'N/A'}</TableCell>
-                    <TableCell>{member.classification || 'N/A'}</TableCell>
+                    <TableCell>N/A</TableCell>
+                    <TableCell>N/A</TableCell>
                     <TableCell>
                       <Badge variant="outline">{member.chapterName}</Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={member.active ? 'default' : 'secondary'}>
-                        {member.active ? 'Active' : 'Inactive'}
-                      </Badge>
+                      <Badge variant="default">Active</Badge>
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-2">
-                        <Button variant="ghost" size="sm">
+                        <Button variant="ghost" size="sm" aria-label={`Edit ${member.name}`}>
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="sm">
+                        <Button variant="ghost" size="sm" aria-label={`Delete ${member.name}`}>
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>

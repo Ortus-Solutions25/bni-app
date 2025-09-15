@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Users,
   Building2,
@@ -53,33 +53,33 @@ const MembersTab: React.FC<MembersTabProps> = ({ chapterData, onMemberSelect, on
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
-  const fetchMembers = async () => {
+  const fetchMembers = useCallback(async () => {
     if (!chapterData.chapterId) return;
-    
+
     setIsLoading(true);
     setError(null);
-    
+
     try {
       const response = await fetch(`/api/chapters/${chapterData.chapterId}/`);
-      
+
       if (!response.ok) {
         throw new Error(`API request failed: ${response.status} ${response.statusText}`);
       }
-      
+
       const data = await response.json();
       setMembers(data.members || []);
-      
+
     } catch (error) {
       console.error('Failed to load members:', error);
       setError(error instanceof Error ? error.message : 'Unknown error');
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [chapterData.chapterId]);
 
   useEffect(() => {
     fetchMembers();
-  }, [chapterData.chapterId]);
+  }, [fetchMembers]);
 
   const handleAddMember = () => {
     // Set default joined_date to today

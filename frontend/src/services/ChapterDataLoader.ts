@@ -121,55 +121,6 @@ export const extractMemberNamesFromFile = async (file: File): Promise<string[]> 
   });
 };
 
-const loadChapterFile = async (memberFileName: string): Promise<string[]> => {
-  try {
-    console.log(`Loading member file: ${memberFileName}`);
-    const response = await fetch(`/needed-data/member-names/${memberFileName}`);
-    
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText} for file ${memberFileName}`);
-    }
-    
-    const arrayBuffer = await response.arrayBuffer();
-    const workbook = read(arrayBuffer, { type: 'array' });
-    
-    if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
-      throw new Error(`No sheets found in ${memberFileName}`);
-    }
-    
-    const sheetName = workbook.SheetNames[0];
-    const worksheet = workbook.Sheets[sheetName];
-    const jsonData = utils.sheet_to_json(worksheet);
-    
-    console.log(`Found ${jsonData.length} rows in ${memberFileName}`);
-    
-    const members: string[] = [];
-    jsonData.forEach((row: any, index: number) => {
-      let firstName = '';
-      let lastName = '';
-      
-      Object.keys(row).forEach(key => {
-        const lowerKey = key.toLowerCase();
-        if (lowerKey.includes('first') && lowerKey.includes('name')) {
-          firstName = row[key]?.toString().trim() || '';
-        } else if (lowerKey.includes('last') && lowerKey.includes('name')) {
-          lastName = row[key]?.toString().trim() || '';
-        }
-      });
-      
-      if (firstName && lastName) {
-        members.push(`${firstName} ${lastName}`);
-      }
-    });
-    
-    console.log(`Extracted ${members.length} member names from ${memberFileName}`);
-    return members;
-  } catch (error) {
-    console.error(`Failed to load ${memberFileName}:`, error);
-    throw error;
-  }
-};
-
 export const loadAllChapterData = async (): Promise<ChapterMemberData[]> => {
   try {
     // Call the real backend API

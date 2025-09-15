@@ -206,6 +206,7 @@ const FileUploadComponent: React.FC<FileUploadComponentProps> = ({
                   : 'border-muted-foreground/25 hover:border-primary/50 hover:bg-muted/20'
                 }
               `}
+              data-testid="file-dropzone"
             >
               <input {...getInputProps()} />
               <div className="flex flex-col items-center space-y-4">

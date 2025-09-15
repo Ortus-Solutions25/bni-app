@@ -15,7 +15,7 @@ import { Alert, AlertDescription } from './ui/alert';
 import { Input } from './ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { useDropzone } from 'react-dropzone';
-import { useApiError } from '@/hooks/useApiError';
+import { useApiError } from '../hooks/useApiError';
 
 interface UploadFile {
   file: File;

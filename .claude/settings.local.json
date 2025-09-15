@@ -22,7 +22,11 @@
       "WebFetch(domain:github.com)",
       "Bash(npm run build:*)",
       "Bash(npm test:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(CI=true npm test -- --testPathPattern=integration)",
+      "Bash(CI=true npm test -- --testPathPattern=integration --verbose)",
+      "Bash(CI=true npm test -- --testPathIgnorePatterns=integration --verbose)",
+      "Bash(tree:*)"
     ],
     "deny": [],
     "ask": []

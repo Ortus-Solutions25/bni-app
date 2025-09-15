@@ -1,5 +1,5 @@
-import { useErrorToast } from '@/components/ErrorToast';
-import { ApiErrorHandler } from '@/lib/apiErrors';
+import { useErrorToast } from '../components/ErrorToast';
+import { ApiErrorHandler } from '../lib/apiErrors';
 import { useCallback } from 'react';
 
 export const useApiError = () => {

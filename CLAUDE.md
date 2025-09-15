@@ -26,89 +26,234 @@ The application centers around four core business metrics:
 ## Technology Stack & Dependencies
 
 ### Backend Dependencies
-- **Django 4.2.7**: Core web framework
-- **Django REST Framework 3.14.0**: RESTful API development
-- **PostgreSQL (psycopg2-binary 2.9.9)**: Production database
-- **Redis 5.0.1 + Celery 5.3.4**: Asynchronous task processing and caching
-- **pandas 2.1.3 + openpyxl 3.1.2**: Excel file processing and data manipulation
-- **drf-spectacular 0.26.5**: OpenAPI schema generation for API documentation
-- **django-cors-headers 4.3.0**: Cross-origin resource sharing
-- **djangorestframework-simplejwt 5.3.0**: JWT authentication
-- **Pillow 10.1.0**: Image processing capabilities
-- **gunicorn 21.2.0 + whitenoise 6.6.0**: Production server and static file serving
+- **Django 4.2.7**: Core web framework with environment-based configuration
+- **Django REST Framework 3.14.0**: RESTful API with JWT authentication and pagination
+- **PostgreSQL (psycopg2-binary 2.9.9)**: Production database (SQLite3 fallback for development)
+- **Redis 5.0.1 + Celery 5.3.4**: Asynchronous task processing and caching layer
+- **pandas 2.1.3 + openpyxl 3.1.2**: Excel file processing with security validation
+- **drf-spectacular 0.26.5**: OpenAPI schema generation and API documentation
+- **django-cors-headers 4.3.0**: Cross-origin resource sharing with credential support
+- **djangorestframework-simplejwt 5.3.0**: JWT tokens with rotation and blacklisting
+- **Pillow 10.1.0**: Image processing capabilities for file uploads
+- **gunicorn 21.2.0 + whitenoise 6.6.0**: Production WSGI server with static file compression
 
 ### Frontend Dependencies
-- **React 19.1.1**: Core UI framework
-- **TypeScript 4.9.5**: Type safety and developer experience
-- **Material-UI (@mui) 7.3.1**: Component library with dark theme
-- **React Router DOM 7.8.2**: Client-side routing
-- **Recharts 3.1.2**: Data visualization and charting
-- **Axios 1.11.0**: HTTP client for API communication
-- **@tanstack/react-query 5.85.5**: Server state management and caching
-- **react-dropzone 14.3.8**: File upload functionality
-- **xlsx 0.18.5**: Client-side Excel file processing
+- **React 18.3.1**: Core UI framework with Concurrent Features
+- **TypeScript 4.9.5**: Full type safety with strict configuration
+- **Radix UI Components**: Accessible headless components (@radix-ui/react-*)
+- **TailwindCSS 3.4.14**: Utility-first styling with custom design system
+- **React Router DOM 7.9.1**: Client-side routing with lazy loading
+- **Recharts 3.1.2**: D3-powered data visualization and charting
+- **@tanstack/react-query 5.85.5**: Server state management with intelligent caching
+- **react-dropzone 14.3.8**: Drag & drop file upload with validation
+- **xlsx 0.18.5**: Client-side Excel processing with security controls
+- **Lucide React 0.544.0**: Modern icon library
+- **class-variance-authority**: Type-safe component variants
 
 ## Key Components & Relationships
 
 ### Backend Structure
 
+#### Django Apps Architecture
+The backend follows a modular Django app structure with clear separation of concerns:
+
+1. **`core/`** - Central configuration and settings
+   - Environment-based configuration with `.env` support
+   - JWT authentication setup with token rotation
+   - CORS configuration for frontend communication
+   - Celery configuration for async processing
+
+2. **`chapters/`** - Core business entities
+   - Chapter and Member models with business logic
+   - Management commands for data operations
+   - Name normalization algorithms
+
+3. **`analytics/`** - Business metrics and interactions
+   - Referral, OneToOne, TYFCB tracking models
+   - Complex validation logic for business rules
+   - Audit trail functionality
+
+4. **`api/`** - RESTful API layer
+   - Comprehensive serializers with computed fields
+   - Matrix generation algorithms
+   - File upload processing with security
+
+5. **`data_processing/`** - Excel import and batch operations
+   - Pandas-based data transformation
+   - Error handling and validation
+   - Session tracking for imports
+
+6. **`reports/`** - Monthly reporting and data export
+   - JSON storage for processed matrices
+   - Historical data management
+   - Performance metrics calculation
+
 #### Core Models (Django ORM)
-1. **Chapter** (`chapters/models.py`):
-   - Central entity representing a BNI chapter
-   - Contains: name, location, meeting schedule
-   - Relationships: Has many Members
+1. **Chapter** (`chapters/models.py:5-17`):
+   - Central entity with metadata ordering
+   - Relationship: `members` (reverse FK with related_name)
+   - Fields: name (unique), location, meeting_day, meeting_time
 
-2. **Member** (`chapters/models.py`):
-   - Individual member within a chapter
-   - Contains: personal info, business classification, contact details
-   - Normalized name field for data consistency
-   - Relationships: Belongs to Chapter, participates in interactions
+2. **Member** (`chapters/models.py:20-75`):
+   - Complex name normalization logic in `normalize_name()` static method
+   - Automatic `normalized_name` generation in `save()` override
+   - Unique constraint: (`chapter`, `normalized_name`)
+   - Property: `full_name` for display purposes
+   - Optional User relationship for authentication
 
-3. **Referral** (`analytics/models.py`):
-   - Tracks referral from giver to receiver
-   - Contains: date, week tracking, notes
-   - Validation: Same chapter only, no self-referrals
+3. **MonthlyReport** (`chapters/models.py:77-105`):
+   - JSON field storage for matrix data (referral_matrix_data, oto_matrix_data)
+   - File fields for Excel uploads with custom upload paths
+   - Unique constraint: (`chapter`, `month_year`)
+   - Processed/unprocessed state tracking
 
-4. **OneToOne** (`analytics/models.py`):
-   - Records one-to-one meetings between members
-   - Contains: meeting date, location, duration, notes
-   - Validation: Same chapter only, no self-meetings
+4. **MemberMonthlyStats** (`chapters/models.py:107-175`):
+   - Individual member performance metrics
+   - JSON arrays for missing interaction lists
+   - Complex calculation method: `calculate_missing_lists()`
+   - Priority connections algorithm for relationship recommendations
 
-5. **TYFCB** (`analytics/models.py`):
-   - Thank You For Closed Business transactions
-   - Tracks actual business value in AED
-   - Can be from within chapter or external sources
+5. **Referral** (`analytics/models.py:6-26`):
+   - Bidirectional relationship tracking
+   - Custom validation in `clean()` method
+   - Unique constraint: (`giver`, `receiver`, `date_given`)
+   - Week-based reporting with separate `week_of` field
 
-6. **DataImportSession** (`analytics/models.py`):
-   - Audit trail for Excel imports
-   - Tracks success, errors, and records created
+6. **OneToOne** (`analytics/models.py:28-56`):
+   - Symmetrical meeting representation
+   - Duration tracking in minutes
+   - Property: `other_member` for context-aware queries
+   - Cross-chapter validation prevention
 
-#### API Architecture (`api/`)
-- **RESTful endpoints** organized by resource
-- **File upload handling** for Excel imports
-- **Matrix generation** for various analytics views
-- **Report management** with monthly tracking
-- **Member analytics** with detailed interaction data
+7. **TYFCB** (`analytics/models.py:58-86`):
+   - External business tracking (null giver allowed)
+   - Multi-currency support (default AED)
+   - Within/outside chapter categorization
+   - Decimal precision for financial amounts
+
+8. **DataImportSession** (`analytics/models.py:88-109`):
+   - Comprehensive audit trail
+   - JSON error details storage
+   - Success/failure metrics
+   - User attribution for imports
+
+#### API Serializer Architecture (`api/serializers.py`)
+The API layer uses sophisticated serialization patterns:
+
+1. **Computed Field Patterns**:
+   - `MemberSerializer` includes calculated fields: referrals_given_count, one_to_ones_count
+   - `ChapterSerializer` dynamically counts active members
+   - Performance-optimized with SerializerMethodField usage
+
+2. **Create/Update Separation**:
+   - `MemberCreateSerializer` vs `MemberUpdateSerializer` for different operations
+   - Automatic `normalized_name` handling in create/update lifecycle
+   - Validation integration with model clean() methods
+
+3. **Bulk Operations**:
+   - `BulkMemberUploadSerializer` for Excel file validation
+   - `FileProcessingResultSerializer` for upload response formatting
+   - Comprehensive error collection and reporting
+
+4. **Matrix Data Serialization**:
+   - `MatrixDataSerializer` for flexible matrix formats
+   - `MemberSummarySerializer` for analytics aggregations
+   - `DataQualityReportSerializer` for import validation results
+
+#### REST API Endpoints Pattern
+Following Django REST Framework conventions with custom enhancements:
+- `/api/dashboard/` - Chapter overview with performance metrics
+- `/api/chapters/{id}/reports/` - Monthly report management
+- `/api/chapters/{id}/reports/{report_id}/members/{member_id}/` - Individual analytics
+- `/api/chapters/{id}/reports/{report_id}/{matrix-type}/` - Matrix data endpoints
+- File upload endpoints with comprehensive validation and processing
 
 ### Frontend Structure
 
+#### Application Architecture
+The frontend follows a sophisticated component-based architecture with modern React patterns:
+
 #### Component Hierarchy
 ```
-App.tsx (Theme Provider, Dark Mode)
-└── ChapterRoutes.tsx (Main Router)
-    ├── ChapterDashboard.tsx (All Chapters View)
-    │   └── ChapterCard.tsx (Individual Chapter Card)
-    ├── ChapterDetailPage.tsx (Single Chapter View)
-    │   ├── MembersTab.tsx (Member List & Management)
-    │   ├── MatrixTab.tsx (Analytics Matrices)
-    │   ├── PreviousDataTab.tsx (Historical Reports)
-    │   └── FileUploadComponent.tsx (Excel Import)
-    └── MemberDetails.tsx (Individual Member Analytics)
+App.tsx (Global Providers & Theme)
+├── QueryClientProvider (@tanstack/react-query)
+├── ErrorToastProvider (Global error handling)
+├── Router (React Router v7)
+└── AppContent (Main layout with header)
+    └── ChapterRoutes.tsx (Route management with lazy loading)
+        ├── ChapterDashboard.tsx (Chapter overview)
+        ├── ChapterDetailPage.tsx (Lazy: Chapter analytics)
+        ├── MemberDetails.tsx (Lazy: Member analytics)
+        └── AdminDashboard.tsx (Lazy: Admin functions)
 ```
 
-#### Service Layer
-- **ChapterDataLoader.ts**: Centralized data fetching and caching
-- **Axios configuration**: API communication with backend proxy
+#### Advanced React Patterns Implemented
+
+1. **Lazy Loading with Suspense** (`ChapterRoutes.tsx:6-8`):
+   ```typescript
+   const ChapterDetailPage = lazy(() => import('./ChapterDetailPage'));
+   const MemberDetails = lazy(() => import('./MemberDetails'));
+   const AdminDashboard = lazy(() => import('./AdminDashboard'));
+   ```
+   - Route-based code splitting for performance
+   - Custom `LoadingFallback` component with spinner
+   - Error boundary integration
+
+2. **Compound Route Components** (`ChapterRoutes.tsx:125-178`):
+   - `ChapterDetailRoute` and `MemberDetailsRoute` wrapper components
+   - URL parameter extraction and validation
+   - Props forwarding with navigation handlers
+   - 404 handling for invalid routes
+
+3. **State Management Strategy**:
+   - **Local State**: React.useState for component-specific data
+   - **Server State**: @tanstack/react-query for API data
+   - **Props Drilling**: Centralized through route components
+   - **Context**: ErrorToast for global error handling
+
+#### Service Layer Architecture
+
+1. **ChapterDataLoader.ts** (Comprehensive data service):
+   - **Security-First Excel Processing**:
+     - File validation with size/type limits
+     - Sanitization against prototype pollution
+     - XSS prevention in cell data
+   - **API Abstraction Layer**:
+     - Fallback mechanisms for API failures
+     - Data transformation from backend to frontend interfaces
+     - Mock data generation for development
+   - **Type Safety**: Complete TypeScript interfaces for all data shapes
+
+2. **Excel Security Layer** (`utils/excelSecurity.ts`):
+   - `ExcelSecurityError` custom error class
+   - Comprehensive validation: file size, MIME type, extensions
+   - Content sanitization: dangerous property filtering, length limits
+   - DoS prevention: row/column limits, processing timeouts
+
+3. **React Query Configuration** (`lib/queryClient.ts`):
+   - Intelligent retry logic with exponential backoff
+   - Error classification and retry strategies
+   - Cache optimization: 5min stale time, 10min cache time
+   - Mutation error handling with retry limits
+
+4. **Hook Architecture**:
+   - `useNetworkStatus`: Network connectivity monitoring
+   - `useApiError`: Centralized API error handling
+   - `use-toast`: Toast notification system integration
+
+#### UI Component System
+
+1. **Design System**:
+   - **Radix UI Primitives**: Accessible headless components
+   - **TailwindCSS**: Utility-first styling with dark theme
+   - **Class Variance Authority**: Type-safe component variants
+   - **Lucide React**: Consistent icon system
+
+2. **Component Patterns**:
+   - Compound components for complex UI (Dialog, Tabs)
+   - Render props pattern for flexible layouts
+   - Error boundaries at multiple levels (global, route, component)
+   - Loading states with skeleton components
 
 ## Design Patterns & Best Practices
 
@@ -185,17 +330,121 @@ App.tsx (Theme Provider, Dark Mode)
 - **Input validation** at multiple levels
 - **SQL injection prevention** through ORM
 
-## Non-Obvious Behaviors
+## Advanced Security Architecture
 
-1. **Member Name Normalization**: The system automatically normalizes member names for matching, important for Excel imports where names might have inconsistent formatting
+### File Upload Security
+The application implements multiple layers of security for Excel file processing:
 
-2. **Week Tracking**: Interactions can be tracked by "week_of" for period-based reporting, separate from actual transaction dates
+1. **Client-Side Validation** (`utils/excelSecurity.ts`):
+   - File size limits (10MB maximum)
+   - MIME type validation with allowlist
+   - Extension validation (.xls/.xlsx only)
+   - Custom `ExcelSecurityError` class for security failures
 
-3. **Bidirectional Relationships**: One-to-one meetings and referrals are stored once but queried bidirectionally
+2. **Content Sanitization**:
+   - Prototype pollution prevention (filters `__proto__`, `constructor`)
+   - XSS prevention in cell content
+   - Length limits on string values (1000 chars max)
+   - Dangerous character removal (control characters)
 
-4. **TYFCB External Sources**: TYFCB can have null giver for external business, affecting sum calculations
+3. **DoS Protection**:
+   - Maximum sheet count (10 sheets)
+   - Row limits (10,000 rows max)
+   - Column limits (100 columns max)
+   - Member count limits (1,000 members max)
+   - Processing timeouts and memory limits
 
-5. **Import Session Atomicity**: Failed imports roll back completely to maintain data consistency
+### API Security
+- **JWT Authentication**: Token rotation with blacklist support
+- **CORS Configuration**: Credential-aware cross-origin policies
+- **Input Validation**: Multi-level validation (serializer + model)
+- **SQL Injection Prevention**: Django ORM protection
+- **Rate Limiting**: Configurable via environment variables
+
+## Testing Architecture
+
+### Frontend Testing Strategy
+The application uses comprehensive testing patterns:
+
+1. **Test Organization** (`frontend/src/test-utils/`):
+   - **MSW (Mock Service Worker)**: API mocking for tests
+   - **Custom render utilities**: With providers and query client
+   - **Mock data factories**: Consistent test data generation
+   - **Integration test patterns**: End-to-end user flows
+
+2. **Coverage Requirements** (`package.json:85-92`):
+   - 80% minimum coverage across all metrics
+   - Excludes test utilities and setup files
+   - Comprehensive branch coverage requirements
+
+3. **Test Categories**:
+   - **Unit Tests**: Component behavior and utility functions
+   - **Integration Tests**: API communication and data flow
+   - **Accessibility Tests**: Using jest-axe for a11y compliance
+   - **Security Tests**: Excel processing validation
+
+### Quality Assurance
+- **TypeScript Strict Mode**: Maximum type safety
+- **ESLint Configuration**: React and accessibility rules
+- **Automated Testing**: CI/CD pipeline integration
+- **Performance Monitoring**: Network status and error tracking
+
+## Architectural Decision Records (ADRs)
+
+### 1. Name Normalization Strategy
+**Decision**: Implement automatic name normalization in the Member model
+**Rationale**: Excel imports often have inconsistent name formatting
+**Implementation**: `Member.normalize_name()` static method with prefix/suffix removal
+**Location**: `chapters/models.py:52-74`
+
+### 2. Dual Database Strategy
+**Decision**: PostgreSQL for production, SQLite3 for development
+**Rationale**: Developer convenience while maintaining production fidelity
+**Implementation**: Environment-based database configuration
+**Location**: `core/settings.py:94-103`
+
+### 3. JSON Field Usage for Matrix Data
+**Decision**: Store processed matrices as JSON in PostgreSQL
+**Rationale**: Flexible schema for analytics data, better query performance
+**Implementation**: `MonthlyReport.referral_matrix_data` and similar fields
+**Location**: `chapters/models.py:89-93`
+
+### 4. Lazy Loading Strategy
+**Decision**: Route-based code splitting with React.lazy()
+**Rationale**: Performance optimization for large application
+**Implementation**: Suspense boundaries with loading fallbacks
+**Location**: `ChapterRoutes.tsx:6-8`
+
+### 5. Security-First File Processing
+**Decision**: Multiple validation layers for Excel uploads
+**Rationale**: Prevent various attack vectors (XSS, prototype pollution, DoS)
+**Implementation**: Custom validation classes and sanitization
+**Location**: `utils/excelSecurity.ts`
+
+## Non-Obvious Behaviors & Gotchas
+
+### Backend Behaviors
+1. **Member Name Normalization**: Automatic normalization removes prefixes (Mr., Dr.) and suffixes (Jr., Sr.)
+2. **Week Tracking**: Separate `week_of` field allows period-based reporting independent of actual dates
+3. **Bidirectional Queries**: OneToOne meetings stored once but accessible from both members
+4. **TYFCB External Business**: Null giver allowed for business from outside the chapter
+5. **Import Session Atomicity**: Database transactions ensure all-or-nothing imports
+6. **Unique Constraints**: Chapter+normalized_name prevents duplicate members with similar names
+
+### Frontend Behaviors
+1. **React Query Caching**: 5-minute stale time means data may appear "old" briefly
+2. **Lazy Route Loading**: First navigation to admin/member details shows loading spinner
+3. **Error Boundary Levels**: Errors caught at global, route, and component levels
+4. **API Fallback**: ChapterDataLoader falls back to static data if API fails
+5. **Excel Processing**: Client-side processing happens in main thread (may block UI)
+6. **Navigation State**: Chapter data is centralized and passed down through route props
+
+### Development Gotchas
+1. **Database Migrations**: Always run migrations in correct order (chapters before analytics)
+2. **Environment Variables**: Missing .env variables cause silent fallbacks to defaults
+3. **CORS Issues**: Development proxy at port 3000 requires backend on port 8000
+4. **File Upload Limits**: Development vs production file size limits may differ
+5. **JWT Token Lifecycle**: Token rotation requires client-side token refresh handling
 
 ## Future Considerations
 
@@ -204,3 +453,4 @@ App.tsx (Theme Provider, Dark Mode)
 - **Mobile responsiveness**: Enhanced mobile experience
 - **Bulk operations**: Batch editing capabilities
 - **Export functionality**: Generate reports in various formats
+- no mention of claude in git commits pleahise

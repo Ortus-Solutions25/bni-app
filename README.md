@@ -1,33 +1,71 @@
 # BNI Analytics Application
 
-A comprehensive Business Networking Analytics application for tracking and analyzing chapter performance, member interactions, and business referrals.
+A comprehensive Business Networking International (BNI) analytics platform for tracking and analyzing chapter performance, member interactions, and business referrals. Built with a **feature-based architecture** for better organization and maintainability.
 
-## Tech Stack
+## 🏗️ Architecture
 
-- **Backend**: Django 4.2 with Django REST Framework
-- **Frontend**: React 18 with TypeScript
-- **Database**: PostgreSQL (SQLite for development)
-- **Cache/Queue**: Redis with Celery
-- **UI Library**: Material-UI
-- **Charts**: Recharts
+This application uses a **feature-based directory structure** that organizes code by business functionality rather than technical layers. This makes the codebase easier to navigate, understand, and maintain.
 
-## Features
+**📖 See [ARCHITECTURE.md](./ARCHITECTURE.md) for detailed architecture documentation**
+**🛠️ See [DEVELOPMENT.md](./DEVELOPMENT.md) for development guidelines**
 
-- **One-to-One Meeting Tracking**: Monitor member-to-member meetings
-- **Referral Matrix**: Track referral relationships and flow
-- **TYFCB Tracking**: Thank You For Closed Business transaction monitoring
-- **Excel Import**: Bulk data import from Excel files
-- **Real-time Analytics**: Interactive dashboards and reports
-- **Member Scorecards**: Individual performance metrics
+## 🚀 Tech Stack
 
-## Project Structure
+### Frontend
+- **React 18.3.1**: Modern UI framework with concurrent features
+- **TypeScript**: Full type safety throughout the application
+- **TailwindCSS**: Utility-first styling with custom design system
+- **Radix UI**: Accessible headless component primitives
+- **React Query**: Intelligent server state management
+- **React Router**: Client-side routing with lazy loading
+
+### Backend
+- **Django 4.2.7**: Web framework with robust ORM
+- **Django REST Framework**: RESTful API with JWT authentication
+- **PostgreSQL**: Production database (SQLite for development)
+- **Redis + Celery**: Asynchronous task processing
+- **Pandas**: Excel file processing and data transformation
+
+## ✨ Features
+
+- **📊 Chapter Analytics**: Comprehensive chapter performance tracking
+- **👥 Member Management**: Individual member profiles and scorecards
+- **🤝 One-to-One Tracking**: Monitor member-to-member networking meetings
+- **🔄 Referral Matrix**: Visual referral flow and relationship tracking
+- **💰 TYFCB Monitoring**: Thank You For Closed Business transaction tracking
+- **📁 Excel Import**: Secure bulk data import with validation
+- **📈 Real-time Dashboards**: Interactive analytics and reporting
+- **🔒 Security**: Multi-layer file upload security and input validation
+
+## 📁 Project Structure (Feature-Based)
 
 ```
 bni-app/
-├── backend/               # Django backend
-│   ├── core/             # Project settings
-│   ├── accounts/         # User management
-│   ├── chapters/         # Chapter management
+├── frontend/src/
+│   ├── app/                      # Application entry point
+│   ├── shared/                   # Shared utilities & components
+│   │   ├── components/ui/        # Design system
+│   │   ├── hooks/               # Shared React hooks
+│   │   ├── services/            # API clients
+│   │   └── utils/               # Helper functions
+│   ├── features/                # Business features
+│   │   ├── chapters/            # Chapter management
+│   │   ├── members/             # Member management
+│   │   ├── analytics/           # Analytics & reporting
+│   │   ├── reports/             # Report generation
+│   │   ├── file-upload/         # File upload functionality
+│   │   └── admin/               # Administration
+│   └── testing/                 # Testing utilities
+├── backend/
+│   ├── config/                  # Django project configuration
+│   ├── shared/                  # Shared utilities
+│   ├── features/                # Django apps by feature
+│   │   ├── chapters/            # Chapter & member models
+│   │   ├── analytics/           # Analytics models
+│   │   ├── reports/             # Report generation
+│   │   ├── data_processing/     # Data import & processing
+│   │   └── api/                 # Main API endpoints
+│   └── testing/                 # Testing utilities
 │   ├── analytics/        # Business logic
 │   ├── reports/          # Report generation
 │   ├── data_processing/  # Excel import

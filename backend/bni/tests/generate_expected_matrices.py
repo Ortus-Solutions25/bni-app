@@ -14,7 +14,9 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
 django.setup()
 
 from django.core.files.uploadedfile import SimpleUploadedFile
-from bni.models import Chapter, Member, MonthlyReport
+from chapters.models import Chapter
+from members.models import Member
+from reports.models import MonthlyReport
 from bni.services.excel_processor import ExcelProcessorService
 from bni.services.matrix_generator import MatrixGenerator
 

@@ -1,5 +1,7 @@
 from rest_framework import serializers
-from bni.models import Chapter, Member, Referral, OneToOne, TYFCB, DataImportSession
+from chapters.models import Chapter
+from members.models import Member
+from analytics.models import Referral, OneToOne, TYFCB, DataImportSession
 
 
 class ChapterSerializer(serializers.ModelSerializer):

@@ -8,7 +8,8 @@ chapters and members found in the report.
 import logging
 from typing import Dict, Any
 from django.db import transaction
-from bni.models import Chapter, Member
+from chapters.models import Chapter
+from members.models import Member
 from bni.services.excel_processor import ExcelProcessorService
 from bni.services.chapter_service import ChapterService
 from bni.services.member_service import MemberService

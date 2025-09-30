@@ -11,8 +11,10 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone
 from openpyxl import load_workbook
 
-from bni.models import Member, Chapter, MonthlyReport, MemberMonthlyStats
-from bni.models import Referral, OneToOne, TYFCB, DataImportSession
+from chapters.models import Chapter
+from members.models import Member
+from reports.models import MonthlyReport, MemberMonthlyStats
+from analytics.models import Referral, OneToOne, TYFCB, DataImportSession
 from bni.services.chapter_service import ChapterService
 from bni.services.member_service import MemberService
 

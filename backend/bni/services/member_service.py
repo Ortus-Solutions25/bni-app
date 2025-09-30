@@ -10,7 +10,8 @@ from typing import Dict, Any, Tuple, Optional
 from datetime import date
 from django.db import transaction
 from django.core.exceptions import ValidationError
-from bni.models import Member, Chapter
+from members.models import Member
+from chapters.models import Chapter
 
 logger = logging.getLogger(__name__)
 

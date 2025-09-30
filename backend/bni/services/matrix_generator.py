@@ -2,8 +2,8 @@ import pandas as pd
 import numpy as np
 from typing import Dict, List, Optional
 from datetime import date
-from bni.models import Member
-from bni.models import Referral, OneToOne, TYFCB
+from members.models import Member
+from analytics.models import Referral, OneToOne, TYFCB
 
 
 class MatrixGenerator:

@@ -12,7 +12,10 @@ import tempfile
 import os
 from pathlib import Path
 
-from bni.models import Chapter, Member, MonthlyReport, MemberMonthlyStats, Referral, OneToOne, TYFCB, DataImportSession
+from chapters.models import Chapter
+from members.models import Member
+from reports.models import MonthlyReport, MemberMonthlyStats
+from analytics.models import Referral, OneToOne, TYFCB, DataImportSession
 from bni.serializers import ChapterSerializer, MemberSerializer, MemberCreateSerializer, MemberUpdateSerializer
 from bni.services.excel_processor import ExcelProcessorService
 from bni.services.matrix_generator import MatrixGenerator, DataValidator

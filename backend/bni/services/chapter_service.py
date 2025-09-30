@@ -8,7 +8,7 @@ import logging
 from typing import Dict, Any, Tuple, Optional
 from django.db import transaction
 from django.core.exceptions import ValidationError
-from bni.models import Chapter
+from chapters.models import Chapter
 
 logger = logging.getLogger(__name__)
 

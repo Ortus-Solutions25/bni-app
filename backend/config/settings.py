@@ -13,7 +13,6 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 from pathlib import Path
 import os
 from dotenv import load_dotenv
-from datetime import timedelta
 
 load_dotenv()
 
@@ -45,8 +44,6 @@ INSTALLED_APPS = [
     # Third party apps
     "rest_framework",
     "corsheaders",
-    "drf_spectacular",
-    "rest_framework_simplejwt",
     # Shared apps
     "shared",
     # Feature apps
@@ -154,25 +151,11 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # REST Framework settings
 REST_FRAMEWORK = {
-    "DEFAULT_AUTHENTICATION_CLASSES": (
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
-    ),
     "DEFAULT_PERMISSION_CLASSES": [
-        "rest_framework.permissions.IsAuthenticated",
+        "rest_framework.permissions.AllowAny",
     ],
-    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 100,
-}
-
-# JWT Settings
-SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
-    "ROTATE_REFRESH_TOKENS": True,
-    "BLACKLIST_AFTER_ROTATION": True,
-    "ALGORITHM": "HS256",
-    "SIGNING_KEY": SECRET_KEY,
 }
 
 # CORS settings
@@ -182,19 +165,3 @@ CORS_ALLOWED_ORIGINS = os.environ.get(
 ).split(",")
 
 CORS_ALLOW_CREDENTIALS = True
-
-# Spectacular settings for API documentation
-SPECTACULAR_SETTINGS = {
-    "TITLE": "BNI Analytics API",
-    "DESCRIPTION": "Business Networking Analytics Application API",
-    "VERSION": "1.0.0",
-    "SERVE_INCLUDE_SCHEMA": False,
-}
-
-# Celery Configuration
-CELERY_BROKER_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
-CELERY_RESULT_BACKEND = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
-CELERY_ACCEPT_CONTENT = ['json']
-CELERY_TASK_SERIALIZER = 'json'
-CELERY_RESULT_SERIALIZER = 'json'
-CELERY_TIMEZONE = TIME_ZONE

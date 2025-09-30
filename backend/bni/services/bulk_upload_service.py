@@ -10,6 +10,8 @@ from typing import Dict, Any
 from django.db import transaction
 from bni.models import Chapter, Member
 from bni.services.excel_processor import ExcelProcessorService
+from bni.services.chapter_service import ChapterService
+from bni.services.member_service import MemberService
 
 logger = logging.getLogger(__name__)
 
@@ -118,21 +120,23 @@ class BulkUploadService:
             self.warnings.append(f"Skipping row with missing chapter name")
             return
 
-        # Get or create chapter (reusing existing model methods)
-        chapter, created = Chapter.objects.get_or_create(
-            name=chapter_name,
-            defaults={
-                'location': 'Dubai',  # Default location
-                'meeting_day': '',
-                'meeting_time': None,
-            }
-        )
+        # Use ChapterService for chapter creation
+        try:
+            chapter, created = ChapterService.get_or_create_chapter(
+                name=chapter_name,
+                location='Dubai',  # Default location
+                meeting_day='',
+                meeting_time=None,
+            )
 
-        if created:
-            self.chapters_created += 1
-            logger.info(f"Created chapter: {chapter_name}")
-        else:
-            self.chapters_updated += 1
+            if created:
+                self.chapters_created += 1
+            else:
+                self.chapters_updated += 1
+
+        except Exception as e:
+            self.warnings.append(f"Error creating chapter {chapter_name}: {str(e)}")
+            return
 
         # Extract member info
         first_name = str(row['First Name']).strip() if pd.notna(row['First Name']) else None
@@ -142,38 +146,31 @@ class BulkUploadService:
             self.warnings.append(f"Skipping member with missing name in {chapter_name}")
             return
 
-        # Normalize the name for matching
-        normalized_name = Member.normalize_name(f"{first_name} {last_name}")
+        # Use MemberService for member creation
+        try:
+            member, created = MemberService.get_or_create_member(
+                chapter=chapter,
+                first_name=first_name,
+                last_name=last_name,
+                business_name='',
+                classification='',
+                is_active=True,
+            )
 
-        # Get or create member (reusing existing model methods)
-        member, created = Member.objects.get_or_create(
-            chapter=chapter,
-            normalized_name=normalized_name,
-            defaults={
-                'first_name': first_name,
-                'last_name': last_name,
-                'business_name': '',
-                'classification': '',
-                'is_active': True,
-            }
-        )
-
-        if created:
-            self.members_created += 1
-            logger.info(f"Created member: {first_name} {last_name} in {chapter_name}")
-        else:
-            # Update existing member if needed
-            updated = False
-            if member.first_name != first_name:
-                member.first_name = first_name
-                updated = True
-            if member.last_name != last_name:
-                member.last_name = last_name
-                updated = True
-
-            if updated:
-                member.save()
-                self.members_updated += 1
+            if created:
+                self.members_created += 1
             else:
-                # Count as updated even if no changes (to track processing)
-                self.members_updated += 1
+                # Try to update if names differ
+                member, updated = MemberService.update_member(
+                    member.id,
+                    first_name=first_name,
+                    last_name=last_name,
+                )
+                if updated:
+                    self.members_updated += 1
+                else:
+                    # Count as updated even if no changes (to track processing)
+                    self.members_updated += 1
+
+        except Exception as e:
+            self.warnings.append(f"Error creating member {first_name} {last_name}: {str(e)}")

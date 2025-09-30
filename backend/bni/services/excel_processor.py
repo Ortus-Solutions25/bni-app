@@ -13,6 +13,8 @@ from openpyxl import load_workbook
 
 from bni.models import Member, Chapter, MonthlyReport, MemberMonthlyStats
 from bni.models import Referral, OneToOne, TYFCB, DataImportSession
+from bni.services.chapter_service import ChapterService
+from bni.services.member_service import MemberService
 
 logger = logging.getLogger(__name__)
 
@@ -701,10 +703,11 @@ class BNIMonthlyDataImportService:
                 # Import the new models here to avoid circular imports
                 from bni.models import MonthlyChapterReport, MemberMonthlyMetrics
                 
-                # Get or create chapter
-                chapter, created = Chapter.objects.get_or_create(
+                # Use ChapterService for chapter creation
+                chapter, created = ChapterService.get_or_create_chapter(
                     name=chapter_name,
-                    defaults={'location': 'TBD', 'meeting_day': 'TBD'}
+                    location='TBD',
+                    meeting_day='TBD'
                 )
                 if created:
                     self.stats['chapters_created'] += 1
@@ -856,19 +859,19 @@ class BNIMonthlyDataImportService:
                 if not first_name or not last_name or first_name == 'nan' or last_name == 'nan':
                     continue  # Skip rows without proper names
                 
-                # Get or create member
-                member, created = Member.objects.get_or_create(
+                # Use MemberService for member creation
+                business_name = self._extract_column_value(row, ['Business Name', 'BusinessName', 'business_name'], '')
+                classification = self._extract_column_value(row, ['Classification', 'classification'], '')
+
+                member, created = MemberService.get_or_create_member(
                     chapter=chapter,
-                    normalized_name=Member.normalize_name(f"{first_name} {last_name}"),
-                    defaults={
-                        'first_name': first_name,
-                        'last_name': last_name,
-                        'business_name': self._extract_column_value(row, ['Business Name', 'BusinessName', 'business_name'], ''),
-                        'classification': self._extract_column_value(row, ['Classification', 'classification'], ''),
-                        'is_active': True
-                    }
+                    first_name=first_name,
+                    last_name=last_name,
+                    business_name=business_name,
+                    classification=classification,
+                    is_active=True
                 )
-                
+
                 if created:
                     self.stats['members_created'] += 1
                     logger.info(f"Created new member: {member.full_name}")

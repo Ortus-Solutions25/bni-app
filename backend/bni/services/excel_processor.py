@@ -527,7 +527,69 @@ class ExcelProcessorService:
                     monthly_report.slip_audit_file = slip_audit_file
                     if member_names_file:
                         monthly_report.member_names_file = member_names_file
-                
+
+                # Process member_names_file first if provided to create/update members
+                members_created = 0
+                members_updated = 0
+                if member_names_file:
+                    import tempfile
+                    import os
+
+                    # Read member names file
+                    if hasattr(member_names_file, 'temporary_file_path'):
+                        member_names_path = member_names_file.temporary_file_path()
+                        member_df = self._parse_xml_excel(member_names_path)
+                    else:
+                        with tempfile.NamedTemporaryFile(delete=False, suffix='.xls') as temp_file:
+                            for chunk in member_names_file.chunks():
+                                temp_file.write(chunk)
+                            temp_file.flush()
+
+                            try:
+                                member_df = self._parse_xml_excel(temp_file.name)
+                            finally:
+                                os.unlink(temp_file.name)
+
+                    # Process members from member_names file
+                    for index, row in member_df.iterrows():
+                        try:
+                            # Extract member names directly from row
+                            if 'First Name' in row and 'Last Name' in row:
+                                first_name = row['First Name']
+                                last_name = row['Last Name']
+                            else:
+                                continue  # Skip if columns don't exist
+
+                            # Check for valid names
+                            if pd.isna(first_name) or pd.isna(last_name):
+                                continue  # Skip rows without proper names
+
+                            first_name_str = str(first_name).strip()
+                            last_name_str = str(last_name).strip()
+
+                            if not first_name_str or not last_name_str:
+                                continue
+
+                            # Create or get member using MemberService
+                            member, created = MemberService.get_or_create_member(
+                                chapter=self.chapter,
+                                first_name=first_name_str,
+                                last_name=last_name_str,
+                                business_name='',
+                                classification='',
+                                is_active=True
+                            )
+
+                            if created:
+                                members_created += 1
+                                logger.info(f"Created member: {member.full_name}")
+                            else:
+                                members_updated += 1
+
+                        except Exception as e:
+                            logger.error(f"Error processing member row {index}: {str(e)}")
+                            self.warnings.append(f"Error processing member row {index}: {str(e)}")
+
                 # Process the slip audit file
                 # Handle both InMemoryUploadedFile and TemporaryUploadedFile
                 if hasattr(slip_audit_file, 'temporary_file_path'):
@@ -538,12 +600,12 @@ class ExcelProcessorService:
                     # InMemoryUploadedFile - save to temporary file first
                     import tempfile
                     import os
-                    
+
                     with tempfile.NamedTemporaryFile(delete=False, suffix='.xls') as temp_file:
                         for chunk in slip_audit_file.chunks():
                             temp_file.write(chunk)
-                        temp_file.flush()
-                        
+                            temp_file.flush()
+
                         try:
                             df = self._read_excel_file(Path(temp_file.name))
                         finally:
@@ -551,8 +613,8 @@ class ExcelProcessorService:
                             os.unlink(temp_file.name)
                 if df is None:
                     return self._create_error_result("Failed to read Excel file")
-                
-                # Get members lookup
+
+                # Get members lookup (after processing member names)
                 members_lookup = self._get_members_lookup()
                 
                 # Process the data and create individual records
@@ -616,9 +678,14 @@ class ExcelProcessorService:
                     'success': True,
                     'monthly_report_id': monthly_report.id,
                     'month_year': monthly_report.month_year,
+                    'members_created': members_created,
+                    'members_updated': members_updated,
                     'referrals_created': processing_result['referrals_created'],
                     'one_to_ones_created': processing_result['one_to_ones_created'],
                     'tyfcbs_created': processing_result['tyfcbs_created'],
+                    'referrals_count': len(referrals),
+                    'one_to_ones_count': len(one_to_ones),
+                    'tyfcbs_count': len(tyfcbs),
                     'total_processed': processing_result['total_processed'],
                     'errors': self.errors,
                     'warnings': self.warnings,

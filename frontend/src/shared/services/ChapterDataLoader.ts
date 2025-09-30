@@ -197,7 +197,7 @@ export const loadAllChapterData = async (): Promise<ChapterMemberData[]> => {
     const results: ChapterMemberData[] = data.chapters.map((chapter: any) => ({
       chapterName: chapter.name,
       chapterId: chapter.id.toString(), // Convert to string for consistency
-      members: [], // We'll fetch individual member lists when needed
+      members: chapter.members || [], // Include member list from API
       memberCount: chapter.member_count,
       memberFile: `${chapter.name.toLowerCase().replace(/\s+/g, '-')}.xls`,
       loadedAt: new Date(),

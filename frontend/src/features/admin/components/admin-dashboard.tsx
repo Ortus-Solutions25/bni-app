@@ -258,160 +258,118 @@ const MemberManagementTab: React.FC<{
 
 // Bulk Operations Tab Component
 const BulkOperationsTab: React.FC<{
-  chapterData: ChapterMemberData[];
-  selectedChapter: ChapterMemberData | null;
-  onChapterSelect: (chapterId: string) => void;
   onDataRefresh: () => void;
-}> = ({ chapterData, selectedChapter, onChapterSelect, onDataRefresh }) => {
-  const [bulkAction, setBulkAction] = useState<'update' | 'delete' | 'export' | 'import'>('update');
+}> = ({ onDataRefresh }) => {
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadResult, setUploadResult] = useState<{
+    success: boolean;
+    message: string;
+    details?: any;
+  } | null>(null);
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    setUploadResult(null);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch('http://localhost:8000/api/bulk-upload/', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        setUploadResult({
+          success: true,
+          message: `Successfully processed! Created ${result.chapters_created || 0} chapters and ${result.members_created || 0} members.`,
+          details: result,
+        });
+        onDataRefresh();
+      } else {
+        setUploadResult({
+          success: false,
+          message: result.error || 'Upload failed',
+          details: result,
+        });
+      }
+    } catch (error) {
+      setUploadResult({
+        success: false,
+        message: `Upload error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      });
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-semibold mb-4">Bulk Operations</h2>
+        <h2 className="text-2xl font-semibold mb-4">Bulk Update</h2>
         <p className="text-muted-foreground">
-          Perform bulk operations on member data across chapters.
+          Upload a Regional PALMS Summary report to bulk create/update chapters and members.
         </p>
       </div>
 
-      {/* Bulk Action Selection */}
       <Card>
         <CardHeader>
-          <CardTitle>Select Bulk Operation</CardTitle>
+          <CardTitle>Regional PALMS Summary Upload</CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <Button
-              variant={bulkAction === 'update' ? 'default' : 'outline'}
-              onClick={() => setBulkAction('update')}
-              className="flex flex-col items-center gap-2 h-20"
-            >
-              <Edit className="h-6 w-6" />
-              Bulk Update
-            </Button>
-            <Button
-              variant={bulkAction === 'delete' ? 'default' : 'outline'}
-              onClick={() => setBulkAction('delete')}
-              className="flex flex-col items-center gap-2 h-20"
-            >
-              <Trash2 className="h-6 w-6" />
-              Bulk Delete
-            </Button>
-            <Button
-              variant={bulkAction === 'export' ? 'default' : 'outline'}
-              onClick={() => setBulkAction('export')}
-              className="flex flex-col items-center gap-2 h-20"
-            >
-              <Download className="h-6 w-6" />
-              Export Data
-            </Button>
-            <Button
-              variant={bulkAction === 'import' ? 'default' : 'outline'}
-              onClick={() => setBulkAction('import')}
-              className="flex flex-col items-center gap-2 h-20"
-            >
-              <Upload className="h-6 w-6" />
-              Import Data
-            </Button>
+        <CardContent className="space-y-4">
+          <Alert>
+            <Info className="h-4 w-4" />
+            <AlertDescription>
+              Upload a Regional PALMS Summary report (.xls file). The system will automatically:
+              <ul className="list-disc list-inside mt-2 space-y-1">
+                <li>Create new chapters found in the report</li>
+                <li>Create new members for each chapter</li>
+                <li>Update existing chapter and member information</li>
+              </ul>
+            </AlertDescription>
+          </Alert>
+
+          <div className="flex items-center gap-4">
+            <Input
+              type="file"
+              accept=".xls,.xlsx"
+              onChange={handleFileUpload}
+              disabled={isUploading}
+              className="flex-1"
+            />
+            {isUploading && (
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            )}
           </div>
+
+          {uploadResult && (
+            <Alert variant={uploadResult.success ? 'default' : 'destructive'}>
+              {uploadResult.success ? (
+                <CheckCircle className="h-4 w-4" />
+              ) : (
+                <AlertTriangle className="h-4 w-4" />
+              )}
+              <AlertDescription>
+                {uploadResult.message}
+                {uploadResult.details && uploadResult.success && (
+                  <div className="mt-2 text-sm space-y-1">
+                    <div>Chapters created: {uploadResult.details.chapters_created || 0}</div>
+                    <div>Chapters updated: {uploadResult.details.chapters_updated || 0}</div>
+                    <div>Members created: {uploadResult.details.members_created || 0}</div>
+                    <div>Members updated: {uploadResult.details.members_updated || 0}</div>
+                  </div>
+                )}
+              </AlertDescription>
+            </Alert>
+          )}
         </CardContent>
       </Card>
-
-      {/* Chapter Selection for Bulk Operations */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Target Chapter</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Select
-            value={selectedChapter?.chapterId || ''}
-            onValueChange={onChapterSelect}
-          >
-            <SelectTrigger className="w-full max-w-md">
-              <SelectValue placeholder="Choose a chapter for bulk operations..." />
-            </SelectTrigger>
-            <SelectContent>
-              {chapterData.map((chapter) => (
-                <SelectItem key={chapter.chapterId} value={chapter.chapterId}>
-                  {chapter.chapterName} ({chapter.members.length} members)
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </CardContent>
-      </Card>
-
-      {/* Bulk Operation Interface */}
-      {selectedChapter && (
-        <Card>
-          <CardHeader>
-            <CardTitle>
-              {bulkAction === 'update' && 'Bulk Update Members'}
-              {bulkAction === 'delete' && 'Bulk Delete Members'}
-              {bulkAction === 'export' && 'Export Member Data'}
-              {bulkAction === 'import' && 'Import Member Data'}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {bulkAction === 'update' && (
-              <div className="space-y-4">
-                <Alert>
-                  <Info className="h-4 w-4" />
-                  <AlertDescription>
-                    Upload a CSV file with updated member information. The system will match existing members by name and update their details.
-                  </AlertDescription>
-                </Alert>
-                <div className="flex items-center gap-4">
-                  <Input type="file" accept=".csv" className="flex-1" />
-                  <Button>Process Updates</Button>
-                </div>
-              </div>
-            )}
-
-            {bulkAction === 'delete' && (
-              <div className="space-y-4">
-                <Alert>
-                  <AlertTriangle className="h-4 w-4" />
-                  <AlertDescription>
-                    Warning: This will permanently delete selected members. This action cannot be undone.
-                  </AlertDescription>
-                </Alert>
-                <div className="flex items-center gap-4">
-                  <Input type="file" accept=".csv" placeholder="Upload CSV with member names to delete" className="flex-1" />
-                  <Button variant="destructive">Delete Members</Button>
-                </div>
-              </div>
-            )}
-
-            {bulkAction === 'export' && (
-              <div className="space-y-4">
-                <p className="text-sm text-muted-foreground">
-                  Export all member data from {selectedChapter.chapterName} to CSV format.
-                </p>
-                <Button className="flex items-center gap-2">
-                  <Download className="h-4 w-4" />
-                  Export {selectedChapter.members.length} Members
-                </Button>
-              </div>
-            )}
-
-            {bulkAction === 'import' && (
-              <div className="space-y-4">
-                <Alert>
-                  <Info className="h-4 w-4" />
-                  <AlertDescription>
-                    Import new members from a CSV file. Required columns: Name, Business, Classification, Email, Phone.
-                  </AlertDescription>
-                </Alert>
-                <div className="flex items-center gap-4">
-                  <Input type="file" accept=".csv" className="flex-1" />
-                  <Button>Import Members</Button>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 };
@@ -828,9 +786,6 @@ const AdminDashboard: React.FC = () => {
         {/* Bulk Operations Tab */}
         <TabsContent value="bulk" className="space-y-6">
           <BulkOperationsTab
-            chapterData={chapterData}
-            selectedChapter={selectedChapter}
-            onChapterSelect={handleChapterSelect}
             onDataRefresh={handleUploadSuccess}
           />
         </TabsContent>

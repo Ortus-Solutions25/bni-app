@@ -4,6 +4,7 @@ from bni import views
 urlpatterns = [
     # File upload
     path('upload/', views.ExcelUploadView.as_view(), name='excel_upload'),
+    path('bulk-upload/', views.BulkUploadView.as_view(), name='bulk_upload'),
 
     # Matrix endpoints (with report_id)
     path('chapters/<int:chapter_id>/reports/<int:report_id>/referral-matrix/',

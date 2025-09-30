@@ -16,6 +16,7 @@ from bni.models import Chapter, Member, MonthlyReport, MemberMonthlyStats, Refer
 from bni.serializers import ChapterSerializer, MemberSerializer, MemberCreateSerializer, MemberUpdateSerializer
 from bni.services.excel_processor import ExcelProcessorService
 from bni.services.matrix_generator import MatrixGenerator, DataValidator
+from bni.services.bulk_upload_service import BulkUploadService
 
 
 class FileUploadSerializer(serializers.Serializer):
@@ -82,6 +83,64 @@ class ExcelUploadView(APIView):
             return Response(result, status=status.HTTP_200_OK)
 
         except Exception as e:
+            return Response(
+                {'error': f'Processing failed: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class BulkUploadView(APIView):
+    """Handle Regional PALMS Summary bulk upload."""
+    parser_classes = (MultiPartParser, FormParser)
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        """Process Regional PALMS Summary report."""
+        if 'file' not in request.FILES:
+            return Response(
+                {'error': 'No file provided'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        file = request.FILES['file']
+
+        # Validate file type
+        if not file.name.endswith(('.xls', '.xlsx')):
+            return Response(
+                {'error': 'Invalid file type. Please upload .xls or .xlsx file'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            # Process the file
+            service = BulkUploadService()
+            result = service.process_region_summary(file)
+
+            if result['success']:
+                return Response({
+                    'success': True,
+                    'message': 'Bulk upload completed successfully',
+                    'details': {
+                        'chapters_created': result['chapters_created'],
+                        'chapters_updated': result['chapters_updated'],
+                        'members_created': result['members_created'],
+                        'members_updated': result['members_updated'],
+                        'total_processed': result['total_processed'],
+                        'warnings': result['warnings']
+                    }
+                }, status=status.HTTP_200_OK)
+            else:
+                return Response({
+                    'success': False,
+                    'message': result.get('error', 'Processing failed'),
+                    'details': {
+                        'errors': result.get('errors', []),
+                        'warnings': result.get('warnings', [])
+                    }
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+        except Exception as e:
+            logger.exception("Error in bulk upload")
             return Response(
                 {'error': f'Processing failed: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR

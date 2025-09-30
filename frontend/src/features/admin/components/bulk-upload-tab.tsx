@@ -24,12 +24,21 @@ export const BulkUploadTab: React.FC<BulkUploadTabProps> = ({ onDataRefresh }) =
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await fetch('http://localhost:8000/api/bulk-upload/', {
+      const response = await fetch('http://localhost:8000/api/upload/bulk/', {
         method: 'POST',
         body: formData,
       });
 
-      const result = await response.json();
+      const contentType = response.headers.get('content-type');
+
+      let result;
+      if (contentType && contentType.includes('application/json')) {
+        result = await response.json();
+      } else {
+        const text = await response.text();
+        console.error('Non-JSON response:', text.substring(0, 500));
+        throw new Error('Server returned non-JSON response');
+      }
 
       if (response.ok) {
         const details = result.details || result;
@@ -38,7 +47,11 @@ export const BulkUploadTab: React.FC<BulkUploadTabProps> = ({ onDataRefresh }) =
           message: `Successfully processed! Created ${details.chapters_created || 0} chapters and ${details.members_created || 0} members.`,
           details: result.details || result,
         });
-        onDataRefresh();
+
+        // Delay refresh to allow user to see the success message
+        setTimeout(() => {
+          onDataRefresh();
+        }, 3000);
       } else {
         setUploadResult({
           success: false,
@@ -47,12 +60,15 @@ export const BulkUploadTab: React.FC<BulkUploadTabProps> = ({ onDataRefresh }) =
         });
       }
     } catch (error) {
+      console.error('Upload error:', error);
       setUploadResult({
         success: false,
         message: `Upload error: ${error instanceof Error ? error.message : 'Unknown error'}`,
       });
     } finally {
       setIsUploading(false);
+      // Reset the file input
+      event.target.value = '';
     }
   };
 

@@ -260,8 +260,8 @@ export const extractMemberNamesFromFile = async (file: File): Promise<string[]> 
           // Additional validation for member names
           if (firstName && lastName && firstName.length <= 50 && lastName.length <= 50) {
             // Sanitize names to remove potential harmful characters
-            const sanitizedFirstName = firstName.replace(/[^\w\s\-\'\.]/g, '').trim();
-            const sanitizedLastName = lastName.replace(/[^\w\s\-\'\.]/g, '').trim();
+            const sanitizedFirstName = firstName.replace(/[^\w\s\-'.]/g, '').trim();
+            const sanitizedLastName = lastName.replace(/[^\w\s\-'.]/g, '').trim();
 
             if (sanitizedFirstName && sanitizedLastName) {
               members.push(`${sanitizedFirstName} ${sanitizedLastName}`);
@@ -299,19 +299,22 @@ export const loadAllChapterData = async (): Promise<ChapterMemberData[]> => {
     }
     
     const data = await response.json();
-    
+
+    // API returns array directly, not wrapped in {chapters: [...]}
+    const chapters = Array.isArray(data) ? data : (data.chapters || []);
+
     // Transform API data to match our ChapterMemberData interface
-    const results: ChapterMemberData[] = data.chapters.map((chapter: any) => ({
+    const results: ChapterMemberData[] = chapters.map((chapter: any) => ({
       chapterName: chapter.name,
       chapterId: chapter.id.toString(), // Convert to string for consistency
       members: chapter.members || [], // Include member list from API
-      memberCount: chapter.member_count,
+      memberCount: chapter.total_members || chapter.member_count || 0,
       memberFile: `${chapter.name.toLowerCase().replace(/\s+/g, '-')}.xls`,
       loadedAt: new Date(),
       performanceMetrics: {
         avgReferralsPerMember: chapter.avg_referrals_per_member || 0,
-        avgOTOsPerMember: chapter.avg_otos_per_member || 0,
-        totalTYFCB: chapter.total_tyfcb || 0,
+        avgOTOsPerMember: chapter.avg_one_to_ones_per_member || chapter.avg_otos_per_member || 0,
+        totalTYFCB: (chapter.total_tyfcb_inside || 0) + (chapter.total_tyfcb_outside || 0),
         topPerformer: 'Loading...' // Will be loaded with chapter details
       }
     }));

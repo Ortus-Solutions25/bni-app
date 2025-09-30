@@ -1,24 +1,44 @@
-import React, { useState } from 'react';
-import { TrendingUp, TrendingDown, ArrowRight, Calendar, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { TrendingUp, TrendingDown, ArrowRight, Calendar, AlertCircle, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { MonthlyReport, ComparisonData, loadComparisonData } from '../../../shared/services/ChapterDataLoader';
+import { MonthlyReport, ComparisonData, loadComparisonData, loadMonthlyReports } from '../../../shared/services/ChapterDataLoader';
 
 interface ComparisonTabProps {
   chapterId: string;
-  monthlyReports: MonthlyReport[];
 }
 
-const ComparisonTab: React.FC<ComparisonTabProps> = ({ chapterId, monthlyReports }) => {
+const ComparisonTab: React.FC<ComparisonTabProps> = ({ chapterId }) => {
+  const [monthlyReports, setMonthlyReports] = useState<MonthlyReport[]>([]);
+  const [loadingReports, setLoadingReports] = useState(true);
   const [currentReportId, setCurrentReportId] = useState<number | null>(null);
   const [previousReportId, setPreviousReportId] = useState<number | null>(null);
   const [comparisonData, setComparisonData] = useState<ComparisonData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Load monthly reports when component mounts
+  useEffect(() => {
+    const fetchReports = async () => {
+      setLoadingReports(true);
+      try {
+        const reports = await loadMonthlyReports(chapterId);
+        setMonthlyReports(reports);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load monthly reports');
+      } finally {
+        setLoadingReports(false);
+      }
+    };
+
+    if (chapterId) {
+      fetchReports();
+    }
+  }, [chapterId]);
 
   // Sort reports by month_year descending (newest first)
   const sortedReports = [...monthlyReports].sort((a, b) =>
@@ -71,6 +91,16 @@ const ComparisonTab: React.FC<ComparisonTabProps> = ({ chapterId, monthlyReports
     }
   };
 
+  // Show loading state while fetching reports
+  if (loadingReports) {
+    return (
+      <div className="flex items-center justify-center p-12">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <span className="ml-3 text-muted-foreground">Loading monthly reports...</span>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Month Selection */}
@@ -85,64 +115,77 @@ const ComparisonTab: React.FC<ComparisonTabProps> = ({ chapterId, monthlyReports
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Current Month */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Current Month</label>
-              <Select
-                value={currentReportId?.toString()}
-                onValueChange={(value) => setCurrentReportId(parseInt(value))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select current month" />
-                </SelectTrigger>
-                <SelectContent>
-                  {sortedReports.map((report) => (
-                    <SelectItem key={report.id} value={report.id.toString()}>
-                      {report.month_year}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          {sortedReports.length >= 2 ? (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Current Month */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Current Month</label>
+                  <Select
+                    value={currentReportId?.toString()}
+                    onValueChange={(value) => setCurrentReportId(parseInt(value))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select current month" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {sortedReports.map((report) => (
+                        <SelectItem key={report.id} value={report.id.toString()}>
+                          {report.month_year}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-            {/* Previous Month */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Previous Month</label>
-              <Select
-                value={previousReportId?.toString()}
-                onValueChange={(value) => setPreviousReportId(parseInt(value))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select previous month" />
-                </SelectTrigger>
-                <SelectContent>
-                  {sortedReports.map((report) => (
-                    <SelectItem key={report.id} value={report.id.toString()}>
-                      {report.month_year}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+                {/* Previous Month */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Previous Month</label>
+                  <Select
+                    value={previousReportId?.toString()}
+                    onValueChange={(value) => setPreviousReportId(parseInt(value))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select previous month" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {sortedReports.map((report) => (
+                        <SelectItem key={report.id} value={report.id.toString()}>
+                          {report.month_year}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-            {/* Compare Button */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">&nbsp;</label>
-              <Button
-                onClick={handleCompare}
-                disabled={loading || !currentReportId || !previousReportId}
-                className="w-full"
-              >
-                {loading ? 'Comparing...' : 'Compare'}
-              </Button>
-            </div>
-          </div>
+                {/* Compare Button */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">&nbsp;</label>
+                  <Button
+                    onClick={handleCompare}
+                    disabled={loading || !currentReportId || !previousReportId}
+                    className="w-full"
+                  >
+                    {loading ? 'Comparing...' : 'Compare'}
+                  </Button>
+                </div>
+              </div>
 
-          {error && (
-            <Alert variant="destructive">
+              {error && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+            </>
+          ) : (
+            <Alert>
               <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
+              <AlertDescription>
+                You need at least 2 monthly reports to compare performance.
+                {monthlyReports.length === 1 && ' You have 1 report uploaded. '}
+                Please upload more data to enable comparisons.
+              </AlertDescription>
             </Alert>
           )}
         </CardContent>
@@ -397,16 +440,6 @@ const ComparisonTab: React.FC<ComparisonTabProps> = ({ chapterId, monthlyReports
             </TabsContent>
           </Tabs>
         </div>
-      )}
-
-      {/* No Reports Available */}
-      {monthlyReports.length < 2 && !loading && !comparisonData && (
-        <Alert>
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            You need at least 2 monthly reports to compare performance. Please upload more data to enable comparisons.
-          </AlertDescription>
-        </Alert>
       )}
     </div>
   );

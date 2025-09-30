@@ -123,7 +123,6 @@ const ChapterDetailPage: React.FC<ChapterDetailPageProps> = ({
           <TabsContent value="compare" className="mt-6">
             <ComparisonTab
               chapterId={chapterData.chapterId}
-              monthlyReports={chapterData.monthlyReports || []}
             />
           </TabsContent>
         </Tabs>

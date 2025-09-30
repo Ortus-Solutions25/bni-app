@@ -44,8 +44,16 @@ INSTALLED_APPS = [
     # Third party apps
     "rest_framework",
     "corsheaders",
-    # Our app
-    "bni",  # Single consolidated app!
+    # Feature-based apps
+    "chapters",
+    "members",
+    "reports",
+    "analytics",
+    "uploads",
+    # Legacy app (will be removed after full migration)
+    "bni",
+    # Shared utilities
+    "shared",
 ]
 
 MIDDLEWARE = [

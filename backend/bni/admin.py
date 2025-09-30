@@ -1,15 +1,13 @@
-from django.contrib import admin
-from bni.models import (
-    Chapter, Member, MonthlyReport, MemberMonthlyStats,
-    Referral, OneToOne, TYFCB, DataImportSession
-)
+"""
+Legacy admin file - models moved to feature-based apps.
 
-# Register all models
-admin.site.register(Chapter)
-admin.site.register(Member)
-admin.site.register(MonthlyReport)
-admin.site.register(MemberMonthlyStats)
-admin.site.register(Referral)
-admin.site.register(OneToOne)
-admin.site.register(TYFCB)
-admin.site.register(DataImportSession)
+Admin registrations are now handled in:
+- chapters/admin.py
+- members/admin.py
+- reports/admin.py
+- analytics/admin.py
+"""
+from django.contrib import admin
+
+# Admin registrations moved to feature-based apps
+# This file can be deleted once legacy bni app is removed

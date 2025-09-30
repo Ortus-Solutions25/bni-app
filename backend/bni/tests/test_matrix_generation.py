@@ -9,7 +9,10 @@ import os
 from pathlib import Path
 from django.test import TestCase, TransactionTestCase
 from django.core.files.uploadedfile import SimpleUploadedFile
-from bni.models import Chapter, Member, MonthlyReport, Referral, OneToOne, TYFCB
+from chapters.models import Chapter
+from members.models import Member
+from reports.models import MonthlyReport
+from analytics.models import Referral, OneToOne, TYFCB
 from bni.services.excel_processor import ExcelProcessorService
 from bni.services.matrix_generator import MatrixGenerator
 

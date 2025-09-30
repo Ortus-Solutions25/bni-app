@@ -6,7 +6,8 @@ member performance improvements and declines over time.
 """
 import logging
 from typing import Dict, List, Tuple, Any
-from bni.models import MonthlyReport, Member
+from reports.models import MonthlyReport
+from members.models import Member
 
 logger = logging.getLogger(__name__)
 

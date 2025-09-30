@@ -7,7 +7,8 @@ to track member performance improvements and declines.
 from django.test import TestCase, TransactionTestCase
 from pathlib import Path
 from django.core.files.uploadedfile import SimpleUploadedFile
-from bni.models import Chapter, MonthlyReport
+from chapters.models import Chapter
+from reports.models import MonthlyReport
 from bni.services.excel_processor import ExcelProcessorService
 from bni.services.comparison_service import ComparisonService
 

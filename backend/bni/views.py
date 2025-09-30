@@ -19,6 +19,7 @@ from bni.services.matrix_generator import MatrixGenerator, DataValidator
 from bni.services.bulk_upload_service import BulkUploadService
 from bni.services.chapter_service import ChapterService
 from bni.services.member_service import MemberService
+from bni.services.comparison_service import ComparisonService
 
 
 class FileUploadSerializer(serializers.Serializer):
@@ -1543,5 +1544,158 @@ def delete_member(request, chapter_id, member_id):
     except Exception as e:
         return Response(
             {'error': f'Failed to delete member: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+# Matrix Comparison Endpoints
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def compare_referral_matrices(request, chapter_id, report_id, previous_report_id):
+    """Compare referral matrices between two monthly reports."""
+    try:
+        # Get both reports
+        current_report = MonthlyReport.objects.get(id=report_id, chapter_id=chapter_id)
+        previous_report = MonthlyReport.objects.get(id=previous_report_id, chapter_id=chapter_id)
+
+        # Perform comparison
+        comparison = ComparisonService.compare_referral_matrices(
+            current_report.referral_matrix_data,
+            previous_report.referral_matrix_data
+        )
+
+        return Response({
+            'current_report': {
+                'id': current_report.id,
+                'month_year': current_report.month_year
+            },
+            'previous_report': {
+                'id': previous_report.id,
+                'month_year': previous_report.month_year
+            },
+            'comparison': comparison
+        }, status=status.HTTP_200_OK)
+
+    except MonthlyReport.DoesNotExist:
+        return Response(
+            {'error': 'One or both reports not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        return Response(
+            {'error': f'Failed to compare referral matrices: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def compare_oto_matrices(request, chapter_id, report_id, previous_report_id):
+    """Compare one-to-one matrices between two monthly reports."""
+    try:
+        # Get both reports
+        current_report = MonthlyReport.objects.get(id=report_id, chapter_id=chapter_id)
+        previous_report = MonthlyReport.objects.get(id=previous_report_id, chapter_id=chapter_id)
+
+        # Perform comparison
+        comparison = ComparisonService.compare_oto_matrices(
+            current_report.oto_matrix_data,
+            previous_report.oto_matrix_data
+        )
+
+        return Response({
+            'current_report': {
+                'id': current_report.id,
+                'month_year': current_report.month_year
+            },
+            'previous_report': {
+                'id': previous_report.id,
+                'month_year': previous_report.month_year
+            },
+            'comparison': comparison
+        }, status=status.HTTP_200_OK)
+
+    except MonthlyReport.DoesNotExist:
+        return Response(
+            {'error': 'One or both reports not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        return Response(
+            {'error': f'Failed to compare one-to-one matrices: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def compare_combination_matrices(request, chapter_id, report_id, previous_report_id):
+    """Compare combination matrices between two monthly reports."""
+    try:
+        # Get both reports
+        current_report = MonthlyReport.objects.get(id=report_id, chapter_id=chapter_id)
+        previous_report = MonthlyReport.objects.get(id=previous_report_id, chapter_id=chapter_id)
+
+        # Perform comparison
+        comparison = ComparisonService.compare_combination_matrices(
+            current_report.combination_matrix_data,
+            previous_report.combination_matrix_data
+        )
+
+        return Response({
+            'current_report': {
+                'id': current_report.id,
+                'month_year': current_report.month_year
+            },
+            'previous_report': {
+                'id': previous_report.id,
+                'month_year': previous_report.month_year
+            },
+            'comparison': comparison
+        }, status=status.HTTP_200_OK)
+
+    except MonthlyReport.DoesNotExist:
+        return Response(
+            {'error': 'One or both reports not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        return Response(
+            {'error': f'Failed to compare combination matrices: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def compare_reports(request, chapter_id, report_id, previous_report_id):
+    """Get comprehensive comparison between two monthly reports including all matrices and insights."""
+    try:
+        # Get both reports
+        current_report = MonthlyReport.objects.get(id=report_id, chapter_id=chapter_id)
+        previous_report = MonthlyReport.objects.get(id=previous_report_id, chapter_id=chapter_id)
+
+        # Perform comprehensive comparison
+        comparison_data = ComparisonService.compare_monthly_reports(
+            current_report,
+            previous_report
+        )
+
+        return Response(comparison_data, status=status.HTTP_200_OK)
+
+    except MonthlyReport.DoesNotExist:
+        return Response(
+            {'error': 'One or both reports not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except ValueError as e:
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    except Exception as e:
+        return Response(
+            {'error': f'Failed to compare reports: {str(e)}'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )

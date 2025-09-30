@@ -26,7 +26,7 @@ export const handlers = [
     return HttpResponse.json(chapters);
   }),
 
-  http.get('/api/chapters/:id/', ({ params }) => {
+  http.get('/api/chapters/:id/', ({ params }: { params: any }) => {
     const id = parseInt(params.id as string);
     const chapter = chapters.find(c => c.id === id);
 
@@ -37,14 +37,14 @@ export const handlers = [
     return HttpResponse.json(chapter);
   }),
 
-  http.get('/api/chapters/:id/members/', ({ params }) => {
+  http.get('/api/chapters/:id/members/', ({ params }: { params: any }) => {
     const id = parseInt(params.id as string);
     const members = chapterMembers[id] || [];
 
     return HttpResponse.json(members);
   }),
 
-  http.get('/api/chapters/:id/analytics/', ({ params }) => {
+  http.get('/api/chapters/:id/analytics/', ({ params }: { params: any }) => {
     const id = parseInt(params.id as string);
     const members = chapterMembers[id] || [];
     const referrals = mockReferrals(50, members);
@@ -65,7 +65,7 @@ export const handlers = [
   }),
 
   // File upload endpoint
-  http.post('/api/chapters/:id/upload/', async ({ request, params }) => {
+  http.post('/api/chapters/:id/upload/', async ({ request, params }: { request: any; params: any }) => {
     const id = parseInt(params.id as string);
 
     // Simulate processing delay
@@ -123,12 +123,12 @@ export const handlers = [
     );
   }),
 
-  http.get('/api/chapters/:id/network-error/', () => {
+  http.get('/api/chapters/:id/network-error/', ({ params }: { params: any }) => {
     // This will cause a network error
     return HttpResponse.error();
   }),
 
-  http.post('/api/chapters/:id/upload-error/', () => {
+  http.post('/api/chapters/:id/upload-error/', ({ params }: { params: any }) => {
     return HttpResponse.json(
       {
         error: 'Failed to process uploaded file',

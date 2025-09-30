@@ -241,26 +241,26 @@ const ComparisonTab: React.FC<ComparisonTabProps> = ({ chapterId }) => {
                 <CardContent className="space-y-4">
                   {/* Summary Stats */}
                   <div className="grid grid-cols-4 gap-4">
-                    <div className="text-center p-3 bg-green-50 rounded-lg">
-                      <p className="text-2xl font-bold text-green-600">
+                    <div className="text-center p-3 bg-green-950/50 border border-green-900 rounded-lg">
+                      <p className="text-2xl font-bold text-green-400">
                         {comparisonData.referral_comparison.summary.improved}
                       </p>
                       <p className="text-xs text-muted-foreground">Improved</p>
                     </div>
-                    <div className="text-center p-3 bg-red-50 rounded-lg">
-                      <p className="text-2xl font-bold text-red-600">
+                    <div className="text-center p-3 bg-red-950/50 border border-red-900 rounded-lg">
+                      <p className="text-2xl font-bold text-red-400">
                         {comparisonData.referral_comparison.summary.declined}
                       </p>
                       <p className="text-xs text-muted-foreground">Declined</p>
                     </div>
-                    <div className="text-center p-3 bg-gray-50 rounded-lg">
-                      <p className="text-2xl font-bold text-gray-600">
+                    <div className="text-center p-3 bg-secondary rounded-lg">
+                      <p className="text-2xl font-bold">
                         {comparisonData.referral_comparison.summary.no_change}
                       </p>
                       <p className="text-xs text-muted-foreground">No Change</p>
                     </div>
-                    <div className="text-center p-3 bg-blue-50 rounded-lg">
-                      <p className="text-2xl font-bold text-blue-600">
+                    <div className="text-center p-3 bg-blue-950/50 border border-blue-900 rounded-lg">
+                      <p className="text-2xl font-bold text-blue-400">
                         {comparisonData.referral_comparison.summary.average_change.toFixed(1)}
                       </p>
                       <p className="text-xs text-muted-foreground">Avg Change</p>
@@ -271,16 +271,16 @@ const ComparisonTab: React.FC<ComparisonTabProps> = ({ chapterId }) => {
                   {comparisonData.referral_comparison.summary.top_improvements.length > 0 && (
                     <div>
                       <h4 className="font-semibold mb-2 flex items-center gap-2">
-                        <TrendingUp className="h-4 w-4 text-green-500" />
+                        <TrendingUp className="h-4 w-4 text-green-400" />
                         Top Improvers
                       </h4>
                       <div className="space-y-2">
                         {comparisonData.referral_comparison.summary.top_improvements.map((member, idx) => (
-                          <div key={idx} className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+                          <div key={idx} className="flex items-center justify-between p-3 bg-green-950/30 border border-green-900/50 rounded-lg">
                             <span className="font-medium">{member.member}</span>
                             <div className="flex items-center gap-4 text-sm">
                               <span className="text-muted-foreground">{member.previous} → {member.current}</span>
-                              <Badge variant="default" className="bg-green-500">+{member.change}</Badge>
+                              <Badge variant="default" className="bg-green-600 hover:bg-green-700">+{member.change}</Badge>
                             </div>
                           </div>
                         ))}
@@ -292,12 +292,12 @@ const ComparisonTab: React.FC<ComparisonTabProps> = ({ chapterId }) => {
                   {comparisonData.referral_comparison.summary.top_declines.length > 0 && (
                     <div>
                       <h4 className="font-semibold mb-2 flex items-center gap-2">
-                        <TrendingDown className="h-4 w-4 text-red-500" />
+                        <TrendingDown className="h-4 w-4 text-red-400" />
                         Needs Attention
                       </h4>
                       <div className="space-y-2">
                         {comparisonData.referral_comparison.summary.top_declines.map((member, idx) => (
-                          <div key={idx} className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
+                          <div key={idx} className="flex items-center justify-between p-3 bg-red-950/30 border border-red-900/50 rounded-lg">
                             <span className="font-medium">{member.member}</span>
                             <div className="flex items-center gap-4 text-sm">
                               <span className="text-muted-foreground">{member.previous} → {member.current}</span>
@@ -321,26 +321,26 @@ const ComparisonTab: React.FC<ComparisonTabProps> = ({ chapterId }) => {
                 <CardContent className="space-y-4">
                   {/* Summary Stats */}
                   <div className="grid grid-cols-4 gap-4">
-                    <div className="text-center p-3 bg-green-50 rounded-lg">
-                      <p className="text-2xl font-bold text-green-600">
+                    <div className="text-center p-3 bg-green-950/50 border border-green-900 rounded-lg">
+                      <p className="text-2xl font-bold text-green-400">
                         {comparisonData.oto_comparison.summary.improved}
                       </p>
                       <p className="text-xs text-muted-foreground">Improved</p>
                     </div>
-                    <div className="text-center p-3 bg-red-50 rounded-lg">
-                      <p className="text-2xl font-bold text-red-600">
+                    <div className="text-center p-3 bg-red-950/50 border border-red-900 rounded-lg">
+                      <p className="text-2xl font-bold text-red-400">
                         {comparisonData.oto_comparison.summary.declined}
                       </p>
                       <p className="text-xs text-muted-foreground">Declined</p>
                     </div>
-                    <div className="text-center p-3 bg-gray-50 rounded-lg">
-                      <p className="text-2xl font-bold text-gray-600">
+                    <div className="text-center p-3 bg-secondary rounded-lg">
+                      <p className="text-2xl font-bold">
                         {comparisonData.oto_comparison.summary.no_change}
                       </p>
                       <p className="text-xs text-muted-foreground">No Change</p>
                     </div>
-                    <div className="text-center p-3 bg-blue-50 rounded-lg">
-                      <p className="text-2xl font-bold text-blue-600">
+                    <div className="text-center p-3 bg-blue-950/50 border border-blue-900 rounded-lg">
+                      <p className="text-2xl font-bold text-blue-400">
                         {comparisonData.oto_comparison.summary.average_change.toFixed(1)}
                       </p>
                       <p className="text-xs text-muted-foreground">Avg Change</p>
@@ -351,16 +351,16 @@ const ComparisonTab: React.FC<ComparisonTabProps> = ({ chapterId }) => {
                   {comparisonData.oto_comparison.summary.top_improvements.length > 0 && (
                     <div>
                       <h4 className="font-semibold mb-2 flex items-center gap-2">
-                        <TrendingUp className="h-4 w-4 text-green-500" />
+                        <TrendingUp className="h-4 w-4 text-green-400" />
                         Top Improvers
                       </h4>
                       <div className="space-y-2">
                         {comparisonData.oto_comparison.summary.top_improvements.map((member, idx) => (
-                          <div key={idx} className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+                          <div key={idx} className="flex items-center justify-between p-3 bg-green-950/30 border border-green-900/50 rounded-lg">
                             <span className="font-medium">{member.member}</span>
                             <div className="flex items-center gap-4 text-sm">
                               <span className="text-muted-foreground">{member.previous} → {member.current}</span>
-                              <Badge variant="default" className="bg-green-500">+{member.change}</Badge>
+                              <Badge variant="default" className="bg-green-600 hover:bg-green-700">+{member.change}</Badge>
                             </div>
                           </div>
                         ))}
@@ -372,12 +372,12 @@ const ComparisonTab: React.FC<ComparisonTabProps> = ({ chapterId }) => {
                   {comparisonData.oto_comparison.summary.top_declines.length > 0 && (
                     <div>
                       <h4 className="font-semibold mb-2 flex items-center gap-2">
-                        <TrendingDown className="h-4 w-4 text-red-500" />
+                        <TrendingDown className="h-4 w-4 text-red-400" />
                         Needs Attention
                       </h4>
                       <div className="space-y-2">
                         {comparisonData.oto_comparison.summary.top_declines.map((member, idx) => (
-                          <div key={idx} className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
+                          <div key={idx} className="flex items-center justify-between p-3 bg-red-950/30 border border-red-900/50 rounded-lg">
                             <span className="font-medium">{member.member}</span>
                             <div className="flex items-center gap-4 text-sm">
                               <span className="text-muted-foreground">{member.previous} → {member.current}</span>
@@ -404,26 +404,26 @@ const ComparisonTab: React.FC<ComparisonTabProps> = ({ chapterId }) => {
                 <CardContent className="space-y-4">
                   {/* Summary Stats */}
                   <div className="grid grid-cols-4 gap-4">
-                    <div className="text-center p-3 bg-green-50 rounded-lg">
-                      <p className="text-2xl font-bold text-green-600">
+                    <div className="text-center p-3 bg-green-950/50 border border-green-900 rounded-lg">
+                      <p className="text-2xl font-bold text-green-400">
                         {comparisonData.combination_comparison.summary.improved}
                       </p>
                       <p className="text-xs text-muted-foreground">Improved</p>
                     </div>
-                    <div className="text-center p-3 bg-red-50 rounded-lg">
-                      <p className="text-2xl font-bold text-red-600">
+                    <div className="text-center p-3 bg-red-950/50 border border-red-900 rounded-lg">
+                      <p className="text-2xl font-bold text-red-400">
                         {comparisonData.combination_comparison.summary.declined}
                       </p>
                       <p className="text-xs text-muted-foreground">Declined</p>
                     </div>
-                    <div className="text-center p-3 bg-gray-50 rounded-lg">
-                      <p className="text-2xl font-bold text-gray-600">
+                    <div className="text-center p-3 bg-secondary rounded-lg">
+                      <p className="text-2xl font-bold">
                         {comparisonData.combination_comparison.summary.no_change}
                       </p>
                       <p className="text-xs text-muted-foreground">No Change</p>
                     </div>
-                    <div className="text-center p-3 bg-blue-50 rounded-lg">
-                      <p className="text-2xl font-bold text-blue-600">
+                    <div className="text-center p-3 bg-blue-950/50 border border-blue-900 rounded-lg">
+                      <p className="text-2xl font-bold text-blue-400">
                         {comparisonData.overall_insights.overall.combination_improvement_rate.toFixed(1)}%
                       </p>
                       <p className="text-xs text-muted-foreground">Improvement Rate</p>
@@ -431,9 +431,9 @@ const ComparisonTab: React.FC<ComparisonTabProps> = ({ chapterId }) => {
                   </div>
 
                   {/* Most Improved Metric */}
-                  <div className="p-4 bg-blue-50 rounded-lg">
+                  <div className="p-4 bg-blue-950/30 border border-blue-900/50 rounded-lg">
                     <p className="text-sm font-medium text-muted-foreground mb-1">Most Improved Metric</p>
-                    <p className="text-lg font-bold capitalize">{comparisonData.overall_insights.overall.most_improved_metric.replace('_', ' ')}</p>
+                    <p className="text-lg font-bold capitalize text-blue-400">{comparisonData.overall_insights.overall.most_improved_metric.replace('_', ' ')}</p>
                   </div>
                 </CardContent>
               </Card>

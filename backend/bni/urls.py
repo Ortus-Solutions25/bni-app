@@ -22,6 +22,16 @@ urlpatterns = [
     path('chapters/<int:chapter_id>/reports/<int:report_id>/',
          views.delete_monthly_report, name='delete_monthly_report'),
 
+    # Matrix comparison endpoints
+    path('chapters/<int:chapter_id>/reports/<int:report_id>/compare/<int:previous_report_id>/',
+         views.compare_reports, name='compare_reports'),
+    path('chapters/<int:chapter_id>/reports/<int:report_id>/compare/<int:previous_report_id>/referrals/',
+         views.compare_referral_matrices, name='compare_referral_matrices'),
+    path('chapters/<int:chapter_id>/reports/<int:report_id>/compare/<int:previous_report_id>/one-to-ones/',
+         views.compare_oto_matrices, name='compare_oto_matrices'),
+    path('chapters/<int:chapter_id>/reports/<int:report_id>/compare/<int:previous_report_id>/combination/',
+         views.compare_combination_matrices, name='compare_combination_matrices'),
+
     # Member detail with missing interactions
     path('chapters/<int:chapter_id>/reports/<int:report_id>/members/<int:member_id>/',
          views.get_member_detail, name='get_member_detail'),

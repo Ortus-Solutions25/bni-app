@@ -44,14 +44,8 @@ INSTALLED_APPS = [
     # Third party apps
     "rest_framework",
     "corsheaders",
-    # Shared apps
-    "shared",
-    # Feature apps
-    "features.chapters",
-    "features.analytics",
-    "features.reports",
-    "features.data_processing",
-    "features.api",
+    # Our app
+    "bni",  # Single consolidated app!
 ]
 
 MIDDLEWARE = [

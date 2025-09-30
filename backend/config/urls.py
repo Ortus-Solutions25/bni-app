@@ -19,7 +19,6 @@ from django.urls import path, include
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-
     # API endpoints
-    path("api/", include("features.api.urls")),
+    path("api/", include("bni.urls")),  # Changed from features.api.urls
 ]

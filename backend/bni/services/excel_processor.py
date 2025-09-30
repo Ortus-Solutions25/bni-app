@@ -11,8 +11,8 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone
 from openpyxl import load_workbook
 
-from chapters.models import Member, Chapter, MonthlyReport, MemberMonthlyStats
-from analytics.models import Referral, OneToOne, TYFCB, DataImportSession
+from bni.models import Member, Chapter, MonthlyReport, MemberMonthlyStats
+from bni.models import Referral, OneToOne, TYFCB, DataImportSession
 
 logger = logging.getLogger(__name__)
 
@@ -557,7 +557,7 @@ class ExcelProcessorService:
                 processing_result = self._process_dataframe(df, members_lookup, None)
                 
                 # Generate matrix data using existing utilities
-                from data_processing.utils import MatrixGenerator
+                from bni.services.matrix_generator import MatrixGenerator
                 
                 members = list(Member.objects.filter(chapter=self.chapter, is_active=True))
                 referrals = list(Referral.objects.filter(giver__chapter=self.chapter))
@@ -699,7 +699,7 @@ class BNIMonthlyDataImportService:
         try:
             with transaction.atomic():
                 # Import the new models here to avoid circular imports
-                from chapters.models import MonthlyChapterReport, MemberMonthlyMetrics
+                from bni.models import MonthlyChapterReport, MemberMonthlyMetrics
                 
                 # Get or create chapter
                 chapter, created = Chapter.objects.get_or_create(
@@ -909,7 +909,7 @@ class BNIMonthlyDataImportService:
         Create or update monthly chapter report with aggregated data.
         """
         # Import here to avoid circular imports
-        from chapters.models import MonthlyChapterReport
+        from bni.models import MonthlyChapterReport
         
         # Calculate chapter-level aggregations
         total_referrals_given = sum(m['referrals_given'] for m in members_data)
@@ -950,7 +950,7 @@ class BNIMonthlyDataImportService:
         Create individual member monthly metrics.
         """
         # Import here to avoid circular imports
-        from chapters.models import MemberMonthlyMetrics
+        from bni.models import MemberMonthlyMetrics
         
         for member_data in members_data:
             member = member_data['member']
@@ -1011,7 +1011,7 @@ class BNIGrowthAnalysisService:
         Get growth metrics for a chapter comparing current vs last month.
         """
         try:
-            from chapters.models import MonthlyChapterReport
+            from bni.models import MonthlyChapterReport
             
             chapter = Chapter.objects.get(id=chapter_id)
             
@@ -1067,7 +1067,7 @@ class BNIGrowthAnalysisService:
         Get growth metrics for an individual member comparing current vs last month.
         """
         try:
-            from chapters.models import MemberMonthlyMetrics
+            from bni.models import MemberMonthlyMetrics
             
             member = Member.objects.get(id=member_id)
             

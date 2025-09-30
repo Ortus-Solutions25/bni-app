@@ -12,11 +12,10 @@ import tempfile
 import os
 from pathlib import Path
 
-from chapters.models import Chapter, Member
-from analytics.models import Referral, OneToOne, TYFCB, DataImportSession
-from data_processing.services import ExcelProcessorService
-from data_processing.utils import MatrixGenerator, DataValidator
-from .serializers import ChapterSerializer, MemberSerializer, MemberCreateSerializer, MemberUpdateSerializer
+from bni.models import Chapter, Member, MonthlyReport, MemberMonthlyStats, Referral, OneToOne, TYFCB, DataImportSession
+from bni.serializers import ChapterSerializer, MemberSerializer, MemberCreateSerializer, MemberUpdateSerializer
+from bni.services.excel_processor import ExcelProcessorService
+from bni.services.matrix_generator import MatrixGenerator, DataValidator
 
 
 class FileUploadSerializer(serializers.Serializer):
@@ -29,10 +28,10 @@ class FileUploadSerializer(serializers.Serializer):
 
 class ExcelUploadView(APIView):
     """Handle Excel file upload and processing."""
-    
+
     parser_classes = (MultiPartParser, FormParser)
     permission_classes = [AllowAny]
-    
+
     def post(self, request):
         serializer = FileUploadSerializer(data=request.data)
         if not serializer.is_valid():
@@ -40,7 +39,7 @@ class ExcelUploadView(APIView):
                 {'error': 'Invalid data', 'details': serializer.errors},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         try:
             # Get validated data
             slip_audit_file = serializer.validated_data['slip_audit_file']
@@ -48,7 +47,7 @@ class ExcelUploadView(APIView):
             chapter_id = serializer.validated_data['chapter_id']
             month_year = serializer.validated_data['month_year']
             upload_option = serializer.validated_data['upload_option']
-            
+
             # Validate chapter access
             try:
                 chapter = Chapter.objects.get(id=chapter_id)
@@ -58,20 +57,20 @@ class ExcelUploadView(APIView):
                     {'error': 'Chapter not found'},
                     status=status.HTTP_404_NOT_FOUND
                 )
-            
+
             # Validate file types
             if not slip_audit_file.name.lower().endswith(('.xls', '.xlsx')):
                 return Response(
                     {'error': 'Only .xls and .xlsx files are supported for slip audit file'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-            
+
             if member_names_file and not member_names_file.name.lower().endswith(('.xls', '.xlsx')):
                 return Response(
                     {'error': 'Only .xls and .xlsx files are supported for member names file'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-            
+
             # Process using the new monthly report method
             processor = ExcelProcessorService(chapter)
             result = processor.process_monthly_report(
@@ -79,9 +78,9 @@ class ExcelUploadView(APIView):
                 member_names_file=member_names_file,
                 month_year=month_year
             )
-            
+
             return Response(result, status=status.HTTP_200_OK)
-        
+
         except Exception as e:
             return Response(
                 {'error': f'Processing failed: {str(e)}'},
@@ -94,19 +93,17 @@ class ExcelUploadView(APIView):
 def get_referral_matrix(request, chapter_id, report_id):
     """Return referral matrix for a specific monthly report."""
     try:
-        from chapters.models import MonthlyReport
-        
         chapter = Chapter.objects.get(id=chapter_id)
         monthly_report = MonthlyReport.objects.get(id=report_id, chapter=chapter)
-        
+
         # Return the pre-processed matrix data with calculated summaries
         result = monthly_report.referral_matrix_data
-        
+
         # Add calculated summary columns if data exists
         if result and 'members' in result and 'matrix' in result:
             members = result['members']
             matrix = result['matrix']
-            
+
             # Calculate totals for referral matrix
             totals = {
                 'given': {},
@@ -114,7 +111,7 @@ def get_referral_matrix(request, chapter_id, report_id):
                 'unique_given': {},
                 'unique_received': {}
             }
-            
+
             # Calculate row totals (given)
             for i, giver in enumerate(members):
                 row_total = 0
@@ -126,7 +123,7 @@ def get_referral_matrix(request, chapter_id, report_id):
                             unique_count += 1
                 totals['given'][giver] = row_total
                 totals['unique_given'][giver] = unique_count
-            
+
             # Calculate column totals (received)
             for j, receiver in enumerate(members):
                 col_total = 0
@@ -140,11 +137,11 @@ def get_referral_matrix(request, chapter_id, report_id):
                                 unique_count += 1
                 totals['received'][receiver] = col_total
                 totals['unique_received'][receiver] = unique_count
-            
+
             result['totals'] = totals
-        
+
         return Response(result)
-        
+
     except (Chapter.DoesNotExist, MonthlyReport.DoesNotExist):
         return Response(
             {'error': 'Chapter or monthly report not found'},
@@ -162,19 +159,17 @@ def get_referral_matrix(request, chapter_id, report_id):
 def get_one_to_one_matrix(request, chapter_id, report_id):
     """Return one-to-one matrix for a specific monthly report."""
     try:
-        from chapters.models import MonthlyReport
-        
         chapter = Chapter.objects.get(id=chapter_id)
         monthly_report = MonthlyReport.objects.get(id=report_id, chapter=chapter)
-        
+
         # Return the pre-processed matrix data with calculated summaries
         result = monthly_report.oto_matrix_data
-        
+
         # Add calculated summary columns if data exists
         if result and 'members' in result and 'matrix' in result:
             members = result['members']
             matrix = result['matrix']
-            
+
             # Calculate totals for OTO matrix
             totals = {
                 'given': {},
@@ -182,7 +177,7 @@ def get_one_to_one_matrix(request, chapter_id, report_id):
                 'unique_given': {},
                 'unique_received': {}
             }
-            
+
             # Calculate row totals (given)
             for i, giver in enumerate(members):
                 row_total = 0
@@ -194,7 +189,7 @@ def get_one_to_one_matrix(request, chapter_id, report_id):
                             unique_count += 1
                 totals['given'][giver] = row_total
                 totals['unique_given'][giver] = unique_count
-            
+
             # Calculate column totals (received)
             for j, receiver in enumerate(members):
                 col_total = 0
@@ -208,11 +203,11 @@ def get_one_to_one_matrix(request, chapter_id, report_id):
                                 unique_count += 1
                 totals['received'][receiver] = col_total
                 totals['unique_received'][receiver] = unique_count
-            
+
             result['totals'] = totals
-        
+
         return Response(result)
-        
+
     except (Chapter.DoesNotExist, MonthlyReport.DoesNotExist):
         return Response(
             {'error': 'Chapter or monthly report not found'},
@@ -230,19 +225,17 @@ def get_one_to_one_matrix(request, chapter_id, report_id):
 def get_combination_matrix(request, chapter_id, report_id):
     """Return combination matrix for a specific monthly report."""
     try:
-        from chapters.models import MonthlyReport
-        
         chapter = Chapter.objects.get(id=chapter_id)
         monthly_report = MonthlyReport.objects.get(id=report_id, chapter=chapter)
-        
+
         # Return the pre-processed matrix data with calculated summaries
         result = monthly_report.combination_matrix_data
-        
+
         # Add calculated summary columns if data exists
         if result and 'members' in result and 'matrix' in result:
             members = result['members']
             matrix = result['matrix']
-            
+
             # Calculate combination counts for each member using simple numeric mapping
             # - (empty/0) = Neither, 1 = OTO only, 2 = Referral only, 3 = Both
             summaries = {
@@ -251,13 +244,13 @@ def get_combination_matrix(request, chapter_id, report_id):
                 'referral_only': {},
                 'both': {}
             }
-            
+
             for i, member in enumerate(members):
                 neither_count = 0
                 oto_only_count = 0
                 referral_only_count = 0
                 both_count = 0
-                
+
                 row_data = matrix[i] if i < len(matrix) else []
                 for j, value in enumerate(row_data):
                     if i != j:  # Don't count self-relationships
@@ -274,7 +267,7 @@ def get_combination_matrix(request, chapter_id, report_id):
                             int_value = int(value)
                         else:
                             int_value = 0
-                        
+
                         # Count based on simple numeric mapping
                         if int_value == 0:
                             neither_count += 1
@@ -287,16 +280,16 @@ def get_combination_matrix(request, chapter_id, report_id):
                         else:
                             # Any other value counts as neither
                             neither_count += 1
-                
+
                 summaries['neither'][member] = neither_count
                 summaries['oto_only'][member] = oto_only_count
                 summaries['referral_only'][member] = referral_only_count
                 summaries['both'][member] = both_count
-            
+
             result['summaries'] = summaries
-        
+
         return Response(result)
-        
+
     except (Chapter.DoesNotExist, MonthlyReport.DoesNotExist):
         return Response(
             {'error': 'Chapter or monthly report not found'},
@@ -319,15 +312,15 @@ def get_member_summary(request, chapter_id):
         referrals = list(Referral.objects.filter(giver__chapter=chapter))
         one_to_ones = list(OneToOne.objects.filter(member1__chapter=chapter))
         tyfcbs = list(TYFCB.objects.filter(receiver__chapter=chapter))
-        
+
         generator = MatrixGenerator(members)
         summary = generator.generate_member_summary(referrals, one_to_ones, tyfcbs)
-        
+
         # Convert DataFrame to list of dictionaries
         result = summary.to_dict('records')
-        
+
         return Response(result)
-        
+
     except Chapter.DoesNotExist:
         return Response(
             {'error': 'Chapter not found'},
@@ -348,14 +341,14 @@ def get_tyfcb_summary(request, chapter_id):
         chapter = Chapter.objects.get(id=chapter_id)
         members = list(Member.objects.filter(chapter=chapter, is_active=True))
         tyfcbs = list(TYFCB.objects.filter(receiver__chapter=chapter))
-        
+
         generator = MatrixGenerator(members)
         summary = generator.generate_tyfcb_summary(tyfcbs)
-        
+
         result = summary.to_dict('records')
-        
+
         return Response(result)
-        
+
     except Chapter.DoesNotExist:
         return Response(
             {'error': 'Chapter not found'},
@@ -377,13 +370,13 @@ def get_data_quality_report(request, chapter_id):
         referrals = list(Referral.objects.filter(giver__chapter=chapter))
         one_to_ones = list(OneToOne.objects.filter(member1__chapter=chapter))
         tyfcbs = list(TYFCB.objects.filter(receiver__chapter=chapter))
-        
+
         report = DataValidator.generate_quality_report(
             referrals, one_to_ones, tyfcbs
         )
-        
+
         return Response(report)
-        
+
     except Chapter.DoesNotExist:
         return Response(
             {'error': 'Chapter not found'},
@@ -403,7 +396,7 @@ def get_import_history(request, chapter_id):
     try:
         chapter = Chapter.objects.get(id=chapter_id)
         sessions = DataImportSession.objects.filter(chapter=chapter)[:50]
-        
+
         result = []
         for session in sessions:
             result.append({
@@ -417,9 +410,9 @@ def get_import_history(request, chapter_id):
                 'tyfcbs_created': session.tyfcbs_created,
                 'errors_count': session.errors_count,
             })
-        
+
         return Response(result)
-        
+
     except Chapter.DoesNotExist:
         return Response(
             {'error': 'Chapter not found'},
@@ -441,39 +434,37 @@ def get_import_history(request, chapter_id):
 def chapter_dashboard(request):
     """Get dashboard data for all chapters."""
     try:
-        from analytics.models import Referral, OneToOne, TYFCB
-        from chapters.models import MonthlyReport
         from django.db.models import Count, Sum
-        
+
         chapters = Chapter.objects.all().order_by('name')
         dashboard_data = []
-        
+
         for chapter in chapters:
             # Get actual data from database
             members = Member.objects.filter(chapter=chapter, is_active=True)
             referrals = Referral.objects.filter(giver__chapter=chapter)
             tyfcbs = TYFCB.objects.filter(receiver__chapter=chapter)
             monthly_reports = MonthlyReport.objects.filter(chapter=chapter).order_by('-month_year')
-            
+
             # Get latest data date from monthly report
             latest_date = None
             if monthly_reports.exists():
                 latest_report = monthly_reports.first()
                 latest_date = f"{latest_report.month_year}"
-            
+
             # Calculate total TYFCB amount
             total_tyfcb = tyfcbs.aggregate(total=Sum('amount'))['total'] or 0.0
-            
+
             # Calculate averages
             member_count = members.count()
             referral_count = referrals.count()
             one_to_ones = OneToOne.objects.filter(member1__chapter=chapter)
             oto_count = one_to_ones.count()
-            
+
             avg_referrals = round(referral_count / member_count, 2) if member_count > 0 else 0
             avg_tyfcb = round(float(total_tyfcb) / member_count, 2) if member_count > 0 else 0
             avg_otos = round(oto_count / member_count, 2) if member_count > 0 else 0
-            
+
             chapter_data = {
                 'id': chapter.id,
                 'name': chapter.name,
@@ -489,12 +480,12 @@ def chapter_dashboard(request):
                 'has_data': monthly_reports.exists()
             }
             dashboard_data.append(chapter_data)
-        
+
         return Response({
             'chapters': dashboard_data,
             'total_chapters': len(dashboard_data)
         })
-        
+
     except Exception as e:
         return Response(
             {'error': f'Dashboard failed: {str(e)}'},
@@ -507,36 +498,34 @@ def chapter_dashboard(request):
 def chapter_detail(request, chapter_id):
     """Get detailed information for a specific chapter."""
     try:
-        from analytics.models import Referral, OneToOne, TYFCB
-        from chapters.models import MonthlyReport
         from django.db.models import Sum
-        
+
         chapter = Chapter.objects.get(id=chapter_id)
         members = Member.objects.filter(chapter=chapter, is_active=True)
-        
+
         # Get actual data from database
         referrals = Referral.objects.filter(giver__chapter=chapter)
         one_to_ones = OneToOne.objects.filter(member1__chapter=chapter)
         tyfcbs = TYFCB.objects.filter(receiver__chapter=chapter)
         monthly_reports = MonthlyReport.objects.filter(chapter=chapter).order_by('-month_year')
-        
+
         # Get latest data date
         latest_date = None
         if monthly_reports.exists():
             latest_report = monthly_reports.first()
             latest_date = f"{latest_report.month_year}"
-        
+
         # Calculate totals
         member_count = members.count()
         referral_count = referrals.count()
         oto_count = one_to_ones.count()
         total_tyfcb = tyfcbs.aggregate(total=Sum('amount'))['total'] or 0.0
-        
+
         # Calculate averages
         avg_referrals = round(referral_count / member_count, 2) if member_count > 0 else 0
         avg_tyfcb = round(float(total_tyfcb) / member_count, 2) if member_count > 0 else 0
         avg_otos = round(oto_count / member_count, 2) if member_count > 0 else 0
-        
+
         chapter_data = {
             'id': chapter.id,
             'name': chapter.name,
@@ -562,9 +551,9 @@ def chapter_detail(request, chapter_id):
                 for member in members
             ]
         }
-        
+
         return Response(chapter_data)
-        
+
     except Chapter.DoesNotExist:
         return Response(
             {'error': 'Chapter not found'},
@@ -582,11 +571,9 @@ def chapter_detail(request, chapter_id):
 def get_monthly_reports(request, chapter_id):
     """Get all monthly reports for a specific chapter."""
     try:
-        from chapters.models import MonthlyReport
-        
         chapter = Chapter.objects.get(id=chapter_id)
         monthly_reports = MonthlyReport.objects.filter(chapter=chapter).order_by('-month_year')
-        
+
         result = []
         for report in monthly_reports:
             result.append({
@@ -600,9 +587,9 @@ def get_monthly_reports(request, chapter_id):
                 'has_oto_matrix': bool(report.oto_matrix_data),
                 'has_combination_matrix': bool(report.combination_matrix_data)
             })
-        
+
         return Response(result)
-        
+
     except Chapter.DoesNotExist:
         return Response(
             {'error': 'Chapter not found'},
@@ -620,22 +607,20 @@ def get_monthly_reports(request, chapter_id):
 def delete_monthly_report(request, chapter_id, report_id):
     """Delete a monthly report."""
     try:
-        from chapters.models import MonthlyReport
-        
         chapter = Chapter.objects.get(id=chapter_id)
         monthly_report = MonthlyReport.objects.get(id=report_id, chapter=chapter)
-        
+
         # Delete associated files
         if monthly_report.slip_audit_file:
             monthly_report.slip_audit_file.delete(save=False)
         if monthly_report.member_names_file:
             monthly_report.member_names_file.delete(save=False)
-        
+
         # Delete the report
         monthly_report.delete()
-        
+
         return Response({'message': 'Monthly report deleted successfully'})
-        
+
     except (Chapter.DoesNotExist, MonthlyReport.DoesNotExist):
         return Response(
             {'error': 'Chapter or monthly report not found'},
@@ -653,12 +638,10 @@ def delete_monthly_report(request, chapter_id, report_id):
 def get_member_detail(request, chapter_id, report_id, member_id):
     """Get detailed member information including missing interaction lists."""
     try:
-        from chapters.models import MonthlyReport, MemberMonthlyStats
-        
         chapter = Chapter.objects.get(id=chapter_id)
         monthly_report = MonthlyReport.objects.get(id=report_id, chapter=chapter)
         member = Member.objects.get(id=member_id, chapter=chapter)
-        
+
         try:
             member_stats = MemberMonthlyStats.objects.get(
                 member=member,
@@ -667,11 +650,11 @@ def get_member_detail(request, chapter_id, report_id, member_id):
         except MemberMonthlyStats.DoesNotExist:
             # If no stats exist, return basic member info with empty lists
             member_stats = None
-        
+
         # Get all chapter members for name resolution
         chapter_members = Member.objects.filter(chapter=chapter, is_active=True)
         member_lookup = {m.id: m.full_name for m in chapter_members}
-        
+
         result = {
             'member': {
                 'id': member.id,
@@ -730,9 +713,9 @@ def get_member_detail(request, chapter_id, report_id, member_id):
                 'processed_at': monthly_report.processed_at
             }
         }
-        
+
         return Response(result)
-        
+
     except (Chapter.DoesNotExist, MonthlyReport.DoesNotExist, Member.DoesNotExist):
         return Response(
             {'error': 'Chapter, monthly report, or member not found'},
@@ -750,20 +733,18 @@ def get_member_detail(request, chapter_id, report_id, member_id):
 def get_tyfcb_data(request, chapter_id, report_id):
     """Get TYFCB data for a specific monthly report."""
     try:
-        from chapters.models import MonthlyReport
-        
         chapter = Chapter.objects.get(id=chapter_id)
         monthly_report = MonthlyReport.objects.get(id=report_id, chapter=chapter)
-        
+
         tyfcb_data = {
             'inside': monthly_report.tyfcb_inside_data or {'total_amount': 0, 'count': 0, 'by_member': {}},
             'outside': monthly_report.tyfcb_outside_data or {'total_amount': 0, 'count': 0, 'by_member': {}},
             'month_year': monthly_report.month_year,
             'processed_at': monthly_report.processed_at
         }
-        
+
         return Response(tyfcb_data)
-        
+
     except Chapter.DoesNotExist:
         return Response(
             {'error': 'Chapter not found'},
@@ -786,13 +767,12 @@ def get_tyfcb_data(request, chapter_id, report_id):
 def get_member_analytics(request, chapter_id, member_name):
     """Get member analytics and recommendations based on real data."""
     try:
-        from chapters.models import MonthlyReport, MemberMonthlyStats
         from django.db.models import Sum
         from urllib.parse import unquote
-        
+
         # Decode URL-encoded member name
         member_name = unquote(member_name)
-        
+
         chapter = Chapter.objects.get(id=chapter_id)
         # Find member by matching their full_name property since we don't have a full_name field
         all_chapter_members = Member.objects.filter(chapter=chapter, is_active=True)
@@ -801,17 +781,17 @@ def get_member_analytics(request, chapter_id, member_name):
             if m.full_name == member_name:
                 member = m
                 break
-        
+
         if not member:
             raise Member.DoesNotExist()
-        
+
         # Get latest monthly report for this chapter
         latest_report = MonthlyReport.objects.filter(chapter=chapter).order_by('-month_year').first()
-        
+
         # Get all chapter members for gap analysis
         all_members = Member.objects.filter(chapter=chapter, is_active=True).exclude(id=member.id)
         member_lookup = {m.id: m.full_name for m in all_members}
-        
+
         # Get member stats from latest report if available
         member_stats = None
         if latest_report:
@@ -822,7 +802,7 @@ def get_member_analytics(request, chapter_id, member_name):
                 )
             except MemberMonthlyStats.DoesNotExist:
                 pass
-        
+
         # Get real analytics data from the analytics models
         referrals_given = Referral.objects.filter(giver=member).count()
         referrals_received = Referral.objects.filter(receiver=member).count()
@@ -831,16 +811,16 @@ def get_member_analytics(request, chapter_id, member_name):
         ).count()
         tyfcbs = TYFCB.objects.filter(receiver=member)
         total_tyfcb = tyfcbs.aggregate(total=Sum('amount'))['total'] or 0.0
-        
+
         # Calculate performance score
         max_possible_otos = all_members.count()
         max_referrals = max(20, referrals_given + 10)  # Dynamic scale
-        
+
         oto_score = min((one_to_ones / max_possible_otos) * 30, 30) if max_possible_otos > 0 else 0
         referral_given_score = min((referrals_given / max_referrals) * 35, 35)
         referral_received_score = min((referrals_received / max_referrals) * 35, 35)
         performance_score = round(oto_score + referral_given_score + referral_received_score)
-        
+
         # Generate gap analysis - who hasn't had interactions with
         # Get all one-to-one participants for this member
         oto_partners = set()
@@ -852,42 +832,42 @@ def get_member_analytics(request, chapter_id, member_name):
                 oto_partners.add(oto.member2.id)
             else:
                 oto_partners.add(oto.member1.id)
-        
+
         # Get referral partners
         referral_given_to = set(Referral.objects.filter(giver=member).values_list('receiver_id', flat=True))
         referral_received_from = set(Referral.objects.filter(receiver=member).values_list('giver_id', flat=True))
-        
+
         # Calculate missing interactions
         all_member_ids = set(all_members.values_list('id', flat=True))
         missing_otos = all_member_ids - oto_partners
         missing_referrals_to = all_member_ids - referral_given_to
         missing_referrals_from = all_member_ids - referral_received_from
-        
+
         # Priority connections (members with no interactions at all)
         priority_connections = missing_otos.intersection(missing_referrals_to).intersection(missing_referrals_from)
-        
+
         # Generate recommendations
         recommendations = []
         if missing_otos:
             oto_names = [member_lookup[mid] for mid in list(missing_otos)[:3] if mid in member_lookup]
             if oto_names:
                 recommendations.append(f"Schedule one-to-ones with {', '.join(oto_names)}")
-        
+
         if missing_referrals_to:
             ref_names = [member_lookup[mid] for mid in list(missing_referrals_to)[:3] if mid in member_lookup]
             if ref_names:
                 recommendations.append(f"Focus on giving referrals to {', '.join(ref_names)}")
-        
+
         if missing_referrals_from:
             source_names = [member_lookup[mid] for mid in list(missing_referrals_from)[:2] if mid in member_lookup]
             if source_names:
                 recommendations.append(f"Build stronger relationships with {', '.join(source_names)} to receive more referrals")
-        
+
         if performance_score < 70:
             recommendations.append("Increase chapter event attendance to boost visibility")
-        
+
         recommendations.append("Follow up on previous referrals to track success and build stronger connections")
-        
+
         result = {
             'member': {
                 'id': member.id,
@@ -939,9 +919,9 @@ def get_member_analytics(request, chapter_id, member_name):
                 'processed_at': latest_report.processed_at if latest_report else None
             }
         }
-        
+
         return Response(result)
-        
+
     except Chapter.DoesNotExist:
         return Response(
             {'error': 'Chapter not found'},
@@ -968,15 +948,14 @@ def download_all_matrices(request, chapter_id, report_id):
         from openpyxl import Workbook
         from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
         from openpyxl.utils import get_column_letter
-        from chapters.models import MonthlyReport
         import json
-        
+
         chapter = Chapter.objects.get(id=chapter_id)
         monthly_report = MonthlyReport.objects.get(id=report_id, chapter=chapter)
-        
+
         # Create workbook
         wb = Workbook()
-        
+
         # Define styles to match old repository format
         header_fill = PatternFill(start_color="1976D2", end_color="1976D2", fill_type="solid")
         header_font = Font(color="FFFFFF", bold=True)
@@ -989,15 +968,15 @@ def download_all_matrices(request, chapter_id, report_id):
             bottom=Side(style='thin')
         )
         bold_font = Font(bold=True)
-        
+
         # Helper function to create a matrix sheet
         def create_matrix_sheet(ws, title, matrix_data, matrix_type="referral", value_formatter=None):
             ws.title = title
-            
+
             if not matrix_data:
                 ws['A1'] = 'No data available'
                 return
-            
+
             # Handle the actual matrix data format
             if 'members' in matrix_data and 'matrix' in matrix_data:
                 members = matrix_data['members']
@@ -1005,14 +984,14 @@ def download_all_matrices(request, chapter_id, report_id):
             else:
                 ws['A1'] = 'Invalid matrix data format'
                 return
-            
+
             # Create header row (match old repository format)
             ws['A1'] = 'Giver \\ Receiver'
             ws['A1'].fill = header_fill
             ws['A1'].font = header_font
             ws['A1'].alignment = center_align
             ws['A1'].border = thin_border
-            
+
             # Add column headers
             for col_idx, member_name in enumerate(members, start=2):
                 cell = ws.cell(row=1, column=col_idx, value=member_name)
@@ -1020,18 +999,18 @@ def download_all_matrices(request, chapter_id, report_id):
                 cell.font = header_font
                 cell.alignment = center_align
                 cell.border = thin_border
-            
+
             # Add summary column headers based on matrix type (match old repository format)
             if matrix_type == "combination":
                 # Combination matrix has 4 summary columns
                 col1 = len(members) + 2
-                col2 = len(members) + 3  
+                col2 = len(members) + 3
                 col3 = len(members) + 4
                 col4 = len(members) + 5
-                
+
                 headers = ['Neither:', 'OTO only:', 'Referral only:', 'OTO and Referral:']
                 summary_cols = [col1, col2, col3, col4]
-                
+
                 for col, header in zip(summary_cols, headers):
                     cell = ws.cell(row=1, column=col, value=header)
                     cell.fill = header_fill
@@ -1042,13 +1021,13 @@ def download_all_matrices(request, chapter_id, report_id):
                 # OTO matrix has 2 summary columns
                 total_oto_col = len(members) + 2
                 unique_oto_col = len(members) + 3
-                
+
                 cell = ws.cell(row=1, column=total_oto_col, value='Total OTO:')
                 cell.fill = header_fill
                 cell.font = header_font
                 cell.alignment = center_align
                 cell.border = thin_border
-                
+
                 cell = ws.cell(row=1, column=unique_oto_col, value=f'Unique OTO: (Total Members = {len(members)})')
                 cell.fill = header_fill
                 cell.font = header_font
@@ -1058,19 +1037,19 @@ def download_all_matrices(request, chapter_id, report_id):
                 # Referral matrix has 2 summary columns
                 total_given_col = len(members) + 2
                 unique_given_col = len(members) + 3
-                
+
                 cell = ws.cell(row=1, column=total_given_col, value='Total Referrals Given:')
                 cell.fill = header_fill
                 cell.font = header_font
                 cell.alignment = center_align
                 cell.border = thin_border
-                
+
                 cell = ws.cell(row=1, column=unique_given_col, value='Unique Referrals Given:')
                 cell.fill = header_fill
                 cell.font = header_font
                 cell.alignment = center_align
                 cell.border = thin_border
-            
+
             # Add data rows
             for row_idx, row_member in enumerate(members, start=2):
                 # Row header
@@ -1079,15 +1058,15 @@ def download_all_matrices(request, chapter_id, report_id):
                 cell.font = header_font
                 cell.alignment = center_align
                 cell.border = thin_border
-                
+
                 # Data cells with yellow highlighting for zeros
                 row_total = 0
                 unique_count = 0
                 row_data = matrix[row_idx - 2] if row_idx - 2 < len(matrix) else []
-                
+
                 for col_idx, col_member in enumerate(members, start=2):
                     value = row_data[col_idx - 2] if col_idx - 2 < len(row_data) else 0
-                    
+
                     # Handle combination matrix format (e.g., "1/2" becomes "1/2", 0 becomes "")
                     if value_formatter:
                         display_value = value_formatter(value)
@@ -1095,21 +1074,21 @@ def download_all_matrices(request, chapter_id, report_id):
                         display_value = value if value != "0/0" else ''
                     else:
                         display_value = value if value else ''
-                    
+
                     cell = ws.cell(row=row_idx, column=col_idx, value=display_value)
                     cell.alignment = center_align
                     cell.border = thin_border
-                    
+
                     # Yellow highlight for zero values (match old repository format)
                     if value == 0 and row_idx != col_idx:  # Don't highlight diagonal
                         cell.fill = zero_fill
-                    
+
                     # Calculate row total and unique count (for numeric values only)
                     if value and isinstance(value, (int, float)):
                         row_total += value
                         if value > 0:
                             unique_count += 1
-                
+
                 # Row summary values based on matrix type
                 if matrix_type == "combination":
                     # For combination matrix, use simple numeric mapping
@@ -1118,11 +1097,11 @@ def download_all_matrices(request, chapter_id, report_id):
                     oto_only_count = 0
                     referral_only_count = 0
                     both_count = 0
-                    
+
                     for col_idx_inner in range(len(row_data)):
                         if row_idx - 2 != col_idx_inner:  # Don't count self-relationships
                             value = row_data[col_idx_inner] if col_idx_inner < len(row_data) else None
-                            
+
                             # Convert value to integer for comparison
                             if isinstance(value, str):
                                 if value == '-' or value == '' or value == '0':
@@ -1136,7 +1115,7 @@ def download_all_matrices(request, chapter_id, report_id):
                                 int_value = int(value)
                             else:
                                 int_value = 0
-                            
+
                             # Count based on simple numeric mapping
                             if int_value == 0:
                                 neither_count += 1
@@ -1149,7 +1128,7 @@ def download_all_matrices(request, chapter_id, report_id):
                             else:
                                 # Any other value counts as neither
                                 neither_count += 1
-                    
+
                     summary_values = [neither_count, oto_only_count, referral_only_count, both_count]
                     for col_offset, value in enumerate(summary_values):
                         cell = ws.cell(row=row_idx, column=len(members) + 2 + col_offset, value=value if value > 0 else '')
@@ -1162,12 +1141,12 @@ def download_all_matrices(request, chapter_id, report_id):
                     cell.alignment = center_align
                     cell.border = thin_border
                     cell.font = bold_font
-                    
+
                     cell = ws.cell(row=row_idx, column=len(members) + 3, value=unique_count if unique_count > 0 else '')
                     cell.alignment = center_align
                     cell.border = thin_border
                     cell.font = bold_font
-            
+
             # Add summary rows based on matrix type (match old repository format)
             if matrix_type == "combination":
                 # Combination matrix doesn't have summary rows in the old format
@@ -1175,7 +1154,7 @@ def download_all_matrices(request, chapter_id, report_id):
             else:
                 total_received_row = len(members) + 2
                 unique_received_row = len(members) + 3
-                
+
                 # Summary row labels based on matrix type
                 if matrix_type == "oto":
                     total_label = 'Total OTO Received:'
@@ -1183,29 +1162,29 @@ def download_all_matrices(request, chapter_id, report_id):
                 else:
                     total_label = 'Total Referrals Received:'
                     unique_label = 'Unique Referrals Received:'
-                
+
                 # Total received row
                 cell = ws.cell(row=total_received_row, column=1, value=total_label)
                 cell.fill = header_fill
                 cell.font = header_font
                 cell.alignment = center_align
                 cell.border = thin_border
-                
+
                 # Unique received row
                 cell = ws.cell(row=unique_received_row, column=1, value=unique_label)
                 cell.fill = header_fill
                 cell.font = header_font
                 cell.alignment = center_align
                 cell.border = thin_border
-            
+
                 # Calculate column totals and unique counts for non-combination matrices
                 grand_total = 0
                 grand_unique = 0
-                
+
                 for col_idx in range(len(members)):
                     col_total = 0
                     col_unique = 0
-                    
+
                     for row_idx in range(len(matrix)):
                         if row_idx < len(matrix) and col_idx < len(matrix[row_idx]):
                             value = matrix[row_idx][col_idx]
@@ -1215,33 +1194,33 @@ def download_all_matrices(request, chapter_id, report_id):
                                 if value > 0:
                                     col_unique += 1
                                     grand_unique += 1
-                    
+
                     # Total received for this member
                     cell = ws.cell(row=total_received_row, column=col_idx + 2, value=col_total if col_total else '')
                     cell.alignment = center_align
                     cell.border = thin_border
                     cell.font = bold_font
-                    
+
                     # Unique received for this member
                     cell = ws.cell(row=unique_received_row, column=col_idx + 2, value=col_unique if col_unique else '')
                     cell.alignment = center_align
                     cell.border = thin_border
                     cell.font = bold_font
-                
+
                 # Grand totals in summary columns
                 summary_col1 = len(members) + 2
                 summary_col2 = len(members) + 3
-                
+
                 cell = ws.cell(row=total_received_row, column=summary_col1, value=grand_total if grand_total else '')
                 cell.alignment = center_align
                 cell.border = thin_border
                 cell.font = bold_font
-                
+
                 cell = ws.cell(row=unique_received_row, column=summary_col2, value=grand_unique if grand_unique else '')
                 cell.alignment = center_align
                 cell.border = thin_border
                 cell.font = bold_font
-            
+
             # Adjust column widths (match old repository format)
             num_summary_cols = 4 if matrix_type == "combination" else 2
             for col in range(1, len(members) + 2 + num_summary_cols):
@@ -1251,20 +1230,20 @@ def download_all_matrices(request, chapter_id, report_id):
             for i in range(num_summary_cols):
                 col_letter = get_column_letter(len(members) + 2 + i)
                 ws.column_dimensions[col_letter].width = 20
-        
+
         # Remove default sheet
         wb.remove(wb.active)
-        
+
         # Create Referral Matrix sheet
         if monthly_report.referral_matrix_data:
             ws_referral = wb.create_sheet("Referral Matrix")
             create_matrix_sheet(ws_referral, "Referral Matrix", monthly_report.referral_matrix_data, "referral")
-        
+
         # Create One-to-One Matrix sheet
         if monthly_report.oto_matrix_data:
             ws_oto = wb.create_sheet("One-to-One Matrix")
             create_matrix_sheet(ws_oto, "One-to-One Matrix", monthly_report.oto_matrix_data, "oto")
-        
+
         # Create Combination Matrix sheet
         if monthly_report.combination_matrix_data:
             ws_combo = wb.create_sheet("Combination Matrix")
@@ -1274,22 +1253,22 @@ def download_all_matrices(request, chapter_id, report_id):
                     return ''
                 return value
             create_matrix_sheet(ws_combo, "Combination Matrix", monthly_report.combination_matrix_data, "combination", format_combo)
-        
+
         # If no matrices available, add a notice sheet
         if not wb.worksheets:
             ws = wb.create_sheet("No Data")
             ws['A1'] = "No matrix data available for this report"
-        
+
         # Save to response
         response = HttpResponse(
             content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         )
         filename = f"{chapter.name.replace(' ', '_')}_Matrices_{monthly_report.month_year}.xlsx"
         response['Content-Disposition'] = f'attachment; filename={filename}'
-        
+
         wb.save(response)
         return response
-        
+
     except Chapter.DoesNotExist:
         return Response(
             {'error': 'Chapter not found'},
@@ -1312,14 +1291,14 @@ def download_all_matrices(request, chapter_id, report_id):
 def create_chapter(request):
     """Create a new chapter."""
     serializer = ChapterSerializer(data=request.data)
-    
+
     if serializer.is_valid():
         chapter = serializer.save()
         return Response(
             ChapterSerializer(chapter).data,
             status=status.HTTP_201_CREATED
         )
-    
+
     return Response(
         {'error': 'Invalid data', 'details': serializer.errors},
         status=status.HTTP_400_BAD_REQUEST
@@ -1361,20 +1340,20 @@ def create_member(request, chapter_id):
             {'error': 'Chapter not found'},
             status=status.HTTP_404_NOT_FOUND
         )
-    
+
     # Add chapter to the request data
     data = request.data.copy()
     data['chapter'] = chapter_id
-    
+
     serializer = MemberCreateSerializer(data=data)
-    
+
     if serializer.is_valid():
         member = serializer.save()
         return Response(
             MemberSerializer(member).data,
             status=status.HTTP_201_CREATED
         )
-    
+
     return Response(
         {'error': 'Invalid data', 'details': serializer.errors},
         status=status.HTTP_400_BAD_REQUEST
@@ -1398,16 +1377,16 @@ def update_member(request, chapter_id, member_id):
             {'error': 'Member not found'},
             status=status.HTTP_404_NOT_FOUND
         )
-    
+
     serializer = MemberUpdateSerializer(member, data=request.data, partial=(request.method == 'PATCH'))
-    
+
     if serializer.is_valid():
         updated_member = serializer.save()
         return Response(
             MemberSerializer(updated_member).data,
             status=status.HTTP_200_OK
         )
-    
+
     return Response(
         {'error': 'Invalid data', 'details': serializer.errors},
         status=status.HTTP_400_BAD_REQUEST

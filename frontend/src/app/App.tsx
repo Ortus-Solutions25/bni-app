@@ -8,7 +8,7 @@ import {
 } from "react-router-dom";
 import { QueryClientProvider } from '@tanstack/react-query';
 import { BarChart3, Settings, Home } from "lucide-react";
-import { Button } from "../shared/components/ui/button";
+import { Button } from '@/components/ui/button';
 
 // Import components
 import ChapterRoutes from "../features/chapters/components/chapter-routes";

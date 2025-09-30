@@ -4,7 +4,7 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-} from '../../../shared/components/ui/card';
+} from '@/components/ui/card';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -12,21 +12,21 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator,
-} from '../../../shared/components/ui/breadcrumb';
-import { Badge } from '../../../shared/components/ui/badge';
-import { Alert, AlertDescription } from '../../../shared/components/ui/alert';
-import { Progress } from '../../../shared/components/ui/progress';
-import { Button } from '../../../shared/components/ui/button';
+} from '@/components/ui/breadcrumb';
+import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Progress } from '@/components/ui/progress';
+import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from '../../../shared/components/ui/dialog';
-import { Input } from '../../../shared/components/ui/input';
-import { Separator } from '../../../shared/components/ui/separator';
-import { useToast } from '../../../shared/hooks/use-toast';
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Separator } from '@/components/ui/separator';
+import { useToast } from '@/hooks/use-toast';
 import {
   Building2,
   User,
@@ -43,7 +43,7 @@ import {
   Trash2,
   Loader2,
 } from 'lucide-react';
-import { ChapterMemberData } from '../services/ChapterDataLoader';
+import { ChapterMemberData } from '../../../shared/services/ChapterDataLoader';
 
 interface MemberDetailsProps {
   chapterData: ChapterMemberData;
@@ -319,7 +319,7 @@ const MemberDetails: React.FC<MemberDetailsProps> = ({
 
   if (!memberAnalytics) {
     return (
-      <Alert variant="warning">
+      <Alert>
         <AlertTriangle className="h-4 w-4" />
         <AlertDescription>
           No analytics data available for this member.

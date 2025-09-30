@@ -41,6 +41,11 @@
     "test:ci": "react-scripts test --coverage --ci --testPathIgnorePatterns=src/test-utils --watchAll=false",
     "eject": "react-scripts eject"
   },
+  "lint-staged": {
+    "src/**/*.{js,jsx,ts,tsx}": [
+      "npm run test:ci"
+    ]
+  },
   "eslintConfig": {
     "extends": [
       "react-app",
@@ -69,7 +74,9 @@
     "@types/react-router-dom": "^5.3.3",
     "@types/xlsx": "^0.0.35",
     "autoprefixer": "^10.4.21",
+    "husky": "^9.1.7",
     "jest-axe": "^10.0.0",
+    "lint-staged": "^16.2.3",
     "msw": "^2.11.2",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.14",

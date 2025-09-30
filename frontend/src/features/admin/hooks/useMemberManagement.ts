@@ -61,8 +61,7 @@ export const useMemberManagement = (chapterData: ChapterMemberData[]) => {
   const handleBulkDelete = useCallback(async () => {
     if (selectedMembers.length === 0) return;
 
-    // Implementation would call DELETE API for each selected member
-    console.log('Bulk delete members:', selectedMembers);
+    // TODO: Implementation would call DELETE API for each selected member
     // Reset selections
     setSelectedMembers([]);
   }, [selectedMembers]);

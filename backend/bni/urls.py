@@ -1,71 +1,80 @@
-from django.urls import path
-from bni import views
+"""
+URL configuration for BNI API.
+
+Uses Django REST Framework routers for ViewSet-based endpoints.
+"""
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
+
+from chapters.views import ChapterViewSet
+from members.views import MemberViewSet
+from reports.views import MonthlyReportViewSet
+from analytics.views import MatrixViewSet, ComparisonViewSet
+from uploads.views import FileUploadViewSet
+
+# Main router for top-level resources
+router = DefaultRouter()
+router.register(r'chapters', ChapterViewSet, basename='chapter')
+router.register(r'upload', FileUploadViewSet, basename='upload')
 
 urlpatterns = [
-    # File upload
-    path('upload/', views.ExcelUploadView.as_view(), name='excel_upload'),
-    path('bulk-upload/', views.BulkUploadView.as_view(), name='bulk_upload'),
+    # Dashboard endpoint (list view of chapters)
+    path('dashboard/', ChapterViewSet.as_view({'get': 'list'}), name='dashboard'),
 
-    # Matrix endpoints (with report_id)
-    path('chapters/<int:chapter_id>/reports/<int:report_id>/referral-matrix/',
-         views.get_referral_matrix, name='referral_matrix'),
-    path('chapters/<int:chapter_id>/reports/<int:report_id>/one-to-one-matrix/',
-         views.get_one_to_one_matrix, name='one_to_one_matrix'),
-    path('chapters/<int:chapter_id>/reports/<int:report_id>/combination-matrix/',
-         views.get_combination_matrix, name='combination_matrix'),
-    path('chapters/<int:chapter_id>/reports/<int:report_id>/tyfcb-data/',
-         views.get_tyfcb_data, name='tyfcb_data'),
+    # Include main router
+    path('', include(router.urls)),
 
-    # Monthly reports management
+    # Nested routes for chapters/{chapter_id}/members/
+    path('chapters/<int:chapter_pk>/members/',
+         MemberViewSet.as_view({'get': 'list', 'post': 'create'}),
+         name='chapter-members-list'),
+    path('chapters/<int:chapter_pk>/members/<int:pk>/',
+         MemberViewSet.as_view({'get': 'retrieve', 'put': 'update', 'patch': 'partial_update', 'delete': 'destroy'}),
+         name='chapter-members-detail'),
+    path('chapters/<int:chapter_pk>/members/<str:member_name>/analytics/',
+         MemberViewSet.as_view({'get': 'analytics'}),
+         name='chapter-members-analytics'),
+
+    # Nested routes for chapters/{chapter_id}/reports/
     path('chapters/<int:chapter_id>/reports/',
-         views.get_monthly_reports, name='get_monthly_reports'),
-    path('chapters/<int:chapter_id>/reports/<int:report_id>/',
-         views.delete_monthly_report, name='delete_monthly_report'),
+         MonthlyReportViewSet.as_view({'get': 'list'}),
+         name='chapter-reports-list'),
+    path('chapters/<int:chapter_id>/reports/<int:pk>/',
+         MonthlyReportViewSet.as_view({'delete': 'destroy'}),
+         name='chapter-reports-detail'),
 
-    # Matrix comparison endpoints
+    # Member detail within report
+    path('chapters/<int:chapter_id>/reports/<int:pk>/members/<int:member_id>/',
+         MonthlyReportViewSet.as_view({'get': 'member_detail'}),
+         name='chapter-reports-member-detail'),
+
+    # TYFCB data for report
+    path('chapters/<int:chapter_id>/reports/<int:pk>/tyfcb/',
+         MonthlyReportViewSet.as_view({'get': 'tyfcb_data'}),
+         name='chapter-reports-tyfcb'),
+
+    # Matrix endpoints: chapters/{chapter_id}/reports/{report_id}/matrices/
+    path('chapters/<int:chapter_id>/reports/<int:report_id>/referral-matrix/',
+         MatrixViewSet.as_view({'get': 'referral_matrix'}),
+         name='report-referral-matrix'),
+    path('chapters/<int:chapter_id>/reports/<int:report_id>/one-to-one-matrix/',
+         MatrixViewSet.as_view({'get': 'one_to_one_matrix'}),
+         name='report-oto-matrix'),
+    path('chapters/<int:chapter_id>/reports/<int:report_id>/combination-matrix/',
+         MatrixViewSet.as_view({'get': 'combination_matrix'}),
+         name='report-combination-matrix'),
+
+    # Comparison endpoints: chapters/{chapter_id}/reports/{report_id}/compare/{previous_report_id}/
     path('chapters/<int:chapter_id>/reports/<int:report_id>/compare/<int:previous_report_id>/',
-         views.compare_reports, name='compare_reports'),
+         ComparisonViewSet.as_view({'get': 'compare_comprehensive'}),
+         name='report-compare-comprehensive'),
     path('chapters/<int:chapter_id>/reports/<int:report_id>/compare/<int:previous_report_id>/referrals/',
-         views.compare_referral_matrices, name='compare_referral_matrices'),
+         ComparisonViewSet.as_view({'get': 'compare_referral'}),
+         name='report-compare-referral'),
     path('chapters/<int:chapter_id>/reports/<int:report_id>/compare/<int:previous_report_id>/one-to-ones/',
-         views.compare_oto_matrices, name='compare_oto_matrices'),
+         ComparisonViewSet.as_view({'get': 'compare_oto'}),
+         name='report-compare-oto'),
     path('chapters/<int:chapter_id>/reports/<int:report_id>/compare/<int:previous_report_id>/combination/',
-         views.compare_combination_matrices, name='compare_combination_matrices'),
-
-    # Member detail with missing interactions
-    path('chapters/<int:chapter_id>/reports/<int:report_id>/members/<int:member_id>/',
-         views.get_member_detail, name='get_member_detail'),
-
-    # Summary endpoints (legacy - may need updating)
-    path('chapters/<int:chapter_id>/member-summary/',
-         views.get_member_summary, name='member_summary'),
-    path('chapters/<int:chapter_id>/tyfcb-summary/',
-         views.get_tyfcb_summary, name='tyfcb_summary'),
-
-    # Analytics endpoints (legacy - may need updating)
-    path('chapters/<int:chapter_id>/data-quality/',
-         views.get_data_quality_report, name='data_quality_report'),
-    path('chapters/<int:chapter_id>/import-history/',
-         views.get_import_history, name='import_history'),
-
-    # Dashboard endpoints
-    path('dashboard/', views.chapter_dashboard, name='chapter_dashboard'),
-
-    # Chapter management endpoints
-    path('chapters/', views.create_chapter, name='create_chapter'),
-    path('chapters/<int:chapter_id>/', views.chapter_detail, name='chapter_detail'),
-    path('chapters/<int:chapter_id>/delete/', views.delete_chapter, name='delete_chapter'),
-
-    # Member management endpoints
-    path('chapters/<int:chapter_id>/members/', views.create_member, name='create_member'),
-    path('chapters/<int:chapter_id>/members/<int:member_id>/', views.update_member, name='update_member'),
-    path('chapters/<int:chapter_id>/members/<int:member_id>/delete/', views.delete_member, name='delete_member'),
-
-    # Member analytics endpoint
-    path('chapters/<int:chapter_id>/members/<str:member_name>/analytics/',
-         views.get_member_analytics, name='member_analytics'),
-
-    # Download all matrices as Excel
-    path('chapters/<int:chapter_id>/reports/<int:report_id>/download-matrices/',
-         views.download_all_matrices, name='download_all_matrices'),
+         ComparisonViewSet.as_view({'get': 'compare_combination'}),
+         name='report-compare-combination'),
 ]

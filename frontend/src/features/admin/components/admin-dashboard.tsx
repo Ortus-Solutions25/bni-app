@@ -286,16 +286,17 @@ const BulkOperationsTab: React.FC<{
       const result = await response.json();
 
       if (response.ok) {
+        const details = result.details || result;
         setUploadResult({
           success: true,
-          message: `Successfully processed! Created ${result.chapters_created || 0} chapters and ${result.members_created || 0} members.`,
+          message: `Successfully processed! Created ${details.chapters_created || 0} chapters and ${details.members_created || 0} members.`,
           details: result,
         });
         onDataRefresh();
       } else {
         setUploadResult({
           success: false,
-          message: result.error || 'Upload failed',
+          message: result.message || result.error || 'Upload failed',
           details: result,
         });
       }
@@ -357,12 +358,19 @@ const BulkOperationsTab: React.FC<{
               )}
               <AlertDescription>
                 {uploadResult.message}
-                {uploadResult.details && uploadResult.success && (
+                {uploadResult.details && uploadResult.success && uploadResult.details.details && (
                   <div className="mt-2 text-sm space-y-1">
-                    <div>Chapters created: {uploadResult.details.chapters_created || 0}</div>
-                    <div>Chapters updated: {uploadResult.details.chapters_updated || 0}</div>
-                    <div>Members created: {uploadResult.details.members_created || 0}</div>
-                    <div>Members updated: {uploadResult.details.members_updated || 0}</div>
+                    <div>Chapters created: {uploadResult.details.details.chapters_created || 0}</div>
+                    <div>Chapters updated: {uploadResult.details.details.chapters_updated || 0}</div>
+                    <div>Members created: {uploadResult.details.details.members_created || 0}</div>
+                    <div>Members updated: {uploadResult.details.details.members_updated || 0}</div>
+                    <div>Total processed: {uploadResult.details.details.total_processed || 0} rows</div>
+                    {uploadResult.details.details.warnings && uploadResult.details.details.warnings.length > 0 && (
+                      <div className="mt-2">
+                        <div className="font-medium">Warnings ({uploadResult.details.details.warnings.length}):</div>
+                        <div className="text-xs text-muted-foreground">Some rows were skipped due to missing data</div>
+                      </div>
+                    )}
                   </div>
                 )}
               </AlertDescription>

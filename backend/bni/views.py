@@ -524,12 +524,26 @@ def chapter_dashboard(request):
             avg_tyfcb = round(float(total_tyfcb) / member_count, 2) if member_count > 0 else 0
             avg_otos = round(oto_count / member_count, 2) if member_count > 0 else 0
 
+            # Include member details for admin dashboard
+            members_list = []
+            for member in members:
+                members_list.append({
+                    'id': member.id,
+                    'name': f"{member.first_name} {member.last_name}",
+                    'first_name': member.first_name,
+                    'last_name': member.last_name,
+                    'business_name': member.business_name or '',
+                    'classification': member.classification or '',
+                    'is_active': member.is_active
+                })
+
             chapter_data = {
                 'id': chapter.id,
                 'name': chapter.name,
                 'location': chapter.location if hasattr(chapter, 'location') else 'Dubai',
                 'latest_data_date': latest_date,
                 'member_count': member_count,
+                'members': members_list,
                 'total_referrals': referral_count,
                 'total_one_to_ones': oto_count,
                 'total_tyfcb': float(total_tyfcb),

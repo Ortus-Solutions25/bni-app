@@ -50,6 +50,113 @@ export interface MemberDetail {
   };
 }
 
+export interface MemberChange {
+  current_total: number;
+  previous_total: number;
+  change: number;
+  current_unique?: number;
+  previous_unique?: number;
+  unique_change?: number;
+  direction: string;
+  status: 'improved' | 'declined' | 'no_change';
+  is_new_member: boolean;
+  current_counts?: {
+    neither: number;
+    oto_only: number;
+    referral_only: number;
+    both: number;
+  };
+  previous_counts?: {
+    neither: number;
+    oto_only: number;
+    referral_only: number;
+    both: number;
+  };
+  changes?: {
+    neither: number;
+    oto_only: number;
+    referral_only: number;
+    both: number;
+  };
+  improvement_score?: number;
+}
+
+export interface MatrixComparison {
+  members: string[];
+  current_matrix: number[][];
+  previous_matrix: number[][];
+  member_changes: Record<string, MemberChange>;
+  summary: {
+    total_members: number;
+    improved: number;
+    declined: number;
+    no_change: number;
+    new_members: number;
+    top_improvements: Array<{
+      member: string;
+      change: number;
+      current: number;
+      previous: number;
+    }>;
+    top_declines: Array<{
+      member: string;
+      change: number;
+      current: number;
+      previous: number;
+    }>;
+    average_change: number;
+    improvement_rate: number;
+  };
+}
+
+export interface ComparisonData {
+  current_report: {
+    id: number;
+    month_year: string;
+    processed_at: string;
+  };
+  previous_report: {
+    id: number;
+    month_year: string;
+    processed_at: string;
+  };
+  referral_comparison: MatrixComparison;
+  oto_comparison: MatrixComparison;
+  combination_comparison: MatrixComparison;
+  overall_insights: {
+    referrals: {
+      improved: number;
+      declined: number;
+      average_change: number;
+      improvement_rate: number;
+      top_improvers: Array<{
+        member: string;
+        change: number;
+        current: number;
+        previous: number;
+      }>;
+    };
+    one_to_ones: {
+      improved: number;
+      declined: number;
+      average_change: number;
+      improvement_rate: number;
+      top_improvers: Array<{
+        member: string;
+        change: number;
+        current: number;
+        previous: number;
+      }>;
+    };
+    overall: {
+      total_members: number;
+      new_members: number;
+      combination_improvement_rate: number;
+      most_improved_metric: string;
+    };
+  };
+}
+
 export interface ChapterMemberData {
   chapterName: string;
   chapterId: string;
@@ -318,11 +425,97 @@ export const generateMockPerformanceMetrics = (members: string[]): ChapterMember
       topPerformer: 'N/A'
     };
   }
-  
+
   return {
     avgReferralsPerMember: Math.floor(Math.random() * 10) + 5,
     avgOTOsPerMember: Math.floor(Math.random() * 8) + 3,
     totalTYFCB: Math.floor(Math.random() * 500000) + 100000,
     topPerformer: members[Math.floor(Math.random() * members.length)]
   };
+};
+
+// Comparison API functions
+export const loadComparisonData = async (
+  chapterId: string,
+  currentReportId: number,
+  previousReportId: number
+): Promise<ComparisonData> => {
+  try {
+    const response = await fetch(
+      `/api/chapters/${chapterId}/reports/${currentReportId}/compare/${previousReportId}/`
+    );
+
+    if (!response.ok) {
+      throw new Error(`Failed to load comparison data: ${response.status} ${response.statusText}`);
+    }
+
+    const comparisonData = await response.json();
+    return comparisonData;
+  } catch (error) {
+    console.error(`Failed to load comparison for chapter ${chapterId}:`, error);
+    throw error;
+  }
+};
+
+export const loadReferralComparison = async (
+  chapterId: string,
+  currentReportId: number,
+  previousReportId: number
+): Promise<{ comparison: MatrixComparison }> => {
+  try {
+    const response = await fetch(
+      `/api/chapters/${chapterId}/reports/${currentReportId}/compare/${previousReportId}/referrals/`
+    );
+
+    if (!response.ok) {
+      throw new Error(`Failed to load referral comparison: ${response.status} ${response.statusText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error(`Failed to load referral comparison:`, error);
+    throw error;
+  }
+};
+
+export const loadOTOComparison = async (
+  chapterId: string,
+  currentReportId: number,
+  previousReportId: number
+): Promise<{ comparison: MatrixComparison }> => {
+  try {
+    const response = await fetch(
+      `/api/chapters/${chapterId}/reports/${currentReportId}/compare/${previousReportId}/one-to-ones/`
+    );
+
+    if (!response.ok) {
+      throw new Error(`Failed to load one-to-one comparison: ${response.status} ${response.statusText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error(`Failed to load one-to-one comparison:`, error);
+    throw error;
+  }
+};
+
+export const loadCombinationComparison = async (
+  chapterId: string,
+  currentReportId: number,
+  previousReportId: number
+): Promise<{ comparison: MatrixComparison }> => {
+  try {
+    const response = await fetch(
+      `/api/chapters/${chapterId}/reports/${currentReportId}/compare/${previousReportId}/combination/`
+    );
+
+    if (!response.ok) {
+      throw new Error(`Failed to load combination comparison: ${response.status} ${response.statusText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error(`Failed to load combination comparison:`, error);
+    throw error;
+  }
 };

@@ -242,10 +242,10 @@ const FileUploadComponent: React.FC<FileUploadComponentProps> = ({
                 {files.map((file, index) => (
                   <div
                     key={index}
-                    className="flex items-center justify-between p-3 border rounded-lg"
+                    className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 border rounded-lg"
                   >
-                    <div className="flex items-center gap-3 flex-1">
-                      <File className="h-5 w-5 text-muted-foreground" />
+                    <div className="flex items-start gap-3 flex-1 min-w-0">
+                      <File className="h-5 w-5 text-muted-foreground mt-0.5 flex-shrink-0" />
                       <div className="flex-1 min-w-0">
                         <p className="font-medium truncate">
                           {file.name}
@@ -254,32 +254,29 @@ const FileUploadComponent: React.FC<FileUploadComponentProps> = ({
                           {file.size}
                         </p>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Select
-                          value={file.type}
-                          onValueChange={(value) => changeFileType(index, value as 'slip_audit' | 'member_names')}
-                        >
-                          <SelectTrigger className="w-40">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="slip_audit">Slip Audit</SelectItem>
-                            <SelectItem value="member_names">Member Names</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <Badge variant={file.type === 'slip_audit' ? 'default' : 'secondary'}>
-                          {file.type === 'slip_audit' ? 'Slip Audit' : 'Member Names'}
-                        </Badge>
-                      </div>
                     </div>
-                    <Button
-                      onClick={() => removeFile(index)}
-                      variant="ghost"
-                      size="sm"
-                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <Select
+                        value={file.type}
+                        onValueChange={(value) => changeFileType(index, value as 'slip_audit' | 'member_names')}
+                      >
+                        <SelectTrigger className="w-[160px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="slip_audit">Slip Audit</SelectItem>
+                          <SelectItem value="member_names">Member Names</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        onClick={() => removeFile(index)}
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 ))}
               </div>

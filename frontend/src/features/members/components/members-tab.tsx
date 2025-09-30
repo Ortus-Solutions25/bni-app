@@ -7,13 +7,13 @@ import {
   UserPlus,
   Loader2
 } from 'lucide-react';
-import { Card, CardContent } from '../../../shared/components/ui/card';
-import { Button } from '../../../shared/components/ui/button';
-import { Badge } from '../../../shared/components/ui/badge';
-import { Alert, AlertDescription } from '../../../shared/components/ui/alert';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../../../shared/components/ui/dialog';
-import { Input } from '../../../shared/components/ui/input';
-import { useToast } from '../../../shared/hooks/use-toast';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { useToast } from '@/hooks/use-toast';
 import { ChapterMemberData } from '../../../shared/services/ChapterDataLoader';
 
 interface Member {
@@ -121,7 +121,7 @@ const MembersTab: React.FC<MembersTabProps> = ({ chapterData, onMemberSelect, on
         toast({
           title: "Success!",
           description: "Member added successfully!",
-          variant: "success"
+          variant: "default"
         });
         handleCloseDialog();
         fetchMembers();

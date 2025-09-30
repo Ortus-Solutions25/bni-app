@@ -17,6 +17,8 @@ from bni.serializers import ChapterSerializer, MemberSerializer, MemberCreateSer
 from bni.services.excel_processor import ExcelProcessorService
 from bni.services.matrix_generator import MatrixGenerator, DataValidator
 from bni.services.bulk_upload_service import BulkUploadService
+from bni.services.chapter_service import ChapterService
+from bni.services.member_service import MemberService
 
 
 class FileUploadSerializer(serializers.Serializer):
@@ -1362,32 +1364,42 @@ def download_all_matrices(request, chapter_id, report_id):
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def create_chapter(request):
-    """Create a new chapter."""
-    serializer = ChapterSerializer(data=request.data)
-
-    if serializer.is_valid():
-        chapter = serializer.save()
-        return Response(
-            ChapterSerializer(chapter).data,
-            status=status.HTTP_201_CREATED
+    """Create a new chapter using ChapterService."""
+    try:
+        # Use ChapterService for consistent chapter creation
+        chapter, created = ChapterService.get_or_create_chapter(
+            name=request.data.get('name', ''),
+            location=request.data.get('location', 'Dubai'),
+            meeting_day=request.data.get('meeting_day', ''),
+            meeting_time=request.data.get('meeting_time'),
         )
 
-    return Response(
-        {'error': 'Invalid data', 'details': serializer.errors},
-        status=status.HTTP_400_BAD_REQUEST
-    )
+        return Response(
+            ChapterSerializer(chapter).data,
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK
+        )
+
+    except ValidationError as e:
+        return Response(
+            {'error': 'Invalid data', 'details': str(e)},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    except Exception as e:
+        return Response(
+            {'error': f'Failed to create chapter: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
 
 
 @api_view(['DELETE'])
 @permission_classes([AllowAny])
 def delete_chapter(request, chapter_id):
-    """Delete a chapter."""
+    """Delete a chapter using ChapterService."""
     try:
-        chapter = Chapter.objects.get(id=chapter_id)
-        chapter_name = chapter.name
-        chapter.delete()
+        result = ChapterService.delete_chapter(chapter_id)
         return Response(
-            {'message': f'Chapter "{chapter_name}" deleted successfully'},
+            {'message': f'Chapter "{result["chapter_name"]}" deleted successfully',
+             'members_deleted': result['members_deleted']},
             status=status.HTTP_200_OK
         )
     except Chapter.DoesNotExist:
@@ -1405,41 +1417,61 @@ def delete_chapter(request, chapter_id):
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def create_member(request, chapter_id):
-    """Create a new member in a specific chapter."""
+    """Create a new member using MemberService."""
     try:
-        chapter = Chapter.objects.get(id=chapter_id)
+        chapter = ChapterService.get_chapter(chapter_id)
     except Chapter.DoesNotExist:
         return Response(
             {'error': 'Chapter not found'},
             status=status.HTTP_404_NOT_FOUND
         )
 
-    # Add chapter to the request data
-    data = request.data.copy()
-    data['chapter'] = chapter_id
-
-    serializer = MemberCreateSerializer(data=data)
-
-    if serializer.is_valid():
-        member = serializer.save()
-        return Response(
-            MemberSerializer(member).data,
-            status=status.HTTP_201_CREATED
+    try:
+        # Use MemberService for consistent member creation
+        member, created = MemberService.get_or_create_member(
+            chapter=chapter,
+            first_name=request.data.get('first_name', ''),
+            last_name=request.data.get('last_name', ''),
+            business_name=request.data.get('business_name', ''),
+            classification=request.data.get('classification', ''),
+            email=request.data.get('email', ''),
+            phone=request.data.get('phone', ''),
+            is_active=request.data.get('is_active', True),
+            joined_date=request.data.get('joined_date'),
         )
 
-    return Response(
-        {'error': 'Invalid data', 'details': serializer.errors},
-        status=status.HTTP_400_BAD_REQUEST
-    )
+        return Response(
+            MemberSerializer(member).data,
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK
+        )
+
+    except ValidationError as e:
+        return Response(
+            {'error': 'Invalid data', 'details': str(e)},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    except Exception as e:
+        return Response(
+            {'error': f'Failed to create member: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
 
 
 @api_view(['PUT', 'PATCH'])
 @permission_classes([AllowAny])
 def update_member(request, chapter_id, member_id):
-    """Update a member's details."""
+    """Update a member using MemberService."""
     try:
-        chapter = Chapter.objects.get(id=chapter_id)
-        member = Member.objects.get(id=member_id, chapter=chapter)
+        chapter = ChapterService.get_chapter(chapter_id)
+        member = MemberService.get_member(member_id)
+
+        # Verify member belongs to chapter
+        if member.chapter.id != chapter.id:
+            return Response(
+                {'error': 'Member not found in this chapter'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
     except Chapter.DoesNotExist:
         return Response(
             {'error': 'Chapter not found'},
@@ -1451,32 +1483,51 @@ def update_member(request, chapter_id, member_id):
             status=status.HTTP_404_NOT_FOUND
         )
 
-    serializer = MemberUpdateSerializer(member, data=request.data, partial=(request.method == 'PATCH'))
+    try:
+        # Use MemberService for consistent member updates
+        updated_member, was_updated = MemberService.update_member(
+            member_id,
+            **request.data
+        )
 
-    if serializer.is_valid():
-        updated_member = serializer.save()
         return Response(
             MemberSerializer(updated_member).data,
             status=status.HTTP_200_OK
         )
 
-    return Response(
-        {'error': 'Invalid data', 'details': serializer.errors},
-        status=status.HTTP_400_BAD_REQUEST
-    )
+    except ValidationError as e:
+        return Response(
+            {'error': 'Invalid data', 'details': str(e)},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    except Exception as e:
+        return Response(
+            {'error': f'Failed to update member: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
 
 
 @api_view(['DELETE'])
 @permission_classes([AllowAny])
 def delete_member(request, chapter_id, member_id):
-    """Delete a member."""
+    """Delete a member using MemberService."""
     try:
-        chapter = Chapter.objects.get(id=chapter_id)
-        member = Member.objects.get(id=member_id, chapter=chapter)
-        member_name = member.full_name
-        member.delete()
+        chapter = ChapterService.get_chapter(chapter_id)
+        member = MemberService.get_member(member_id)
+
+        # Verify member belongs to chapter
+        if member.chapter.id != chapter.id:
+            return Response(
+                {'error': 'Member not found in this chapter'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        result = MemberService.delete_member(member_id)
         return Response(
-            {'message': f'Member "{member_name}" deleted successfully'},
+            {'message': f'Member "{result["member_name"]}" deleted successfully',
+             'referrals_deleted': result['referrals_deleted'],
+             'one_to_ones_deleted': result['one_to_ones_deleted'],
+             'tyfcbs_deleted': result['tyfcbs_deleted']},
             status=status.HTTP_200_OK
         )
     except Chapter.DoesNotExist:

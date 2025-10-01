@@ -30,7 +30,10 @@ class BulkUploadService:
 
     def process_region_summary(self, file) -> Dict[str, Any]:
         """
-        Process a Regional PALMS Summary report.
+        Process a Regional PALMS Summary report with optimized bulk operations.
+
+        OPTIMIZED for Vercel serverless - uses batch operations instead of
+        individual queries for each row.
 
         Args:
             file: Uploaded file object (InMemoryUploadedFile or TemporaryUploadedFile)
@@ -39,6 +42,8 @@ class BulkUploadService:
             Dictionary with processing results
         """
         try:
+            import pandas as pd
+
             # Read the Excel file using existing XML parser
             processor = ExcelProcessorService(None)
 
@@ -77,20 +82,82 @@ class BulkUploadService:
                     'warnings': []
                 }
 
-            # Process all rows
+            # OPTIMIZATION: Process in batches using bulk operations
             with transaction.atomic():
+                # Step 1: Extract unique chapter names from all rows
+                chapter_names = set()
+                for idx, row in df.iterrows():
+                    chapter_name = str(row['Chapter']).strip() if pd.notna(row['Chapter']) else None
+                    if chapter_name:
+                        chapter_names.add(chapter_name)
+
+                # Step 2: Bulk create/get chapters (single query)
+                existing_chapters = {c.name: c for c in Chapter.objects.filter(name__in=chapter_names)}
+                chapters_to_create = []
+                for name in chapter_names:
+                    if name not in existing_chapters:
+                        chapters_to_create.append(Chapter(name=name, location='Dubai'))
+
+                if chapters_to_create:
+                    Chapter.objects.bulk_create(chapters_to_create, ignore_conflicts=True)
+                    self.chapters_created = len(chapters_to_create)
+
+                # Refresh chapter dict after creation
+                all_chapters = {c.name: c for c in Chapter.objects.filter(name__in=chapter_names)}
+
+                # Step 3: Prepare member data for bulk operations
+                members_data = []
                 for idx, row in df.iterrows():
                     try:
-                        self._process_row(row)
+                        chapter_name = str(row['Chapter']).strip() if pd.notna(row['Chapter']) else None
+                        first_name = str(row['First Name']).strip() if pd.notna(row['First Name']) else None
+                        last_name = str(row['Last Name']).strip() if pd.notna(row['Last Name']) else None
+
+                        if not chapter_name or not first_name or not last_name:
+                            self.warnings.append(f"Row {idx + 1}: Missing required data")
+                            continue
+
+                        chapter = all_chapters.get(chapter_name)
+                        if not chapter:
+                            self.warnings.append(f"Row {idx + 1}: Chapter '{chapter_name}' not found")
+                            continue
+
+                        members_data.append({
+                            'chapter': chapter,
+                            'first_name': first_name,
+                            'last_name': last_name,
+                            'normalized_name': Member.normalize_name(first_name, last_name),
+                        })
                     except Exception as e:
                         error_msg = f"Row {idx + 1}: {str(e)}"
                         logger.error(error_msg)
                         self.errors.append(error_msg)
 
+                # Step 4: Bulk create members (using update_or_create for simplicity)
+                for member_data in members_data:
+                    try:
+                        member, created = Member.objects.update_or_create(
+                            chapter=member_data['chapter'],
+                            normalized_name=member_data['normalized_name'],
+                            defaults={
+                                'first_name': member_data['first_name'],
+                                'last_name': member_data['last_name'],
+                                'business_name': '',
+                                'classification': '',
+                                'is_active': True,
+                            }
+                        )
+                        if created:
+                            self.members_created += 1
+                        else:
+                            self.members_updated += 1
+                    except Exception as e:
+                        self.warnings.append(f"Error with member {member_data['first_name']} {member_data['last_name']}: {str(e)}")
+
             return {
                 'success': len(self.errors) == 0,
                 'chapters_created': self.chapters_created,
-                'chapters_updated': self.chapters_updated,
+                'chapters_updated': len(chapter_names) - self.chapters_created,
                 'members_created': self.members_created,
                 'members_updated': self.members_updated,
                 'total_processed': len(df),

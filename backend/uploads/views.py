@@ -71,8 +71,12 @@ class FileUploadViewSet(viewsets.ViewSet):
 
         Returns processing result with created records and any errors.
         """
+        # Log incoming request for debugging
+        logger.info(f"Excel upload request - Files: {list(request.FILES.keys())}, Data: {list(request.data.keys())}")
+
         serializer = FileUploadSerializer(data=request.data)
         if not serializer.is_valid():
+            logger.error(f"Serializer validation failed: {serializer.errors}")
             return Response(
                 {'error': 'Invalid data', 'details': serializer.errors},
                 status=status.HTTP_400_BAD_REQUEST
@@ -122,22 +126,36 @@ class FileUploadViewSet(viewsets.ViewSet):
                 )
 
             # Process using the new monthly report method
+            logger.info(f"Starting Excel processing for chapter {chapter.name}, month {month_year}")
             processor = ExcelProcessorService(chapter)
-            result = processor.process_monthly_report(
-                slip_audit_file=slip_audit_file,
-                member_names_file=member_names_file,
-                month_year=month_year
-            )
 
-            # Return appropriate status code based on result
-            if result.get('success'):
-                return Response(result, status=status.HTTP_200_OK)
-            else:
-                return Response(result, status=status.HTTP_400_BAD_REQUEST)
+            try:
+                result = processor.process_monthly_report(
+                    slip_audit_file=slip_audit_file,
+                    member_names_file=member_names_file,
+                    month_year=month_year
+                )
+
+                logger.info(f"Processing complete - Success: {result.get('success')}")
+
+                # Return appropriate status code based on result
+                if result.get('success'):
+                    return Response(result, status=status.HTTP_200_OK)
+                else:
+                    logger.error(f"Processing failed: {result.get('error', 'Unknown error')}")
+                    return Response(result, status=status.HTTP_400_BAD_REQUEST)
+
+            except Exception as proc_error:
+                logger.exception(f"Excel processing error: {str(proc_error)}")
+                return Response(
+                    {'error': f'Excel processing failed: {str(proc_error)}', 'success': False},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
 
         except Exception as e:
+            logger.exception(f"Upload endpoint error: {str(e)}")
             return Response(
-                {'error': f'Processing failed: {str(e)}'},
+                {'error': f'Upload failed: {str(e)}', 'success': False},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 

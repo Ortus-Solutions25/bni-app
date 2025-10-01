@@ -2,7 +2,7 @@ import React from 'react';
 import { Users, AlertCircle, Trash2, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { cn, formatCurrency } from '../../../shared/lib/utils';
+import { cn, formatCurrency } from '@/lib/utils';
 import { ChapterMemberData } from '../../../shared/services/ChapterDataLoader';
 
 interface ChapterCardProps {

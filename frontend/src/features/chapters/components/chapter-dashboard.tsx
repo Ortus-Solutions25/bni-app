@@ -1,12 +1,13 @@
 import React, { useState, useMemo } from 'react';
-import { Building2, ArrowUpDown, Loader2, CheckCircle } from 'lucide-react';
+import { Building2, ArrowUpDown, Loader2, Users } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import ChapterCard from './chapter-card';
 import ChapterErrorBoundary from './chapter-error-boundary';
 import ChapterCardSkeleton from '@/components/skeletons/ChapterCardSkeleton';
 import { ChapterMemberData, generateMockPerformanceMetrics } from '../../../shared/services/ChapterDataLoader';
-import { formatNumber } from '../../../shared/lib/utils';
+import { formatNumber } from '@/lib/utils';
 
 interface ChapterDashboardProps {
   chapterData: ChapterMemberData[];
@@ -58,11 +59,11 @@ const ChapterDashboard: React.FC<ChapterDashboardProps> = ({
 
   const dashboardStats = useMemo(() => {
     const totalMembers = processedChapterData.reduce((sum, chapter) => sum + chapter.memberCount, 0);
-    const successfulLoads = processedChapterData.filter(chapter => !chapter.loadError).length;
-    const totalChapters = processedChapterData.length;
-    const avgMembersPerChapter = totalChapters > 0 ? Math.round(totalMembers / totalChapters) : 0;
+    const biggestChapter = processedChapterData.reduce((max, chapter) =>
+      (!chapter.loadError && chapter.memberCount > max.memberCount) ? chapter : max
+    , { chapterName: '', memberCount: 0 } as ChapterMemberData);
 
-    return { totalMembers, successfulLoads, totalChapters, avgMembersPerChapter };
+    return { totalMembers, biggestChapter };
   }, [processedChapterData]);
 
 
@@ -90,7 +91,7 @@ const ChapterDashboard: React.FC<ChapterDashboardProps> = ({
   return (
     <ChapterErrorBoundary>
       <div className="space-y-6 sm:space-y-8 p-4 sm:p-6 animate-fade-in" data-testid="chapter-dashboard">
-      {/* Header Section */}
+      {/* Header Section with Stats Badges */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
@@ -100,64 +101,20 @@ const ChapterDashboard: React.FC<ChapterDashboardProps> = ({
             View and analyze your business networking chapters
           </p>
         </div>
-      </div>
-
-
-      {/* Dashboard Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6" data-testid="dashboard-stats">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Chapters</CardTitle>
-            <Building2 className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{dashboardStats.totalChapters}</div>
-            <p className="text-xs text-muted-foreground">
-              {dashboardStats.successfulLoads} loaded successfully
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Members</CardTitle>
-            <Building2 className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatNumber(dashboardStats.totalMembers)}</div>
-            <p className="text-xs text-muted-foreground">
-              Across all chapters
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Avg per Chapter</CardTitle>
-            <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{dashboardStats.avgMembersPerChapter}</div>
-            <p className="text-xs text-muted-foreground">
-              Members per chapter
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Data Quality</CardTitle>
-            <CheckCircle className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {Math.round((dashboardStats.successfulLoads / dashboardStats.totalChapters) * 100)}%
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Successful loads
-            </p>
-          </CardContent>
-        </Card>
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant="secondary" className="flex items-center gap-1.5 px-3 py-1.5">
+            <Users className="h-3.5 w-3.5" />
+            <span className="font-semibold">{formatNumber(dashboardStats.totalMembers)}</span>
+            <span className="text-xs opacity-80">Total Members</span>
+          </Badge>
+          {dashboardStats.biggestChapter.chapterName && (
+            <Badge variant="outline" className="flex items-center gap-1.5 px-3 py-1.5">
+              <Building2 className="h-3.5 w-3.5" />
+              <span className="font-semibold">{dashboardStats.biggestChapter.chapterName}</span>
+              <span className="text-xs opacity-80">({dashboardStats.biggestChapter.memberCount} members)</span>
+            </Badge>
+          )}
+        </div>
       </div>
 
 

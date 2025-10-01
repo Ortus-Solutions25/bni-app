@@ -372,15 +372,15 @@ class ExcelProcessorService:
             self.warnings.append(f"Row {row_idx + 1}: Self-referral detected, skipping")
             return False
         
-        # Create referral (duplicates already cleared at start)
+        # Create or get referral (use get_or_create until migration is applied)
         try:
-            Referral.objects.create(
+            referral, created = Referral.objects.get_or_create(
                 giver=giver,
                 receiver=receiver,
                 date_given=week_of_date or timezone.now().date(),
-                week_of=week_of_date
+                defaults={'week_of': week_of_date}
             )
-            return True
+            return created
         except Exception as e:
             self.errors.append(f"Row {row_idx + 1}: Referral creation error: {e}")
             return False

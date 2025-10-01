@@ -91,16 +91,11 @@ const ChapterDashboard: React.FC<ChapterDashboardProps> = ({
   return (
     <ChapterErrorBoundary>
       <div className="space-y-6 sm:space-y-8 p-4 sm:p-6 animate-fade-in" data-testid="chapter-dashboard">
-      {/* Header Section with Stats Badges */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
-            BNI Chapter Dashboard
-          </h1>
-          <p className="text-sm sm:text-base text-muted-foreground mt-2">
-            View and analyze your business networking chapters
-          </p>
-        </div>
+      {/* Minimal Header with Stats */}
+      <div className="flex items-center justify-between gap-4">
+        <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
+          BNI Chapter Dashboard
+        </h1>
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="secondary" className="flex items-center gap-1.5 px-3 py-1.5">
             <Users className="h-3.5 w-3.5" />

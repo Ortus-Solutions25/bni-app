@@ -281,57 +281,79 @@ class ExcelProcessorService:
         
         return None
     
-    def _process_dataframe(self, df: pd.DataFrame, members_lookup: Dict[str, Member], 
+    def _process_dataframe(self, df: pd.DataFrame, members_lookup: Dict[str, Member],
                           week_of_date: Optional[date]) -> Dict:
-        """Process DataFrame and create database records."""
+        """Process DataFrame and create database records using bulk operations."""
         results = {
             'referrals_created': 0,
             'one_to_ones_created': 0,
             'tyfcbs_created': 0,
             'total_processed': 0,
         }
-        
-        with transaction.atomic():
-            for idx, row in df.iterrows():
-                try:
-                    # Skip first 3 rows (metadata + headers: rows 0, 1, 2)
-                    if idx < 3:
-                        continue
 
-                    # Extract data from row
-                    giver_name = self._get_cell_value(row, self.COLUMN_MAPPINGS['giver_name'])
-                    receiver_name = self._get_cell_value(row, self.COLUMN_MAPPINGS['receiver_name'])
-                    slip_type = self._get_cell_value(row, self.COLUMN_MAPPINGS['slip_type'])
-                    
-                    if not slip_type:
-                        continue
-                    
-                    normalized_slip_type = self._normalize_slip_type(slip_type)
-                    if not normalized_slip_type:
-                        self.warnings.append(f"Row {idx + 1}: Unknown slip type '{slip_type}'")
-                        continue
-                    
-                    results['total_processed'] += 1
-                    
-                    # Process based on slip type
-                    if normalized_slip_type == 'referral':
-                        if self._process_referral(row, idx, giver_name, receiver_name, 
-                                                members_lookup, week_of_date):
-                            results['referrals_created'] += 1
-                    
-                    elif normalized_slip_type == 'one_to_one':
-                        if self._process_one_to_one(row, idx, giver_name, receiver_name,
-                                                  members_lookup, week_of_date):
-                            results['one_to_ones_created'] += 1
-                    
-                    elif normalized_slip_type == 'tyfcb':
-                        if self._process_tyfcb(row, idx, giver_name, receiver_name,
-                                             members_lookup, week_of_date):
-                            results['tyfcbs_created'] += 1
-                
-                except Exception as e:
-                    self.errors.append(f"Row {idx + 1}: {str(e)}")
+        # Collect objects for bulk insert
+        referrals_to_create = []
+        one_to_ones_to_create = []
+        tyfcbs_to_create = []
+
+        # First pass: validate and prepare objects
+        for idx, row in df.iterrows():
+            try:
+                # Skip first 3 rows (metadata + headers: rows 0, 1, 2)
+                if idx < 3:
                     continue
+
+                # Extract data from row
+                giver_name = self._get_cell_value(row, self.COLUMN_MAPPINGS['giver_name'])
+                receiver_name = self._get_cell_value(row, self.COLUMN_MAPPINGS['receiver_name'])
+                slip_type = self._get_cell_value(row, self.COLUMN_MAPPINGS['slip_type'])
+
+                if not slip_type:
+                    continue
+
+                normalized_slip_type = self._normalize_slip_type(slip_type)
+                if not normalized_slip_type:
+                    self.warnings.append(f"Row {idx + 1}: Unknown slip type '{slip_type}'")
+                    continue
+
+                results['total_processed'] += 1
+
+                # Prepare objects based on slip type
+                if normalized_slip_type == 'referral':
+                    obj = self._prepare_referral(row, idx, giver_name, receiver_name,
+                                                members_lookup, week_of_date)
+                    if obj:
+                        referrals_to_create.append(obj)
+
+                elif normalized_slip_type == 'one_to_one':
+                    obj = self._prepare_one_to_one(row, idx, giver_name, receiver_name,
+                                                  members_lookup, week_of_date)
+                    if obj:
+                        one_to_ones_to_create.append(obj)
+
+                elif normalized_slip_type == 'tyfcb':
+                    obj = self._prepare_tyfcb(row, idx, giver_name, receiver_name,
+                                             members_lookup, week_of_date)
+                    if obj:
+                        tyfcbs_to_create.append(obj)
+
+            except Exception as e:
+                self.errors.append(f"Row {idx + 1}: {str(e)}")
+                continue
+
+        # Bulk insert all objects
+        with transaction.atomic():
+            if referrals_to_create:
+                Referral.objects.bulk_create(referrals_to_create, ignore_conflicts=True)
+                results['referrals_created'] = len(referrals_to_create)
+
+            if one_to_ones_to_create:
+                OneToOne.objects.bulk_create(one_to_ones_to_create, ignore_conflicts=True)
+                results['one_to_ones_created'] = len(one_to_ones_to_create)
+
+            if tyfcbs_to_create:
+                TYFCB.objects.bulk_create(tyfcbs_to_create, ignore_conflicts=True)
+                results['tyfcbs_created'] = len(tyfcbs_to_create)
 
         # Add success flag and error message if any
         results['success'] = len(self.errors) == 0
@@ -348,7 +370,109 @@ class ExcelProcessorService:
             return str(row.iloc[column_index]).strip()
         except (IndexError, AttributeError):
             return None
-    
+
+    def _prepare_referral(self, row: pd.Series, row_idx: int, giver_name: str,
+                         receiver_name: str, members_lookup: Dict[str, Member],
+                         week_of_date: Optional[date]) -> Optional[Referral]:
+        """Prepare a referral object for bulk insert."""
+        if not all([giver_name, receiver_name]):
+            self.warnings.append(f"Row {row_idx + 1}: Referral missing giver or receiver name")
+            return None
+
+        giver = self._find_member_by_name(giver_name, members_lookup)
+        receiver = self._find_member_by_name(receiver_name, members_lookup)
+
+        if not giver:
+            self.warnings.append(f"Row {row_idx + 1}: Could not find giver '{giver_name}'")
+            return None
+
+        if not receiver:
+            self.warnings.append(f"Row {row_idx + 1}: Could not find receiver '{receiver_name}'")
+            return None
+
+        if giver == receiver:
+            self.warnings.append(f"Row {row_idx + 1}: Self-referral detected, skipping")
+            return None
+
+        return Referral(
+            giver=giver,
+            receiver=receiver,
+            date_given=week_of_date or timezone.now().date(),
+            week_of=week_of_date
+        )
+
+    def _prepare_one_to_one(self, row: pd.Series, row_idx: int, giver_name: str,
+                           receiver_name: str, members_lookup: Dict[str, Member],
+                           week_of_date: Optional[date]) -> Optional[OneToOne]:
+        """Prepare a one-to-one object for bulk insert."""
+        if not all([giver_name, receiver_name]):
+            self.warnings.append(f"Row {row_idx + 1}: One-to-one missing member names")
+            return None
+
+        member1 = self._find_member_by_name(giver_name, members_lookup)
+        member2 = self._find_member_by_name(receiver_name, members_lookup)
+
+        if not member1:
+            self.warnings.append(f"Row {row_idx + 1}: Could not find member '{giver_name}'")
+            return None
+
+        if not member2:
+            self.warnings.append(f"Row {row_idx + 1}: Could not find member '{receiver_name}'")
+            return None
+
+        if member1 == member2:
+            self.warnings.append(f"Row {row_idx + 1}: Self-meeting detected, skipping")
+            return None
+
+        return OneToOne(
+            member1=member1,
+            member2=member2,
+            meeting_date=week_of_date or timezone.now().date(),
+            week_of=week_of_date
+        )
+
+    def _prepare_tyfcb(self, row: pd.Series, row_idx: int, giver_name: str,
+                      receiver_name: str, members_lookup: Dict[str, Member],
+                      week_of_date: Optional[date]) -> Optional[TYFCB]:
+        """Prepare a TYFCB object for bulk insert."""
+        if not receiver_name:
+            self.warnings.append(f"Row {row_idx + 1}: TYFCB missing receiver name")
+            return None
+
+        receiver = self._find_member_by_name(receiver_name, members_lookup)
+        if not receiver:
+            self.warnings.append(f"Row {row_idx + 1}: Could not find receiver '{receiver_name}'")
+            return None
+
+        giver = None
+        if giver_name:
+            giver = self._find_member_by_name(giver_name, members_lookup)
+
+        # Extract amount
+        amount_str = self._get_cell_value(row, self.COLUMN_MAPPINGS['tyfcb_amount'])
+        amount = self._parse_currency_amount(amount_str)
+
+        if amount <= 0:
+            self.warnings.append(f"Row {row_idx + 1}: Invalid TYFCB amount: {amount_str}")
+            return None
+
+        # Determine if inside or outside chapter
+        inside_outside = self._get_cell_value(row, self.COLUMN_MAPPINGS['inside_outside'])
+        within_chapter = bool(inside_outside and inside_outside.lower().strip() == 'inside')
+
+        # Extract detail/description
+        detail = self._get_cell_value(row, self.COLUMN_MAPPINGS['detail'])
+
+        return TYFCB(
+            receiver=receiver,
+            giver=giver,
+            amount=Decimal(str(amount)),
+            within_chapter=within_chapter,
+            date_closed=week_of_date or timezone.now().date(),
+            description=detail or "",
+            week_of=week_of_date
+        )
+
     def _process_referral(self, row: pd.Series, row_idx: int, giver_name: str, 
                          receiver_name: str, members_lookup: Dict[str, Member],
                          week_of_date: Optional[date]) -> bool:
@@ -372,15 +496,15 @@ class ExcelProcessorService:
             self.warnings.append(f"Row {row_idx + 1}: Self-referral detected, skipping")
             return False
         
-        # Create or get referral (use get_or_create until migration is applied)
+        # Create referral directly (migration applied, no unique constraint)
         try:
-            referral, created = Referral.objects.get_or_create(
+            Referral.objects.create(
                 giver=giver,
                 receiver=receiver,
                 date_given=week_of_date or timezone.now().date(),
-                defaults={'week_of': week_of_date}
+                week_of=week_of_date
             )
-            return created
+            return True
         except Exception as e:
             self.errors.append(f"Row {row_idx + 1}: Referral creation error: {e}")
             return False

@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
-import { Building2, Loader2, Users } from 'lucide-react';
+import { Building2, Loader2, Users, Settings } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import ChapterCard from './chapter-card';
@@ -21,6 +22,8 @@ const ChapterDashboard: React.FC<ChapterDashboardProps> = ({
   onChapterSelect,
   onChapterAdded,
 }) => {
+  const navigate = useNavigate();
+
   const processedChapterData = useMemo(() => {
     return chapterData.map(chapter => ({
       ...chapter,
@@ -62,11 +65,17 @@ const ChapterDashboard: React.FC<ChapterDashboardProps> = ({
   return (
     <ChapterErrorBoundary>
       <div className="space-y-6 sm:space-y-8 p-4 sm:p-6 animate-fade-in" data-testid="chapter-dashboard">
-      {/* Minimal Header with Stats */}
+      {/* Clickable Header with Stats */}
       <div className="flex items-center justify-between gap-4">
-        <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
-          BNI Chapter Dashboard
-        </h1>
+        <button
+          onClick={() => navigate('/admin')}
+          className="group flex items-center gap-3 hover:opacity-80 transition-opacity"
+        >
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
+            BNI Chapter Dashboard
+          </h1>
+          <Settings className="h-5 w-5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+        </button>
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="secondary" className="flex items-center gap-1.5 px-3 py-1.5">
             <Users className="h-3.5 w-3.5" />

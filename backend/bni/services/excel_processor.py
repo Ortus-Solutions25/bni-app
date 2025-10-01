@@ -133,13 +133,14 @@ class ExcelProcessorService:
     def _parse_xml_excel(self, xml_file_path: str) -> pd.DataFrame:
         """
         Parse XML-based Excel files (like BNI audit reports) and convert to DataFrame.
+        Handles sparse cells (cells with Index attribute indicating position).
         """
         import xml.etree.ElementTree as ET
-        
+
         # Parse the XML
         tree = ET.parse(xml_file_path)
         root = tree.getroot()
-        
+
         # Define namespace
         ns = {
             'ss': 'urn:schemas-microsoft-com:office:spreadsheet',
@@ -147,54 +148,72 @@ class ExcelProcessorService:
             'x': 'urn:schemas-microsoft-com:office:excel',
             'html': 'http://www.w3.org/TR/REC-html40'
         }
-        
+
         # Find the worksheet
         worksheet = root.find('.//ss:Worksheet', ns)
         if worksheet is None:
             raise ValueError("No worksheet found in XML file")
-        
+
         # Find the table
         table = worksheet.find('.//ss:Table', ns)
         if table is None:
             raise ValueError("No table found in worksheet")
-        
+
         # Extract data from rows
         data_rows = []
         headers = []
-        
+        max_cols = 0
+
         rows = table.findall('.//ss:Row', ns)
         for i, row in enumerate(rows):
             cells = row.findall('.//ss:Cell', ns)
             row_data = []
-            
+            col_index = 0
+
             for cell in cells:
+                # Check if cell has an Index attribute (sparse cells)
+                index_attr = cell.get(f'{{{ns["ss"]}}}Index')
+                if index_attr:
+                    # Cell is at specific index (1-based), fill gaps with empty strings
+                    target_index = int(index_attr) - 1
+                    while col_index < target_index:
+                        row_data.append("")
+                        col_index += 1
+
+                # Extract cell value
                 data_elem = cell.find('.//ss:Data', ns)
                 if data_elem is not None:
                     cell_value = data_elem.text if data_elem.text else ""
                 else:
                     cell_value = ""
                 row_data.append(cell_value)
-            
+                col_index += 1
+
+            # Track maximum column count
+            max_cols = max(max_cols, len(row_data))
+
             if i == 0:
                 # First row is headers
                 headers = row_data
             else:
                 # Data rows
                 data_rows.append(row_data)
-        
+
         # Create DataFrame
         if not headers:
             raise ValueError("No headers found in XML file")
-        
-        # Pad data rows to match header length
-        max_cols = len(headers)
+
+        # Pad headers and data rows to match maximum column count
+        while len(headers) < max_cols:
+            headers.append(f"Column_{len(headers)}")
+
         for row in data_rows:
             while len(row) < max_cols:
                 row.append("")
-        
+
         df = pd.DataFrame(data_rows, columns=headers)
-        logger.info(f"Successfully parsed XML Excel file with {len(df)} rows and columns: {list(df.columns)}")
-        
+        logger.info(f"Successfully parsed XML Excel file with {len(df)} rows and {len(df.columns)} columns")
+
         return df
     
     def _get_members_lookup(self) -> Dict[str, Member]:
@@ -796,13 +815,14 @@ class BNIMonthlyDataImportService:
     def _parse_xml_excel(self, xml_file_path: str) -> pd.DataFrame:
         """
         Parse XML-based Excel files (like BNI audit reports) and convert to DataFrame.
+        Handles sparse cells (cells with Index attribute indicating position).
         """
         import xml.etree.ElementTree as ET
-        
+
         # Parse the XML
         tree = ET.parse(xml_file_path)
         root = tree.getroot()
-        
+
         # Define namespace
         ns = {
             'ss': 'urn:schemas-microsoft-com:office:spreadsheet',
@@ -810,54 +830,72 @@ class BNIMonthlyDataImportService:
             'x': 'urn:schemas-microsoft-com:office:excel',
             'html': 'http://www.w3.org/TR/REC-html40'
         }
-        
+
         # Find the worksheet
         worksheet = root.find('.//ss:Worksheet', ns)
         if worksheet is None:
             raise ValueError("No worksheet found in XML file")
-        
+
         # Find the table
         table = worksheet.find('.//ss:Table', ns)
         if table is None:
             raise ValueError("No table found in worksheet")
-        
+
         # Extract data from rows
         data_rows = []
         headers = []
-        
+        max_cols = 0
+
         rows = table.findall('.//ss:Row', ns)
         for i, row in enumerate(rows):
             cells = row.findall('.//ss:Cell', ns)
             row_data = []
-            
+            col_index = 0
+
             for cell in cells:
+                # Check if cell has an Index attribute (sparse cells)
+                index_attr = cell.get(f'{{{ns["ss"]}}}Index')
+                if index_attr:
+                    # Cell is at specific index (1-based), fill gaps with empty strings
+                    target_index = int(index_attr) - 1
+                    while col_index < target_index:
+                        row_data.append("")
+                        col_index += 1
+
+                # Extract cell value
                 data_elem = cell.find('.//ss:Data', ns)
                 if data_elem is not None:
                     cell_value = data_elem.text if data_elem.text else ""
                 else:
                     cell_value = ""
                 row_data.append(cell_value)
-            
+                col_index += 1
+
+            # Track maximum column count
+            max_cols = max(max_cols, len(row_data))
+
             if i == 0:
                 # First row is headers
                 headers = row_data
             else:
                 # Data rows
                 data_rows.append(row_data)
-        
+
         # Create DataFrame
         if not headers:
             raise ValueError("No headers found in XML file")
-        
-        # Pad data rows to match header length
-        max_cols = len(headers)
+
+        # Pad headers and data rows to match maximum column count
+        while len(headers) < max_cols:
+            headers.append(f"Column_{len(headers)}")
+
         for row in data_rows:
             while len(row) < max_cols:
                 row.append("")
-        
+
         df = pd.DataFrame(data_rows, columns=headers)
-        logger.info(f"Successfully parsed XML Excel file with {len(df)} rows and columns: {list(df.columns)}")
-        
+        logger.info(f"Successfully parsed XML Excel file with {len(df)} rows and {len(df.columns)} columns")
+
         return df
     
     def _process_member_data(self, df: pd.DataFrame, chapter: Chapter, report_month: date):

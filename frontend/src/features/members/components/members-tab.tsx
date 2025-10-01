@@ -15,6 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { ChapterMemberData } from '../../../shared/services/ChapterDataLoader';
+import { API_BASE_URL } from '@/config/api';
 
 interface Member {
   id: number;
@@ -59,8 +60,8 @@ const MembersTab: React.FC<MembersTabProps> = ({ chapterData, onMemberSelect, on
     setIsLoading(true);
     setError(null);
 
-    try {
-      const response = await fetch(`/api/chapters/${chapterData.chapterId}/`);
+    try{
+      const response = await fetch(`${API_BASE_URL}/api/chapters/${chapterData.chapterId}/`);
 
       if (!response.ok) {
         throw new Error(`API request failed: ${response.status} ${response.statusText}`);
@@ -109,7 +110,7 @@ const MembersTab: React.FC<MembersTabProps> = ({ chapterData, onMemberSelect, on
   const handleSubmit = async () => {
     setIsSubmitting(true);
     try {
-      const response = await fetch(`http://localhost:8000/api/chapters/${chapterData.chapterId}/members/`, {
+      const response = await fetch(`${API_BASE_URL}/api/chapters/${chapterData.chapterId}/members/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

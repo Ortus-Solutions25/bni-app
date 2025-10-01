@@ -83,7 +83,7 @@ function AppContent() {
                 </span>
               </div>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
               {!isHomePage && (
                 <Button
                   variant="ghost"
@@ -96,19 +96,14 @@ function AppContent() {
                 </Button>
               )}
               <Button
-                variant={isAdminPage ? "default" : "ghost"}
+                variant={isAdminPage ? "default" : "secondary"}
                 size="sm"
                 onClick={() => navigate(isAdminPage ? '/' : '/admin')}
-                className="flex items-center gap-2"
+                className="flex items-center gap-2 font-semibold"
               >
                 <Settings className="h-4 w-4" />
-                <span className="hidden sm:inline">
-                  {isAdminPage ? 'Exit Admin' : 'Admin'}
-                </span>
+                <span>{isAdminPage ? 'Exit Admin' : 'Admin'}</span>
               </Button>
-              <span className="text-sm text-muted-foreground font-medium">
-                Version 2.0
-              </span>
             </div>
           </div>
         </header>

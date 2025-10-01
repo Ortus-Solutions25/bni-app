@@ -44,8 +44,8 @@ class MonthlyReportViewSet(viewsets.ModelViewSet):
                     'month_year': report.month_year,
                     'uploaded_at': report.uploaded_at,
                     'processed_at': report.processed_at,
-                    'slip_audit_file': report.slip_audit_file.name if report.slip_audit_file else None,
-                    'member_names_file': report.member_names_file.name if report.member_names_file else None,
+                    'slip_audit_file': report.slip_audit_file if report.slip_audit_file else None,
+                    'member_names_file': report.member_names_file if report.member_names_file else None,
                     'has_referral_matrix': bool(report.referral_matrix_data),
                     'has_oto_matrix': bool(report.oto_matrix_data),
                     'has_combination_matrix': bool(report.combination_matrix_data)

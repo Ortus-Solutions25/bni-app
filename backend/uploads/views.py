@@ -19,7 +19,11 @@ logger = logging.getLogger(__name__)
 
 class FileUploadSerializer(serializers.Serializer):
     """Serializer for file upload validation."""
-    slip_audit_file = serializers.FileField()
+    slip_audit_files = serializers.ListField(
+        child=serializers.FileField(),
+        allow_empty=False,
+        help_text="One or more slip audit files to compile into a single monthly report"
+    )
     member_names_file = serializers.FileField(required=False)
     chapter_id = serializers.IntegerField()
     month_year = serializers.CharField(max_length=7, required=False, allow_blank=True, help_text="e.g., '2024-06' (optional, will be extracted from filename if not provided)")
@@ -90,15 +94,17 @@ class FileUploadViewSet(viewsets.ViewSet):
 
         try:
             # Get validated data
-            slip_audit_file = serializer.validated_data['slip_audit_file']
+            slip_audit_files = serializer.validated_data['slip_audit_files']
             member_names_file = serializer.validated_data.get('member_names_file')
             chapter_id = serializer.validated_data['chapter_id']
             month_year = serializer.validated_data.get('month_year')
             upload_option = serializer.validated_data['upload_option']
 
-            # If month_year not provided, try to extract from filename (optional, non-blocking)
+            logger.info(f"Processing {len(slip_audit_files)} slip audit file(s)")
+
+            # If month_year not provided, try to extract from first filename (optional, non-blocking)
             if not month_year:
-                extracted_date = self._extract_date_from_filename(slip_audit_file.name)
+                extracted_date = self._extract_date_from_filename(slip_audit_files[0].name)
                 if extracted_date:
                     month_year = extracted_date
                     logger.info(f"Extracted date from filename: {month_year}")
@@ -119,11 +125,12 @@ class FileUploadViewSet(viewsets.ViewSet):
                 )
 
             # Validate file types
-            if not slip_audit_file.name.lower().endswith(('.xls', '.xlsx')):
-                return Response(
-                    {'error': 'Only .xls and .xlsx files are supported for slip audit file'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
+            for slip_file in slip_audit_files:
+                if not slip_file.name.lower().endswith(('.xls', '.xlsx')):
+                    return Response(
+                        {'error': f'Only .xls and .xlsx files are supported. Invalid file: {slip_file.name}'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
 
             if member_names_file and not member_names_file.name.lower().endswith(('.xls', '.xlsx')):
                 return Response(
@@ -133,11 +140,12 @@ class FileUploadViewSet(viewsets.ViewSet):
 
             # Process using the new monthly report method
             logger.info(f"Starting Excel processing for chapter {chapter.name}, month {month_year}")
+            logger.info(f"Processing {len(slip_audit_files)} slip audit files: {[f.name for f in slip_audit_files]}")
             processor = ExcelProcessorService(chapter)
 
             try:
-                result = processor.process_monthly_report(
-                    slip_audit_file=slip_audit_file,
+                result = processor.process_monthly_reports_batch(
+                    slip_audit_files=slip_audit_files,
                     member_names_file=member_names_file,
                     month_year=month_year
                 )

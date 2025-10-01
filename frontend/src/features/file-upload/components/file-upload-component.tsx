@@ -128,8 +128,8 @@ const FileUploadComponent: React.FC<FileUploadComponentProps> = ({
       return;
     }
 
-    const slipAuditFile = files.find(f => f.type === 'slip_audit');
-    if (!slipAuditFile) {
+    const slipAuditFiles = files.filter(f => f.type === 'slip_audit');
+    if (slipAuditFiles.length === 0) {
       setUploadResult({type: 'error', message: 'Please select at least one slip audit file'});
       return;
     }
@@ -141,7 +141,11 @@ const FileUploadComponent: React.FC<FileUploadComponentProps> = ({
 
     try {
       const formData = new FormData();
-      formData.append('slip_audit_file', slipAuditFile.file);
+
+      // Append all slip audit files
+      slipAuditFiles.forEach((slipFile) => {
+        formData.append('slip_audit_files', slipFile.file);
+      });
 
       const memberNamesFile = files.find(f => f.type === 'member_names');
       if (memberNamesFile) {

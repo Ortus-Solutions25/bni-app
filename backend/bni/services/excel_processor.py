@@ -327,7 +327,9 @@ class ExcelProcessorService:
                 except Exception as e:
                     self.errors.append(f"Row {idx + 1}: {str(e)}")
                     continue
-        
+
+        # Add success flag
+        results['success'] = len(self.errors) == 0
         return results
     
     def _get_cell_value(self, row: pd.Series, column_index: int) -> Optional[str]:
@@ -498,6 +500,190 @@ class ExcelProcessorService:
             'warnings': [],
         }
     
+    def process_monthly_reports_batch(self, slip_audit_files: list, member_names_file, month_year: str) -> Dict:
+        """
+        Process multiple slip audit files and compile them into a single MonthlyReport.
+
+        Args:
+            slip_audit_files: List of Excel files with slip audit data (one per week)
+            member_names_file: Optional file with member names
+            month_year: Month in format '2024-06'
+
+        Returns:
+            Dictionary with processing results from all files combined
+        """
+        try:
+            with transaction.atomic():
+                # First, clear any existing data for this month to avoid duplicates
+                from analytics.models import Referral, OneToOne, TYFCB
+
+                # Delete existing monthly report and all associated analytics data
+                existing_report = MonthlyReport.objects.filter(
+                    chapter=self.chapter,
+                    month_year=month_year
+                ).first()
+
+                if existing_report:
+                    logger.info(f"Clearing existing report for {self.chapter.name} - {month_year}")
+                    # Delete all analytics data for this chapter/month
+                    Referral.objects.filter(giver__chapter=self.chapter).delete()
+                    OneToOne.objects.filter(member1__chapter=self.chapter).delete()
+                    TYFCB.objects.filter(receiver__chapter=self.chapter).delete()
+                    # Delete the report itself
+                    existing_report.delete()
+
+                # Create new MonthlyReport
+                slip_filenames = [f.name if hasattr(f, 'name') else 'slip_audit.xls' for f in slip_audit_files]
+                member_filename = member_names_file.name if member_names_file and hasattr(member_names_file, 'name') else None
+
+                monthly_report = MonthlyReport.objects.create(
+                    chapter=self.chapter,
+                    month_year=month_year,
+                    slip_audit_file=', '.join(slip_filenames),  # Store all filenames
+                    member_names_file=member_filename,
+                )
+
+                # Process member_names_file first if provided
+                members_created = 0
+                members_updated = 0
+                if member_names_file:
+                    result = self._process_member_names_file(member_names_file)
+                    members_created = result['created']
+                    members_updated = result['updated']
+
+                # Process all slip audit files and accumulate results
+                total_referrals = 0
+                total_one_to_ones = 0
+                total_tyfcbs = 0
+                total_processed = 0
+
+                for slip_file in slip_audit_files:
+                    logger.info(f"Processing file: {slip_file.name}")
+                    result = self._process_single_slip_file(slip_file)
+
+                    if not result['success']:
+                        # If any file fails, rollback everything
+                        raise Exception(f"Failed to process {slip_file.name}: {result.get('error')}")
+
+                    total_referrals += result['referrals_created']
+                    total_one_to_ones += result['one_to_ones_created']
+                    total_tyfcbs += result['tyfcbs_created']
+                    total_processed += result['total_processed']
+
+                # Generate and cache matrices after all data is saved
+                monthly_report.processed_at = timezone.now()
+                monthly_report.save()
+                self._generate_and_cache_matrices(monthly_report)
+
+                return {
+                    'success': True,
+                    'monthly_report_id': monthly_report.id,
+                    'month_year': monthly_report.month_year,
+                    'files_processed': len(slip_audit_files),
+                    'members_created': members_created,
+                    'members_updated': members_updated,
+                    'referrals_created': total_referrals,
+                    'one_to_ones_created': total_one_to_ones,
+                    'tyfcbs_created': total_tyfcbs,
+                    'total_processed': total_processed,
+                    'errors': self.errors,
+                    'warnings': self.warnings,
+                }
+
+        except Exception as e:
+            logger.exception(f"Error processing monthly reports batch for {self.chapter}")
+            return self._create_error_result(f"Processing failed: {str(e)}")
+
+    def _process_member_names_file(self, member_names_file) -> Dict:
+        """Process member names file and return counts."""
+        import tempfile
+        import os
+
+        members_created = 0
+        members_updated = 0
+
+        # Read member names file
+        if hasattr(member_names_file, 'temporary_file_path'):
+            member_names_path = member_names_file.temporary_file_path()
+            member_df = self._parse_xml_excel(member_names_path)
+        else:
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.xls') as temp_file:
+                for chunk in member_names_file.chunks():
+                    temp_file.write(chunk)
+                temp_file.flush()
+
+                try:
+                    member_df = self._parse_xml_excel(temp_file.name)
+                finally:
+                    os.unlink(temp_file.name)
+
+        # Process members
+        for index, row in member_df.iterrows():
+            try:
+                if 'First Name' in row and 'Last Name' in row:
+                    first_name = row['First Name']
+                    last_name = row['Last Name']
+                else:
+                    continue
+
+                if pd.isna(first_name) or pd.isna(last_name):
+                    continue
+
+                first_name_str = str(first_name).strip()
+                last_name_str = str(last_name).strip()
+
+                if not first_name_str or not last_name_str:
+                    continue
+
+                member, created = MemberService.get_or_create_member(
+                    chapter=self.chapter,
+                    first_name=first_name_str,
+                    last_name=last_name_str,
+                    business_name='',
+                    classification='',
+                    is_active=True
+                )
+
+                if created:
+                    members_created += 1
+                else:
+                    members_updated += 1
+
+            except Exception as e:
+                logger.error(f"Error processing member row {index}: {str(e)}")
+                self.warnings.append(f"Error processing member row {index}: {str(e)}")
+
+        return {'created': members_created, 'updated': members_updated}
+
+    def _process_single_slip_file(self, slip_audit_file) -> Dict:
+        """Process a single slip audit file and return results."""
+        import tempfile
+        import os
+
+        # Handle both InMemoryUploadedFile and TemporaryUploadedFile
+        if hasattr(slip_audit_file, 'temporary_file_path'):
+            temp_file_path = slip_audit_file.temporary_file_path()
+            df = self._read_excel_file(Path(temp_file_path))
+        else:
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.xls') as temp_file:
+                for chunk in slip_audit_file.chunks():
+                    temp_file.write(chunk)
+                    temp_file.flush()
+
+                try:
+                    df = self._read_excel_file(Path(temp_file.name))
+                finally:
+                    os.unlink(temp_file.name)
+
+        if df is None:
+            return {'success': False, 'error': 'Failed to read Excel file'}
+
+        # Get members lookup
+        members_lookup = self._get_members_lookup()
+
+        # Process the data
+        return self._process_dataframe(df, members_lookup, None)
+
     def process_monthly_report(self, slip_audit_file, member_names_file, month_year: str) -> Dict:
         """
         Process files and create a MonthlyReport with processed matrix data.

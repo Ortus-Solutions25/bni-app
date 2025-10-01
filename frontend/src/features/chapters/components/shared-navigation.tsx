@@ -19,10 +19,24 @@ export const SharedNavigation: React.FC<SharedNavigationProps> = ({
 
   const tabs = [
     { id: 'dashboard', label: 'Chapter Dashboard', icon: Building2, path: '/' },
-    { id: 'admin', label: 'Admin Dashboard', icon: Settings, path: '/admin' }
+    { id: 'upload', label: 'Data Upload', icon: Settings, path: '/admin/upload' },
+    { id: 'bulk', label: 'Bulk Operations', icon: Settings, path: '/admin/bulk' },
+    { id: 'chapters', label: 'Chapter Management', icon: Building2, path: '/admin/chapters' },
+    { id: 'members', label: 'Member Management', icon: Users, path: '/admin/members' },
+    { id: 'system', label: 'System Status', icon: Settings, path: '/admin/system' }
   ];
 
-  const currentTab = location.pathname === '/admin' ? 'admin' : 'dashboard';
+  const getCurrentTab = () => {
+    if (location.pathname === '/') return 'dashboard';
+    if (location.pathname.startsWith('/admin/upload')) return 'upload';
+    if (location.pathname.startsWith('/admin/bulk')) return 'bulk';
+    if (location.pathname.startsWith('/admin/chapters')) return 'chapters';
+    if (location.pathname.startsWith('/admin/members')) return 'members';
+    if (location.pathname.startsWith('/admin/system')) return 'system';
+    return 'dashboard';
+  };
+
+  const currentTab = getCurrentTab();
 
   return (
     <div className="flex items-center justify-between gap-4">

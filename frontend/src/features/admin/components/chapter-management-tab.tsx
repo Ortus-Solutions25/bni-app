@@ -43,7 +43,7 @@ export const ChapterManagementTab: React.FC<ChapterManagementTabProps> = ({
 
       {/* Add Chapter Form */}
       {showAddForm && (
-        <Card>
+        <Card className="border-l-4 border-l-primary/30">
           <CardHeader>
             <CardTitle>Add New Chapter</CardTitle>
           </CardHeader>
@@ -115,7 +115,7 @@ export const ChapterManagementTab: React.FC<ChapterManagementTabProps> = ({
 
       <div className="grid gap-4">
         {chapterData.map((chapter) => (
-          <Card key={chapter.chapterId}>
+          <Card key={chapter.chapterId} className="border-l-4 border-l-primary/30">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle className="flex items-center gap-2">

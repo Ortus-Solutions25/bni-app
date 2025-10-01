@@ -43,7 +43,7 @@ export const MemberManagementTab: React.FC<MemberManagementTabProps> = ({
       </div>
 
       {/* Filters and Actions Bar */}
-      <Card>
+      <Card className="border-l-4 border-l-primary/30">
         <CardContent className="p-4">
           <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
             <div className="flex flex-col sm:flex-row gap-4 flex-1">
@@ -104,7 +104,7 @@ export const MemberManagementTab: React.FC<MemberManagementTabProps> = ({
       </Card>
 
       {/* Members Table */}
-      <Card>
+      <Card className="border-l-4 border-l-primary/30">
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle>All Members</CardTitle>

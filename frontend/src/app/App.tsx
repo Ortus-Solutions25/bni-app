@@ -68,7 +68,7 @@ function AppContent() {
 
   const isAdminPage = location.pathname.startsWith('/admin');
   const isHomePage = location.pathname === '/';
-  const isDashboardOrAdmin = location.pathname === '/' || location.pathname === '/admin';
+  const isDashboardOrAdmin = location.pathname === '/' || location.pathname.startsWith('/admin');
 
   return (
     <div className="flex h-screen">

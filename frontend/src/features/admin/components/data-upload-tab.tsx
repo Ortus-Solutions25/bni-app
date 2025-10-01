@@ -29,7 +29,7 @@ export const DataUploadTab: React.FC<DataUploadTabProps> = ({
       </div>
 
       {/* Chapter Selection */}
-      <Card>
+      <Card className="border-l-4 border-l-primary/30">
         <CardHeader>
           <CardTitle>Select Chapter</CardTitle>
         </CardHeader>

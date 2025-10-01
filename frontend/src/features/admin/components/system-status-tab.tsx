@@ -26,7 +26,7 @@ export const SystemStatusTab: React.FC<SystemStatusTabProps> = ({ systemStats })
           </AlertDescription>
         </Alert>
 
-        <Card>
+        <Card className="border-l-4 border-l-primary/30">
           <CardHeader>
             <CardTitle>Data Summary</CardTitle>
           </CardHeader>

@@ -5,7 +5,11 @@ import { ChapterMemberData, loadAllChapterData } from '../../../shared/services/
 
 const ChapterDetailPage = lazy(() => import('./chapter-detail-page'));
 const MemberDetails = lazy(() => import('../../members/components/member-details'));
-const AdminDashboard = lazy(() => import('../../admin/components/admin-dashboard'));
+const DataUploadPage = lazy(() => import('../../admin/pages/data-upload-page'));
+const BulkOperationsPage = lazy(() => import('../../admin/pages/bulk-operations-page'));
+const ChapterManagementPage = lazy(() => import('../../admin/pages/chapter-management-page'));
+const MemberManagementPage = lazy(() => import('../../admin/pages/member-management-page'));
+const SystemStatusPage = lazy(() => import('../../admin/pages/system-status-page'));
 
 const LoadingFallback: React.FC = () => (
   <div className="flex items-center justify-center min-h-[400px]">
@@ -86,12 +90,44 @@ const ChapterRoutes: React.FC = () => {
         }
       />
 
-      {/* Admin Dashboard */}
+      {/* Admin Pages */}
       <Route
-        path="/admin"
+        path="/admin/upload"
         element={
           <Suspense fallback={<LoadingFallback />}>
-            <AdminDashboard />
+            <DataUploadPage />
+          </Suspense>
+        }
+      />
+      <Route
+        path="/admin/bulk"
+        element={
+          <Suspense fallback={<LoadingFallback />}>
+            <BulkOperationsPage />
+          </Suspense>
+        }
+      />
+      <Route
+        path="/admin/chapters"
+        element={
+          <Suspense fallback={<LoadingFallback />}>
+            <ChapterManagementPage />
+          </Suspense>
+        }
+      />
+      <Route
+        path="/admin/members"
+        element={
+          <Suspense fallback={<LoadingFallback />}>
+            <MemberManagementPage />
+          </Suspense>
+        }
+      />
+      <Route
+        path="/admin/system"
+        element={
+          <Suspense fallback={<LoadingFallback />}>
+            <SystemStatusPage />
           </Suspense>
         }
       />

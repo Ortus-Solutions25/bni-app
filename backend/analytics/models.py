@@ -1,11 +1,9 @@
 """
-Analytics models for BNI Analytics - Referrals, OneToOne meetings, TYFCB, and Data Import tracking.
+Analytics models for BNI Analytics - Referrals, OneToOne meetings, TYFCB.
 """
 from django.db import models
-from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from members.models import Member
-from chapters.models import Chapter
 
 
 class Referral(models.Model):
@@ -95,25 +93,3 @@ class TYFCB(models.Model):
             raise ValidationError("TYFCBs must be within the same chapter")
 
 
-class DataImportSession(models.Model):
-    """Track data import sessions for auditing."""
-    chapter = models.ForeignKey(Chapter, on_delete=models.CASCADE)
-    file_name = models.CharField(max_length=255)
-    file_size = models.PositiveIntegerField()
-    imported_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
-    import_date = models.DateTimeField(auto_now_add=True)
-    records_processed = models.PositiveIntegerField(default=0)
-    referrals_created = models.PositiveIntegerField(default=0)
-    one_to_ones_created = models.PositiveIntegerField(default=0)
-    tyfcbs_created = models.PositiveIntegerField(default=0)
-    errors_count = models.PositiveIntegerField(default=0)
-    success = models.BooleanField(default=True)
-    error_details = models.JSONField(default=list, blank=True)
-
-    class Meta:
-        ordering = ['-import_date']
-        db_table = 'analytics_dataimportsession'
-
-    def __str__(self):
-        status = "✓" if self.success else "✗"
-        return f"{status} {self.file_name} - {self.import_date.strftime('%Y-%m-%d %H:%M')}"

@@ -14,7 +14,7 @@ from openpyxl import load_workbook
 from chapters.models import Chapter
 from members.models import Member
 from reports.models import MonthlyReport, MemberMonthlyStats
-from analytics.models import Referral, OneToOne, TYFCB, DataImportSession
+from analytics.models import Referral, OneToOne, TYFCB
 from bni.services.chapter_service import ChapterService
 from bni.services.member_service import MemberService
 
@@ -71,17 +71,11 @@ class ExcelProcessorService:
             
             # Process the data
             results = self._process_dataframe(df, members_lookup, week_of_date)
-            
-            # Create import session record
-            import_session = self._create_import_session(
-                file_path, results, success=len(self.errors) == 0
-            )
-            
+
             return {
                 'success': len(self.errors) == 0,
-                'import_session_id': import_session.id,
                 'referrals_created': results['referrals_created'],
-                'one_to_ones_created': results['one_to_ones_created'], 
+                'one_to_ones_created': results['one_to_ones_created'],
                 'tyfcbs_created': results['tyfcbs_created'],
                 'total_processed': results['total_processed'],
                 'errors': self.errors,
@@ -471,21 +465,6 @@ class ExcelProcessorService:
             return float(cleaned) if cleaned else 0.0
         except (ValueError, TypeError):
             return 0.0
-    
-    def _create_import_session(self, file_path: Path, results: Dict, success: bool) -> DataImportSession:
-        """Create an import session record for auditing."""
-        return DataImportSession.objects.create(
-            chapter=self.chapter,
-            file_name=file_path.name,
-            file_size=file_path.stat().st_size if file_path.exists() else 0,
-            records_processed=results['total_processed'],
-            referrals_created=results['referrals_created'],
-            one_to_ones_created=results['one_to_ones_created'],
-            tyfcbs_created=results['tyfcbs_created'],
-            errors_count=len(self.errors),
-            success=success,
-            error_details=self.errors + self.warnings
-        )
     
     def _create_error_result(self, error_message: str) -> Dict:
         """Create error result dictionary."""

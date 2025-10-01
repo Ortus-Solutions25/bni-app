@@ -2,13 +2,11 @@
 Member models for BNI Analytics.
 """
 from django.db import models
-from django.contrib.auth.models import User
 from chapters.models import Chapter
 
 
 class Member(models.Model):
     """A chapter member."""
-    user = models.OneToOneField(User, on_delete=models.CASCADE, null=True, blank=True)
     chapter = models.ForeignKey(Chapter, on_delete=models.CASCADE, related_name='members')
     first_name = models.CharField(max_length=50)
     last_name = models.CharField(max_length=50)

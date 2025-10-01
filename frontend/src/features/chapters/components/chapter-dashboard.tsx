@@ -1,8 +1,7 @@
-import React, { useState, useMemo } from 'react';
-import { Building2, ArrowUpDown, Loader2, Users } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import React, { useMemo } from 'react';
+import { Building2, Loader2, Users } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import ChapterCard from './chapter-card';
 import ChapterErrorBoundary from './chapter-error-boundary';
 import ChapterCardSkeleton from '@/components/skeletons/ChapterCardSkeleton';
@@ -16,46 +15,18 @@ interface ChapterDashboardProps {
   onChapterAdded?: () => void;
 }
 
-type SortOption = 'name' | 'memberCount' | 'performance';
-
 const ChapterDashboard: React.FC<ChapterDashboardProps> = ({
   chapterData,
   isLoading,
   onChapterSelect,
   onChapterAdded,
 }) => {
-  const [sortBy, setSortBy] = useState<SortOption>('name');
-
   const processedChapterData = useMemo(() => {
     return chapterData.map(chapter => ({
       ...chapter,
       performanceMetrics: chapter.performanceMetrics || generateMockPerformanceMetrics(chapter.members)
-    }));
+    })).sort((a, b) => a.chapterName.localeCompare(b.chapterName));
   }, [chapterData]);
-
-  const filteredAndSortedChapters = useMemo(() => {
-    let filtered = processedChapterData;
-
-    filtered.sort((a, b) => {
-      switch (sortBy) {
-        case 'memberCount':
-          return b.memberCount - a.memberCount;
-        case 'performance':
-          const getScore = (chapter: ChapterMemberData) => {
-            if (chapter.loadError) return 0;
-            const metrics = chapter.performanceMetrics;
-            if (!metrics) return 0;
-            return metrics.avgReferralsPerMember + metrics.avgOTOsPerMember;
-          };
-          return getScore(b) - getScore(a);
-        case 'name':
-        default:
-          return a.chapterName.localeCompare(b.chapterName);
-      }
-    });
-
-    return filtered;
-  }, [processedChapterData, sortBy]);
 
   const dashboardStats = useMemo(() => {
     const totalMembers = processedChapterData.reduce((sum, chapter) => sum + chapter.memberCount, 0);
@@ -113,32 +84,11 @@ const ChapterDashboard: React.FC<ChapterDashboardProps> = ({
       </div>
 
 
-      {/* Controls and Chapters */}
-      <div className="space-y-6">
-        {/* Sort Control */}
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">
-            Chapters ({filteredAndSortedChapters.length})
-          </h2>
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">Sort by:</span>
-            <Select value={sortBy} onValueChange={(value: SortOption) => setSortBy(value)}>
-              <SelectTrigger className="w-40">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="name">Chapter Name</SelectItem>
-                <SelectItem value="memberCount">Member Count</SelectItem>
-                <SelectItem value="performance">Performance</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        {/* Chapter Grid - Professional CSS Grid Layout */}
-        {filteredAndSortedChapters.length > 0 ? (
+      {/* Chapters Grid */}
+      <div>
+        {processedChapterData.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filteredAndSortedChapters.map((chapter) => (
+            {processedChapterData.map((chapter) => (
               <ChapterCard
                 key={chapter.chapterId}
                 chapterData={chapter}

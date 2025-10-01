@@ -95,7 +95,11 @@ class FileUploadViewSet(viewsets.ViewSet):
                 month_year=month_year
             )
 
-            return Response(result, status=status.HTTP_200_OK)
+            # Return appropriate status code based on result
+            if result.get('success'):
+                return Response(result, status=status.HTTP_200_OK)
+            else:
+                return Response(result, status=status.HTTP_400_BAD_REQUEST)
 
         except Exception as e:
             return Response(

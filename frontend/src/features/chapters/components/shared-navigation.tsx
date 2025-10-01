@@ -66,7 +66,28 @@ export const SharedNavigation: React.FC<SharedNavigationProps> = ({
           )}
         </motion.button>
 
-        {/* Admin Operations Label */}
+        {/* Admin Operations Button - shows when not on admin page */}
+        <AnimatePresence>
+          {!isAdminPage && (
+            <motion.button
+              onClick={() => navigate('/admin/upload')}
+              className="relative px-4 py-2 rounded-lg font-semibold text-muted-foreground hover:text-foreground transition-colors"
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              transition={{ duration: 0.3 }}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <div className="flex items-center gap-2">
+                <Settings className="h-4 w-4" />
+                <span className="hidden sm:inline">Admin Operations</span>
+              </div>
+            </motion.button>
+          )}
+        </AnimatePresence>
+
+        {/* Separator - shows when admin is active */}
         <motion.div
           initial={{ opacity: 0, width: 0 }}
           animate={{

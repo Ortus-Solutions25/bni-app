@@ -157,7 +157,7 @@ const ChapterDashboard: React.FC<ChapterDashboardProps> = ({
           </Card>
         )}
       </div>
-    </div>
+    </motion.div>
     </ChapterErrorBoundary>
   );
 };

@@ -10,20 +10,20 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
   const [stage, setStage] = useState<'bni' | 'app' | 'complete'>('bni');
 
   useEffect(() => {
-    // Stage 1: Show BNI DEIRA (1.5s)
+    // Stage 1: Show BNI DEIRA (2.5s)
     const timer1 = setTimeout(() => {
       setStage('app');
-    }, 1500);
-
-    // Stage 2: Slide left BNI DEIRA, show app (2.5s total)
-    const timer2 = setTimeout(() => {
-      setStage('complete');
     }, 2500);
 
-    // Stage 3: Complete animation (3.5s total)
+    // Stage 2: Slide left BNI DEIRA, show app (4s total)
+    const timer2 = setTimeout(() => {
+      setStage('complete');
+    }, 4000);
+
+    // Stage 3: Complete animation (5.5s total)
     const timer3 = setTimeout(() => {
       onComplete();
-    }, 3500);
+    }, 5500);
 
     return () => {
       clearTimeout(timer1);

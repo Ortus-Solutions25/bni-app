@@ -1,6 +1,6 @@
 import React from 'react';
 import { ChapterMemberData } from '../../../shared/services/ChapterDataLoader';
-import OptimizedChapterDashboard from './optimized-chapter-dashboard';
+import ChapterDetailTabbed from './chapter-detail-tabbed';
 
 interface ChapterDetailPageProps {
   chapterData: ChapterMemberData;
@@ -10,7 +10,7 @@ interface ChapterDetailPageProps {
 }
 
 const ChapterDetailPage: React.FC<ChapterDetailPageProps> = (props) => {
-  return <OptimizedChapterDashboard {...props} />;
+  return <ChapterDetailTabbed {...props} />;
 };
 
 export default ChapterDetailPage;

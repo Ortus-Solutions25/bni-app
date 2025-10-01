@@ -1,6 +1,9 @@
 import { read, utils } from 'xlsx';
 import { validateExcelFile, sanitizeSheetData, ExcelSecurityError } from '../../features/file-upload/utils/excelSecurity';
 
+// API Base URL from environment variable
+const API_BASE_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000';
+
 export interface ChapterInfo {
   id: string;
   name: string;
@@ -291,8 +294,8 @@ export const extractMemberNamesFromFile = async (file: File): Promise<string[]> 
 
 export const loadAllChapterData = async (): Promise<ChapterMemberData[]> => {
   try {
-    // Call the real backend API
-    const response = await fetch('/api/dashboard/');
+    // Call the real backend API using API_BASE_URL
+    const response = await fetch(`${API_BASE_URL}/api/dashboard/`);
     
     if (!response.ok) {
       throw new Error(`API request failed: ${response.status} ${response.statusText}`);
@@ -345,7 +348,7 @@ export const loadAllChapterData = async (): Promise<ChapterMemberData[]> => {
 
 export const loadMonthlyReports = async (chapterId: string): Promise<MonthlyReport[]> => {
   try {
-    const response = await fetch(`/api/chapters/${chapterId}/reports/`);
+    const response = await fetch(`${API_BASE_URL}/api/chapters/${chapterId}/reports/`);
     
     if (!response.ok) {
       throw new Error(`Failed to load monthly reports: ${response.status} ${response.statusText}`);
@@ -366,7 +369,7 @@ export const loadMemberDetail = async (
 ): Promise<MemberDetail> => {
   try {
     const response = await fetch(
-      `/api/chapters/${chapterId}/reports/${reportId}/members/${memberId}/`
+      `${API_BASE_URL}/api/chapters/${chapterId}/reports/${reportId}/members/${memberId}/`
     );
     
     if (!response.ok) {
@@ -388,7 +391,7 @@ export const loadMatrixData = async (
 ): Promise<any> => {
   try {
     const response = await fetch(
-      `/api/chapters/${chapterId}/reports/${reportId}/${matrixType}/`
+      `${API_BASE_URL}/api/chapters/${chapterId}/reports/${reportId}/${matrixType}/`
     );
     
     if (!response.ok) {
@@ -406,7 +409,7 @@ export const loadMatrixData = async (
 export const deleteMonthlyReport = async (chapterId: string, reportId: number): Promise<void> => {
   try {
     const response = await fetch(
-      `/api/chapters/${chapterId}/reports/${reportId}/`,
+      `${API_BASE_URL}/api/chapters/${chapterId}/reports/${reportId}/`,
       { method: 'DELETE' }
     );
     
@@ -445,7 +448,7 @@ export const loadComparisonData = async (
 ): Promise<ComparisonData> => {
   try {
     const response = await fetch(
-      `/api/chapters/${chapterId}/reports/${currentReportId}/compare/${previousReportId}/`
+      `${API_BASE_URL}/api/chapters/${chapterId}/reports/${currentReportId}/compare/${previousReportId}/`
     );
 
     if (!response.ok) {
@@ -467,7 +470,7 @@ export const loadReferralComparison = async (
 ): Promise<{ comparison: MatrixComparison }> => {
   try {
     const response = await fetch(
-      `/api/chapters/${chapterId}/reports/${currentReportId}/compare/${previousReportId}/referrals/`
+      `${API_BASE_URL}/api/chapters/${chapterId}/reports/${currentReportId}/compare/${previousReportId}/referrals/`
     );
 
     if (!response.ok) {
@@ -488,7 +491,7 @@ export const loadOTOComparison = async (
 ): Promise<{ comparison: MatrixComparison }> => {
   try {
     const response = await fetch(
-      `/api/chapters/${chapterId}/reports/${currentReportId}/compare/${previousReportId}/one-to-ones/`
+      `${API_BASE_URL}/api/chapters/${chapterId}/reports/${currentReportId}/compare/${previousReportId}/one-to-ones/`
     );
 
     if (!response.ok) {
@@ -507,9 +510,9 @@ export const loadCombinationComparison = async (
   currentReportId: number,
   previousReportId: number
 ): Promise<{ comparison: MatrixComparison }> => {
-  try {
+  try{
     const response = await fetch(
-      `/api/chapters/${chapterId}/reports/${currentReportId}/compare/${previousReportId}/combination/`
+      `${API_BASE_URL}/api/chapters/${chapterId}/reports/${currentReportId}/compare/${previousReportId}/combination/`
     );
 
     if (!response.ok) {

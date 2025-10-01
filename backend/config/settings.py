@@ -31,6 +31,10 @@ DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 
 ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
+# Add Vercel hosts
+if os.environ.get('VERCEL'):
+    ALLOWED_HOSTS.extend(['.vercel.app', '.vercel.com'])
+
 
 # Application definition
 
@@ -99,8 +103,18 @@ if DATABASE_URL:
     # Parse Supabase/PostgreSQL connection string
     # Format: postgresql://user:password@host:port/database
     import dj_database_url
+
+    # Parse the connection string
+    db_config = dj_database_url.parse(DATABASE_URL, conn_max_age=600, ssl_require=True)
+
+    # Add additional options for Supabase
+    db_config['OPTIONS'] = {
+        'sslmode': 'require',
+        'connect_timeout': 10,
+    }
+
     DATABASES = {
-        "default": dj_database_url.parse(DATABASE_URL, conn_max_age=600, ssl_require=True)
+        "default": db_config
     }
 else:
     # Development - use SQLite
@@ -148,7 +162,12 @@ USE_TZ = True
 
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
-STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+
+# Only use compressed storage if staticfiles exist
+if os.path.exists(BASE_DIR / "staticfiles"):
+    STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+else:
+    STATICFILES_STORAGE = "whitenoise.storage.CompressedStaticFilesStorage"
 
 # Media files
 MEDIA_URL = "/media/"
@@ -173,5 +192,11 @@ CORS_ALLOWED_ORIGINS = os.environ.get(
     "CORS_ALLOWED_ORIGINS",
     "http://localhost:3000,http://127.0.0.1:3000"
 ).split(",")
+
+# For Vercel deployments, allow all Vercel domains
+if os.environ.get('VERCEL') or any('.vercel.app' in origin for origin in CORS_ALLOWED_ORIGINS):
+    CORS_ALLOWED_ORIGIN_REGEXES = [
+        r"^https://.*\.vercel\.app$",
+    ]
 
 CORS_ALLOW_CREDENTIALS = True

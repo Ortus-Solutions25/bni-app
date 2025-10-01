@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Input } from '@/components/ui/input';
 import { UploadResult } from '../types/admin.types';
+import { API_BASE_URL } from '@/config/api';
 
 interface BulkUploadTabProps {
   onDataRefresh: () => void;
@@ -24,7 +25,7 @@ export const BulkUploadTab: React.FC<BulkUploadTabProps> = ({ onDataRefresh }) =
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await fetch('http://localhost:8000/api/upload/bulk/', {
+      const response = await fetch(`${API_BASE_URL}/api/upload/bulk/`, {
         method: 'POST',
         body: formData,
       });

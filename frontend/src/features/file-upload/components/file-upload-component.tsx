@@ -161,7 +161,7 @@ const FileUploadComponent: React.FC<FileUploadComponentProps> = ({
 
       // Add timeout to prevent hanging
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minute timeout for batch processing
 
       const response = await fetch(`${API_BASE_URL}/api/upload/excel/`, {
         method: 'POST',

@@ -372,17 +372,15 @@ class ExcelProcessorService:
             self.warnings.append(f"Row {row_idx + 1}: Self-referral detected, skipping")
             return False
         
-        # Create or get existing referral
+        # Create referral (duplicates already cleared at start)
         try:
-            referral, created = Referral.objects.get_or_create(
+            Referral.objects.create(
                 giver=giver,
                 receiver=receiver,
                 date_given=week_of_date or timezone.now().date(),
-                defaults={'week_of': week_of_date}
+                week_of=week_of_date
             )
-            if not created:
-                self.warnings.append(f"Row {row_idx + 1}: Duplicate referral skipped (already exists)")
-            return created
+            return True
         except Exception as e:
             self.errors.append(f"Row {row_idx + 1}: Referral creation error: {e}")
             return False
@@ -410,25 +408,15 @@ class ExcelProcessorService:
             self.warnings.append(f"Row {row_idx + 1}: Self-meeting detected, skipping")
             return False
         
-        # Create or get existing one-to-one (handle both member orders)
+        # Create one-to-one (duplicates already cleared at start)
         try:
-            one_to_one, created = OneToOne.objects.get_or_create(
+            OneToOne.objects.create(
                 member1=member1,
                 member2=member2,
                 meeting_date=week_of_date or timezone.now().date(),
-                defaults={'week_of': week_of_date}
+                week_of=week_of_date
             )
-            if not created:
-                # Try the reverse order
-                one_to_one, created = OneToOne.objects.get_or_create(
-                    member1=member2,
-                    member2=member1,
-                    meeting_date=week_of_date or timezone.now().date(),
-                    defaults={'week_of': week_of_date}
-                )
-            if not created:
-                self.warnings.append(f"Row {row_idx + 1}: Duplicate one-to-one skipped (already exists)")
-            return created
+            return True
         except Exception as e:
             self.errors.append(f"Row {row_idx + 1}: One-to-one creation error: {e}")
             return False
@@ -466,22 +454,18 @@ class ExcelProcessorService:
         # Extract detail/description
         detail = self._get_cell_value(row, self.COLUMN_MAPPINGS['detail'])
         
-        # Create or get existing TYFCB
+        # Create TYFCB (duplicates already cleared at start)
         try:
-            tyfcb, created = TYFCB.objects.get_or_create(
+            TYFCB.objects.create(
                 receiver=receiver,
                 giver=giver,
                 amount=Decimal(str(amount)),
                 within_chapter=within_chapter,
                 date_closed=week_of_date or timezone.now().date(),
-                defaults={
-                    'description': detail or "",
-                    'week_of': week_of_date
-                }
+                description=detail or "",
+                week_of=week_of_date
             )
-            if not created:
-                self.warnings.append(f"Row {row_idx + 1}: Duplicate TYFCB skipped (already exists)")
-            return created
+            return True
         except Exception as e:
             self.errors.append(f"Row {row_idx + 1}: TYFCB creation error: {e}")
             return False

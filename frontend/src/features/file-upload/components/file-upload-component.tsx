@@ -120,10 +120,17 @@ const FileUploadComponent: React.FC<FileUploadComponentProps> = ({
       formData.append('month_year', monthYear);
       formData.append('upload_option', uploadOption);
 
+      // Add timeout to prevent hanging
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
       const response = await fetch(`${API_BASE_URL}/api/upload/excel/`, {
         method: 'POST',
         body: formData,
+        signal: controller.signal,
       });
+
+      clearTimeout(timeoutId);
 
       const result = await response.json();
 
@@ -144,9 +151,13 @@ const FileUploadComponent: React.FC<FileUploadComponentProps> = ({
       }
     } catch (error: any) {
       handleError(error);
+      const errorMessage = error.name === 'AbortError'
+        ? 'Upload timeout - the file took too long to process. Please try again or use a smaller file.'
+        : error.message || 'Upload failed. Please try again.';
+
       setUploadResult({
         type: 'error',
-        message: 'Upload failed. Please try again.'
+        message: errorMessage
       });
     } finally {
       setIsUploading(false);

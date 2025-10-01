@@ -13,7 +13,7 @@ export const useAdminData = () => {
   useEffect(() => {
     if (chapterData.length > 0) {
       // If selected chapter no longer exists (deleted), clear selection
-      if (selectedChapter && !chapterData.find(c => c.chapterId === selectedChapter.chapterId)) {
+      if (selectedChapter && !chapterData.find((c: ChapterMemberData) => c.chapterId === selectedChapter.chapterId)) {
         setSelectedChapter(chapterData[0]);
       } else if (!selectedChapter) {
         setSelectedChapter(chapterData[0]);
@@ -26,14 +26,14 @@ export const useAdminData = () => {
   }, [refetch]);
 
   const handleChapterSelect = useCallback((chapterId: string) => {
-    const chapter = chapterData.find(c => c.chapterId === chapterId);
+    const chapter = chapterData.find((c: ChapterMemberData) => c.chapterId === chapterId);
     setSelectedChapter(chapter || null);
   }, [chapterData]);
 
   const systemStats = useMemo((): SystemStats => ({
     totalChapters: chapterData.length,
-    totalMembers: chapterData.reduce((sum, chapter) => sum + chapter.members.length, 0),
-    totalReports: chapterData.reduce((sum, chapter) => sum + (chapter.monthlyReports?.length || 0), 0),
+    totalMembers: chapterData.reduce((sum: number, chapter: ChapterMemberData) => sum + chapter.members.length, 0),
+    totalReports: chapterData.reduce((sum: number, chapter: ChapterMemberData) => sum + (chapter.monthlyReports?.length || 0), 0),
     lastUpdated: new Date().toLocaleDateString()
   }), [chapterData]);
 

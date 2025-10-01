@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { TrendingUp, TrendingDown, Calendar, AlertCircle, Loader2, Download, FileSpreadsheet } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -15,32 +16,43 @@ interface ComparisonTabProps {
 }
 
 const ComparisonTab: React.FC<ComparisonTabProps> = ({ chapterId }) => {
-  const [monthlyReports, setMonthlyReports] = useState<MonthlyReport[]>([]);
-  const [loadingReports, setLoadingReports] = useState(true);
   const [currentReportId, setCurrentReportId] = useState<number | null>(null);
   const [previousReportId, setPreviousReportId] = useState<number | null>(null);
-  const [comparisonData, setComparisonData] = useState<ComparisonData | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  // Load monthly reports when component mounts
-  useEffect(() => {
-    const fetchReports = async () => {
-      setLoadingReports(true);
-      try {
-        const reports = await loadMonthlyReports(chapterId);
-        setMonthlyReports(reports);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load monthly reports');
-      } finally {
-        setLoadingReports(false);
-      }
-    };
+  // Fetch monthly reports with React Query caching
+  const {
+    data: monthlyReports = [],
+    isLoading: loadingReports,
+    error: reportsError,
+  } = useQuery({
+    queryKey: ['monthlyReports', chapterId],
+    queryFn: () => loadMonthlyReports(chapterId),
+    enabled: !!chapterId,
+    // Cache for 15 minutes - reports don't change often
+    staleTime: 15 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+  });
 
-    if (chapterId) {
-      fetchReports();
-    }
-  }, [chapterId]);
+  // Fetch comparison data with React Query caching
+  const {
+    data: comparisonData,
+    isLoading: loading,
+    error: comparisonError,
+    refetch: fetchComparison,
+  } = useQuery({
+    queryKey: ['comparison', chapterId, currentReportId, previousReportId],
+    queryFn: () => loadComparisonData(chapterId, currentReportId!, previousReportId!),
+    enabled: false, // Don't auto-fetch, only fetch on button click
+    // Cache for 20 minutes - comparisons are expensive
+    staleTime: 20 * 60 * 1000,
+    gcTime: 40 * 60 * 1000,
+  });
+
+  const error = reportsError || comparisonError
+    ? (reportsError instanceof Error ? reportsError.message :
+       comparisonError instanceof Error ? comparisonError.message :
+       'Failed to load data')
+    : null;
 
   // Sort reports by month_year descending (newest first)
   const sortedReports = [...monthlyReports].sort((a, b) =>
@@ -49,26 +61,15 @@ const ComparisonTab: React.FC<ComparisonTabProps> = ({ chapterId }) => {
 
   const handleCompare = async () => {
     if (!currentReportId || !previousReportId) {
-      setError('Please select both months to compare');
-      return;
+      return; // Error will be shown by validation below
     }
 
     if (currentReportId === previousReportId) {
-      setError('Please select two different months');
-      return;
+      return; // Error will be shown by validation below
     }
 
-    setLoading(true);
-    setError(null);
-
-    try {
-      const data = await loadComparisonData(chapterId, currentReportId, previousReportId);
-      setComparisonData(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load comparison data');
-    } finally {
-      setLoading(false);
-    }
+    // Trigger the React Query fetch
+    await fetchComparison();
   };
 
   const handleDownloadExcel = () => {
@@ -148,13 +149,28 @@ const ComparisonTab: React.FC<ComparisonTabProps> = ({ chapterId }) => {
                 {/* Compare Button */}
                 <Button
                   onClick={handleCompare}
-                  disabled={loading || !currentReportId || !previousReportId}
+                  disabled={loading || !currentReportId || !previousReportId || currentReportId === previousReportId}
                   className="w-full"
                 >
                   {loading ? 'Comparing...' : 'Compare'}
                 </Button>
               </div>
 
+              {/* Validation errors */}
+              {!currentReportId && !previousReportId && (
+                <Alert>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>Please select both months to compare</AlertDescription>
+                </Alert>
+              )}
+              {currentReportId && previousReportId && currentReportId === previousReportId && (
+                <Alert>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>Please select two different months</AlertDescription>
+                </Alert>
+              )}
+
+              {/* API errors */}
               {error && (
                 <Alert variant="destructive">
                   <AlertCircle className="h-4 w-4" />

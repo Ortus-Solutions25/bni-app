@@ -40,7 +40,7 @@ const ChapterRoutes: React.FC<ChapterRoutesProps> = ({ selectedChapterId, onChap
   useEffect(() => {
     if (chapterData.length > 0) {
       // Notify parent of loaded chapters
-      onChaptersLoad(chapterData.map(c => ({
+      onChaptersLoad(chapterData.map((c: ChapterMemberData) => ({
         chapterId: c.chapterId,
         chapterName: c.chapterName,
         memberCount: c.memberCount

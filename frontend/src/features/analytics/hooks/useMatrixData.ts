@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { MatrixData, TYFCBData } from '../types/matrix.types';
 import { MonthlyReport, loadMonthlyReports, loadMatrixData } from '../../../shared/services/ChapterDataLoader';
 import { API_BASE_URL } from '@/config/api';
@@ -18,117 +19,103 @@ interface UseMatrixDataReturn {
 }
 
 export const useMatrixData = (chapterId: string): UseMatrixDataReturn => {
-  const [monthlyReports, setMonthlyReports] = useState<MonthlyReport[]>([]);
   const [selectedReport, setSelectedReport] = useState<MonthlyReport | null>(null);
-  const [referralMatrix, setReferralMatrix] = useState<MatrixData | null>(null);
-  const [oneToOneMatrix, setOneToOneMatrix] = useState<MatrixData | null>(null);
-  const [combinationMatrix, setCombinationMatrix] = useState<MatrixData | null>(null);
-  const [tyfcbData, setTyfcbData] = useState<TYFCBData | null>(null);
-  const [isLoadingReports, setIsLoadingReports] = useState(true);
-  const [isLoadingMatrices, setIsLoadingMatrices] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  // Load monthly reports when component mounts
+  // Fetch monthly reports with React Query caching
+  const {
+    data: monthlyReports = [],
+    isLoading: isLoadingReports,
+    error: reportsError,
+  } = useQuery({
+    queryKey: ['monthlyReports', chapterId],
+    queryFn: () => loadMonthlyReports(chapterId),
+    enabled: !!chapterId,
+    // Cache for 15 minutes - reports don't change often
+    staleTime: 15 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+  });
+
+  // Auto-select first report when reports load
   useEffect(() => {
-    const loadReports = async () => {
-      if (!chapterId) return;
-
-      setIsLoadingReports(true);
-      setError(null);
-
-      try {
-        const reports = await loadMonthlyReports(chapterId);
-        setMonthlyReports(reports);
-
-        // Select the most recent report by default
-        if (reports.length > 0) {
-          setSelectedReport(reports[0]);
-        }
-      } catch (error) {
-        setError(error instanceof Error ? error.message : 'Failed to load monthly reports');
-      } finally {
-        setIsLoadingReports(false);
-      }
-    };
-
-    loadReports();
-  }, [chapterId]);
-
-  // Load matrices when a report is selected
-  useEffect(() => {
-    const fetchMatrices = async () => {
-      if (!selectedReport || !chapterId) return;
-
-      setIsLoadingMatrices(true);
-      setError(null);
-
-      // Clear previous matrices
-      setReferralMatrix(null);
-      setOneToOneMatrix(null);
-      setCombinationMatrix(null);
-      setTyfcbData(null);
-
-      try {
-        // Only load matrices that are available for this report
-        const promises = [];
-
-        if (selectedReport.has_referral_matrix) {
-          promises.push(loadMatrixData(chapterId, selectedReport.id, 'referral-matrix'));
-        } else {
-          promises.push(Promise.resolve(null));
-        }
-
-        if (selectedReport.has_oto_matrix) {
-          promises.push(loadMatrixData(chapterId, selectedReport.id, 'one-to-one-matrix'));
-        } else {
-          promises.push(Promise.resolve(null));
-        }
-
-        if (selectedReport.has_combination_matrix) {
-          promises.push(loadMatrixData(chapterId, selectedReport.id, 'combination-matrix'));
-        } else {
-          promises.push(Promise.resolve(null));
-        }
-
-        // Always try to load TYFCB data
-        promises.push(
-          fetch(`${API_BASE_URL}/api/chapters/${chapterId}/reports/${selectedReport.id}/tyfcb-data/`)
-            .then(response => response.json())
-            .catch(() => null)
-        );
-
-        const [referralData, otoData, combinationData, tyfcbDataResponse] = await Promise.all(promises);
-
-        setReferralMatrix(referralData);
-        setOneToOneMatrix(otoData);
-        setCombinationMatrix(combinationData);
-        setTyfcbData(tyfcbDataResponse);
-
-      } catch (error) {
-        console.error('Failed to load matrices:', error);
-        setError(error instanceof Error ? error.message : 'Failed to load matrix data');
-      } finally {
-        setIsLoadingMatrices(false);
-      }
-    };
-
-    if (selectedReport) {
-      fetchMatrices();
+    if (monthlyReports.length > 0 && !selectedReport) {
+      setSelectedReport(monthlyReports[0]);
     }
-  }, [selectedReport, chapterId]);
+  }, [monthlyReports, selectedReport]);
+
+  // Fetch matrices for selected report with React Query caching
+  const {
+    data: matricesData,
+    isLoading: isLoadingMatrices,
+    error: matricesError,
+  } = useQuery({
+    queryKey: ['matrices', chapterId, selectedReport?.id],
+    queryFn: async () => {
+      if (!selectedReport) return null;
+
+      const promises = [];
+
+      // Load referral matrix
+      if (selectedReport.has_referral_matrix) {
+        promises.push(loadMatrixData(chapterId, selectedReport.id, 'referral-matrix'));
+      } else {
+        promises.push(Promise.resolve(null));
+      }
+
+      // Load one-to-one matrix
+      if (selectedReport.has_oto_matrix) {
+        promises.push(loadMatrixData(chapterId, selectedReport.id, 'one-to-one-matrix'));
+      } else {
+        promises.push(Promise.resolve(null));
+      }
+
+      // Load combination matrix
+      if (selectedReport.has_combination_matrix) {
+        promises.push(loadMatrixData(chapterId, selectedReport.id, 'combination-matrix'));
+      } else {
+        promises.push(Promise.resolve(null));
+      }
+
+      // Load TYFCB data
+      promises.push(
+        fetch(`${API_BASE_URL}/api/chapters/${chapterId}/reports/${selectedReport.id}/tyfcb-data/`)
+          .then(response => response.json())
+          .catch(() => null)
+      );
+
+      const [referralData, otoData, combinationData, tyfcbDataResponse] = await Promise.all(promises);
+
+      return {
+        referralMatrix: referralData,
+        oneToOneMatrix: otoData,
+        combinationMatrix: combinationData,
+        tyfcbData: tyfcbDataResponse,
+      };
+    },
+    enabled: !!selectedReport && !!chapterId,
+    // Cache matrices for 20 minutes - they rarely change
+    staleTime: 20 * 60 * 1000,
+    gcTime: 40 * 60 * 1000,
+    // Don't refetch on window focus - matrices are static
+    refetchOnWindowFocus: false,
+  });
 
   const handleReportChange = (reportId: string) => {
     const report = monthlyReports.find(r => r.id === parseInt(reportId));
     setSelectedReport(report || null);
   };
 
+  const error = reportsError || matricesError ?
+    (reportsError instanceof Error ? reportsError.message :
+     matricesError instanceof Error ? matricesError.message :
+     'Failed to load data') : null;
+
   return {
     monthlyReports,
     selectedReport,
-    referralMatrix,
-    oneToOneMatrix,
-    combinationMatrix,
-    tyfcbData,
+    referralMatrix: matricesData?.referralMatrix || null,
+    oneToOneMatrix: matricesData?.oneToOneMatrix || null,
+    combinationMatrix: matricesData?.combinationMatrix || null,
+    tyfcbData: matricesData?.tyfcbData || null,
     isLoadingReports,
     isLoadingMatrices,
     error,

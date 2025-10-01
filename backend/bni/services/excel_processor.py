@@ -514,21 +514,24 @@ class ExcelProcessorService:
         """
         try:
             with transaction.atomic():
-                # Create or get MonthlyReport
+                # Create or get MonthlyReport (store just filename, not file object)
+                slip_filename = slip_audit_file.name if hasattr(slip_audit_file, 'name') else 'slip_audit.xls'
+                member_filename = member_names_file.name if member_names_file and hasattr(member_names_file, 'name') else None
+
                 monthly_report, created = MonthlyReport.objects.get_or_create(
                     chapter=self.chapter,
                     month_year=month_year,
                     defaults={
-                        'slip_audit_file': slip_audit_file,
-                        'member_names_file': member_names_file,
+                        'slip_audit_file': slip_filename,
+                        'member_names_file': member_filename,
                     }
                 )
-                
+
                 if not created:
                     # Update existing report
-                    monthly_report.slip_audit_file = slip_audit_file
-                    if member_names_file:
-                        monthly_report.member_names_file = member_names_file
+                    monthly_report.slip_audit_file = slip_filename
+                    if member_filename:
+                        monthly_report.member_names_file = member_filename
 
                 # Process member_names_file first if provided to create/update members
                 members_created = 0

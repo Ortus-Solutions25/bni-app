@@ -11,9 +11,9 @@ class MonthlyReport(models.Model):
     chapter = models.ForeignKey(Chapter, on_delete=models.CASCADE, related_name='monthly_reports')
     month_year = models.CharField(max_length=7, help_text="e.g., '2024-06' for June 2024")
 
-    # File Storage
-    slip_audit_file = models.FileField(upload_to='monthly_reports/slip_audits/')
-    member_names_file = models.FileField(upload_to='monthly_reports/member_names/', null=True, blank=True)
+    # File Storage (just store filename for reference, process in memory)
+    slip_audit_file = models.CharField(max_length=255, blank=True)
+    member_names_file = models.CharField(max_length=255, blank=True, null=True)
 
     # Processed Matrix Data (JSON)
     referral_matrix_data = models.JSONField(default=dict, blank=True)

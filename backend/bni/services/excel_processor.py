@@ -333,8 +333,11 @@ class ExcelProcessorService:
                     self.errors.append(f"Row {idx + 1}: {str(e)}")
                     continue
 
-        # Add success flag
+        # Add success flag and error message if any
         results['success'] = len(self.errors) == 0
+        if self.errors:
+            results['error'] = f"{len(self.errors)} errors occurred: {'; '.join(self.errors[:3])}"  # Show first 3 errors
+        results['warnings'] = self.warnings
         return results
     
     def _get_cell_value(self, row: pd.Series, column_index: int) -> Optional[str]:

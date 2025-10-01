@@ -237,8 +237,7 @@ class ChapterViewSet(viewsets.ModelViewSet):
         meeting_day = request.data.get('meeting_day', '')
         meeting_time = request.data.get('meeting_time')
 
-        service = ChapterService()
-        chapter, created = service.get_or_create_chapter(
+        chapter, created = ChapterService.get_or_create_chapter(
             name=name,
             location=location,
             meeting_day=meeting_day,
@@ -266,8 +265,7 @@ class ChapterViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        service = ChapterService()
-        result = service.delete_chapter(chapter.id)
+        result = ChapterService.delete_chapter(chapter.id)
 
         return Response({
             'message': f"Chapter '{chapter.name}' deleted successfully",

@@ -6,50 +6,56 @@
 
 @layer base {
   :root {
-    /* Light theme fallback - Happy Hues Palette #4 Light Variant */
-    --background: 233 18% 9%;        /* #16161a - Background */
-    --foreground: 0 0% 100%;         /* #fffffe - Headline */
-    --card: 233 18% 9%;              /* #16161a - Card background */
-    --card-foreground: 0 0% 100%;    /* #fffffe - Card headline */
-    --popover: 233 18% 9%;           /* #16161a - Popover background */
-    --popover-foreground: 0 0% 100%; /* #fffffe - Popover text */
-    --primary: 252 83% 65%;          /* #7f5af0 - Button/Primary */
-    --primary-foreground: 0 0% 100%; /* #fffffe - Button text */
-    --secondary: 162 69% 50%;        /* #2cb67d - Secondary/Tertiary */
-    --secondary-foreground: 0 0% 100%; /* #fffffe - Secondary text */
-    --muted: 215 19% 63%;            /* #94a1b2 - Paragraph/muted */
-    --muted-foreground: 215 19% 63%; /* #94a1b2 - Paragraph text */
-    --accent: 162 69% 50%;           /* #2cb67d - Accent */
-    --accent-foreground: 0 0% 100%;  /* #fffffe - Accent text */
-    --destructive: 0 58% 58%;        /* #e16162 - Destructive actions */
-    --destructive-foreground: 0 0% 100%; /* #fffffe - Destructive text */
-    --border: 215 19% 63%;           /* #94a1b2 - Border color */
-    --input: 215 19% 63%;            /* #94a1b2 - Input background */
-    --ring: 252 83% 65%;             /* #7f5af0 - Focus ring */
+    /* Light Mode - BNI Professional Theme */
+    --background: 0 0% 100%;         /* #ffffff - Clean white background */
+    --foreground: 222 47% 11%;       /* #0f172a - Deep slate text */
+    --card: 0 0% 100%;               /* #ffffff - White cards */
+    --card-foreground: 222 47% 11%;  /* #0f172a - Card text */
+    --popover: 0 0% 100%;            /* #ffffff - Popover background */
+    --popover-foreground: 222 47% 11%; /* #0f172a - Popover text */
+    --primary: 4 75% 50%;            /* #D32F2F - BNI Red */
+    --primary-foreground: 0 0% 100%; /* #ffffff - White on red */
+    --secondary: 45 100% 51%;        /* #FFB300 - BNI Gold */
+    --secondary-foreground: 222 47% 11%; /* #0f172a - Dark on gold */
+    --muted: 220 13% 91%;            /* #e8eaed - Light gray */
+    --muted-foreground: 215 16% 47%; /* #64748b - Gray text */
+    --accent: 45 100% 51%;           /* #FFB300 - Gold accent */
+    --accent-foreground: 222 47% 11%; /* #0f172a - Dark on gold */
+    --destructive: 0 84% 60%;        /* #ef4444 - Error red */
+    --destructive-foreground: 0 0% 100%; /* #ffffff - White on red */
+    --border: 220 13% 91%;           /* #e8eaed - Light borders */
+    --input: 220 13% 91%;            /* #e8eaed - Input background */
+    --ring: 4 75% 50%;               /* #D32F2F - BNI Red ring */
     --radius: 0.5rem;
+    --success: 142 71% 45%;          /* #16a34a - Success green */
+    --warning: 38 92% 50%;           /* #f59e0b - Warning orange */
+    --info: 221 83% 53%;             /* #3b82f6 - Info blue */
   }
 
   .dark {
-    /* Happy Hues Palette #4 - Dark Theme */
-    --background: 230 7% 16%;        /* #242629 - Background */
-    --foreground: 0 0% 100%;         /* #fffffe - Headline */
-    --card: 233 18% 9%;              /* #16161a - Card background (darker) */
-    --card-foreground: 0 0% 100%;    /* #fffffe - Card headline */
-    --popover: 233 18% 9%;           /* #16161a - Popover background */
-    --popover-foreground: 0 0% 100%; /* #fffffe - Popover text */
-    --primary: 252 83% 65%;          /* #7f5af0 - Button/Primary (purple) */
-    --primary-foreground: 0 0% 100%; /* #fffffe - Button text */
-    --secondary: 162 69% 50%;        /* #2cb67d - Secondary (green) */
-    --secondary-foreground: 0 0% 100%; /* #fffffe - Secondary text */
-    --muted: 233 18% 9%;             /* #16161a - Muted elements (darker) */
-    --muted-foreground: 215 19% 63%; /* #94a1b2 - Paragraph text */
-    --accent: 162 69% 50%;           /* #2cb67d - Accent (green) */
-    --accent-foreground: 0 0% 100%;  /* #fffffe - Accent text */
-    --destructive: 0 58% 58%;        /* #e16162 - Destructive actions */
-    --destructive-foreground: 0 0% 100%; /* #fffffe - Destructive text */
-    --border: 215 19% 63%;           /* #94a1b2 - Border color */
-    --input: 233 18% 9%;             /* #16161a - Input background */
-    --ring: 252 83% 65%;             /* #7f5af0 - Focus ring (purple) */
+    /* Dark Mode - BNI Professional Theme */
+    --background: 222 47% 11%;       /* #0f172a - Deep slate background */
+    --foreground: 210 40% 98%;       /* #f8fafc - Near white text */
+    --card: 217 33% 17%;             /* #1e293b - Slate card */
+    --card-foreground: 210 40% 98%;  /* #f8fafc - Light text on cards */
+    --popover: 217 33% 17%;          /* #1e293b - Popover background */
+    --popover-foreground: 210 40% 98%; /* #f8fafc - Popover text */
+    --primary: 4 75% 55%;            /* #E53935 - Brighter BNI Red for dark mode */
+    --primary-foreground: 210 40% 98%; /* #f8fafc - Light on red */
+    --secondary: 45 100% 55%;        /* #FFC107 - Brighter Gold for dark mode */
+    --secondary-foreground: 222 47% 11%; /* #0f172a - Dark on gold */
+    --muted: 217 33% 17%;            /* #1e293b - Dark gray */
+    --muted-foreground: 215 20% 65%; /* #94a3b8 - Light gray text */
+    --accent: 45 100% 55%;           /* #FFC107 - Bright gold accent */
+    --accent-foreground: 222 47% 11%; /* #0f172a - Dark on gold */
+    --destructive: 0 84% 60%;        /* #ef4444 - Error red */
+    --destructive-foreground: 210 40% 98%; /* #f8fafc - Light on red */
+    --border: 217 33% 24%;           /* #334155 - Subtle borders */
+    --input: 217 33% 17%;            /* #1e293b - Input background */
+    --ring: 4 75% 55%;               /* #E53935 - BNI Red ring */
+    --success: 142 71% 45%;          /* #16a34a - Success green */
+    --warning: 38 92% 50%;           /* #f59e0b - Warning orange */
+    --info: 221 83% 53%;             /* #3b82f6 - Info blue */
   }
 
   * {

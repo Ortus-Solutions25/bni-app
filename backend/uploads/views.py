@@ -98,25 +98,30 @@ class FileUploadViewSet(viewsets.ViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Build data dict for serializer with the files
-        data = request.data.copy()
-        data['slip_audit_files'] = slip_files
+        logger.info(f"Found {len(slip_files)} slip audit file(s): {[f.name for f in slip_files]}")
 
-        serializer = FileUploadSerializer(data=data)
-        if not serializer.is_valid():
-            logger.error(f"Serializer validation failed: {serializer.errors}")
+        # Get other data from request directly (skip serializer for file lists)
+        try:
+            slip_audit_files = slip_files
+            member_names_file = request.FILES.get('member_names_file')
+
+            # Validate required fields
+            if not request.data.get('chapter_id'):
+                return Response(
+                    {'error': 'chapter_id is required'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            chapter_id = int(request.data.get('chapter_id'))
+            month_year = request.data.get('month_year', '').strip() or None
+            upload_option = request.data.get('upload_option', 'slip_only')
+        except ValueError as e:
             return Response(
-                {'error': 'Invalid data', 'details': serializer.errors},
+                {'error': f'Invalid data format: {str(e)}'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
         try:
-            # Get validated data
-            slip_audit_files = serializer.validated_data['slip_audit_files']
-            member_names_file = serializer.validated_data.get('member_names_file')
-            chapter_id = serializer.validated_data['chapter_id']
-            month_year = serializer.validated_data.get('month_year')
-            upload_option = serializer.validated_data['upload_option']
 
             logger.info(f"Processing {len(slip_audit_files)} slip audit file(s)")
 

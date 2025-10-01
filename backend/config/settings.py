@@ -39,25 +39,19 @@ if os.environ.get('VERCEL'):
 # Application definition
 
 INSTALLED_APPS = [
-    "django.contrib.staticfiles",
     # Third party apps
     "rest_framework",
     "corsheaders",
-    # Feature-based apps
+    # Our apps
     "chapters",
     "members",
     "reports",
     "analytics",
     "uploads",
-    # Legacy app (will be removed after full migration)
     "bni",
-    # Shared utilities
-    "shared",
 ]
 
 MIDDLEWARE = [
-    "django.middleware.security.SecurityMiddleware",
-    "whitenoise.middleware.WhiteNoiseMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.common.CommonMiddleware",
 ]
@@ -138,11 +132,13 @@ MEDIA_ROOT = BASE_DIR / "media"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-# REST Framework settings
+# REST Framework settings - no auth
 REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.AllowAny",
     ],
+    "DEFAULT_AUTHENTICATION_CLASSES": [],  # No authentication
+    "UNAUTHENTICATED_USER": None,  # Don't use Django User model
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 100,
 }

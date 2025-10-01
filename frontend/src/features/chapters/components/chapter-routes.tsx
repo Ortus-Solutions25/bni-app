@@ -1,7 +1,8 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { Routes, Route, useNavigate, useParams } from 'react-router-dom';
 import UnifiedDashboard from './unified-dashboard';
-import { ChapterMemberData, loadAllChapterData } from '../../../shared/services/ChapterDataLoader';
+import { ChapterMemberData } from '../../../shared/services/ChapterDataLoader';
+import { useChapterData } from '../../../shared/hooks/useChapterData';
 
 const ChapterDetailPage = lazy(() => import('./chapter-detail-page'));
 const MemberDetails = lazy(() => import('../../members/components/member-details'));
@@ -30,36 +31,26 @@ interface ChapterRoutesProps {
 }
 
 const ChapterRoutes: React.FC<ChapterRoutesProps> = ({ selectedChapterId, onChapterSelect, onChaptersLoad }) => {
-  const [chapterData, setChapterData] = useState<ChapterMemberData[]>([]);
-  const [isLoadingChapters, setIsLoadingChapters] = useState(true);
   const navigate = useNavigate();
 
-  // Load chapter data on mount
-  useEffect(() => {
-    const loadChapters = async () => {
-      setIsLoadingChapters(true);
-      try {
-        const chapters = await loadAllChapterData();
-        setChapterData(chapters);
-        // Notify parent of loaded chapters
-        onChaptersLoad(chapters.map(c => ({
-          chapterId: c.chapterId,
-          chapterName: c.chapterName,
-          memberCount: c.memberCount
-        })));
-        // Auto-select first chapter if none selected
-        if (chapters.length > 0 && !selectedChapterId) {
-          onChapterSelect(chapters[0].chapterId);
-        }
-      } catch (error) {
-        console.error('Failed to load chapter data:', error);
-      } finally {
-        setIsLoadingChapters(false);
-      }
-    };
+  // Use React Query hook for cached data fetching
+  const { data: chapterData = [], isLoading: isLoadingChapters, refetch } = useChapterData();
 
-    loadChapters();
-  }, []); // Only run once on mount
+  // Notify parent when chapter data loads
+  useEffect(() => {
+    if (chapterData.length > 0) {
+      // Notify parent of loaded chapters
+      onChaptersLoad(chapterData.map(c => ({
+        chapterId: c.chapterId,
+        chapterName: c.chapterName,
+        memberCount: c.memberCount
+      })));
+      // Auto-select first chapter if none selected
+      if (!selectedChapterId) {
+        onChapterSelect(chapterData[0].chapterId);
+      }
+    }
+  }, [chapterData, selectedChapterId, onChapterSelect, onChaptersLoad]);
 
   // Navigation handlers
   const handleMemberSelect = (chapterId: string, memberName: string) => {
@@ -75,16 +66,8 @@ const ChapterRoutes: React.FC<ChapterRoutesProps> = ({ selectedChapterId, onChap
   };
 
   const handleDataRefresh = async () => {
-    // Reload chapter data after adding a new chapter
-    setIsLoadingChapters(true);
-    try {
-      const chapters = await loadAllChapterData();
-      setChapterData(chapters);
-    } catch (error) {
-      console.error('Failed to reload chapter data:', error);
-    } finally {
-      setIsLoadingChapters(false);
-    }
+    // Refetch chapter data from React Query cache
+    await refetch();
   };
 
   return (

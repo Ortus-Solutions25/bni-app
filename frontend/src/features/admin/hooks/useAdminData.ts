@@ -1,40 +1,29 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { SystemStats } from '../types/admin.types';
-import { ChapterMemberData, loadAllChapterData } from '../../../shared/services/ChapterDataLoader';
+import { ChapterMemberData } from '../../../shared/services/ChapterDataLoader';
+import { useChapterData } from '../../../shared/hooks/useChapterData';
 
 export const useAdminData = () => {
-  const [chapterData, setChapterData] = useState<ChapterMemberData[]>([]);
   const [selectedChapter, setSelectedChapter] = useState<ChapterMemberData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-  // Load chapter data on mount and refresh trigger
+  // Use React Query cached data
+  const { data: chapterData = [], isLoading, refetch } = useChapterData();
+
+  // Update selected chapter when data loads
   useEffect(() => {
-    const loadChapters = async () => {
-      setIsLoading(true);
-      try {
-        const chapters = await loadAllChapterData();
-        setChapterData(chapters);
-
-        // If selected chapter no longer exists (deleted), clear selection
-        if (selectedChapter && !chapters.find(c => c.chapterId === selectedChapter.chapterId)) {
-          setSelectedChapter(chapters.length > 0 ? chapters[0] : null);
-        } else if (chapters.length > 0 && !selectedChapter) {
-          setSelectedChapter(chapters[0]);
-        }
-      } catch (error) {
-        console.error('Failed to load chapter data:', error);
-      } finally {
-        setIsLoading(false);
+    if (chapterData.length > 0) {
+      // If selected chapter no longer exists (deleted), clear selection
+      if (selectedChapter && !chapterData.find(c => c.chapterId === selectedChapter.chapterId)) {
+        setSelectedChapter(chapterData[0]);
+      } else if (!selectedChapter) {
+        setSelectedChapter(chapterData[0]);
       }
-    };
+    }
+  }, [chapterData, selectedChapter]);
 
-    loadChapters();
-  }, [refreshTrigger, selectedChapter]);
-
-  const handleDataRefresh = useCallback(() => {
-    setRefreshTrigger(prev => prev + 1);
-  }, []);
+  const handleDataRefresh = useCallback(async () => {
+    await refetch();
+  }, [refetch]);
 
   const handleChapterSelect = useCallback((chapterId: string) => {
     const chapter = chapterData.find(c => c.chapterId === chapterId);

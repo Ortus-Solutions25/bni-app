@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { UploadResult } from '../types/admin.types';
 import { API_BASE_URL } from '@/config/api';
+import { useInvalidateChapterData } from '@/shared/hooks/useChapterData';
 
 interface BulkUploadTabProps {
   onDataRefresh: () => void;
@@ -16,6 +17,7 @@ export const BulkUploadTab: React.FC<BulkUploadTabProps> = ({ onDataRefresh }) =
   const [uploadResult, setUploadResult] = useState<UploadResult | null>(null);
   const [isResetting, setIsResetting] = useState(false);
   const [resetResult, setResetResult] = useState<UploadResult | null>(null);
+  const invalidateChapterData = useInvalidateChapterData();
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -52,10 +54,13 @@ export const BulkUploadTab: React.FC<BulkUploadTabProps> = ({ onDataRefresh }) =
           details: result.details || result,
         });
 
-        // Delay refresh to allow user to see the success message
+        // Invalidate React Query cache to force refetch
+        await invalidateChapterData();
+
+        // Delay refresh callback to allow user to see the success message
         setTimeout(() => {
           onDataRefresh();
-        }, 3000);
+        }, 1500);
       } else {
         setUploadResult({
           success: false,
@@ -112,10 +117,13 @@ export const BulkUploadTab: React.FC<BulkUploadTabProps> = ({ onDataRefresh }) =
           details: result.deleted,
         });
 
+        // Invalidate React Query cache to force refetch
+        await invalidateChapterData();
+
         // Refresh data after successful reset
         setTimeout(() => {
           onDataRefresh();
-        }, 2000);
+        }, 1500);
       } else {
         setResetResult({
           success: false,

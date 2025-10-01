@@ -24,13 +24,18 @@ logger = logging.getLogger(__name__)
 class ExcelProcessorService:
     """Service for processing BNI Excel files and extracting data."""
     
-    # Column mappings based on BNI PALMS format
+    # Column mappings based on BNI Slip Audit Report format
+    # Row 0-1: Metadata (Running User, Run At, Country, Region, Chapter)
+    # Row 2: Headers (From, To, Slip Type, Inside/Outside, $ if TYFCB, Qty if CEU, Detail)
+    # Row 3+: Data
     COLUMN_MAPPINGS = {
-        'giver_name': 0,      # Column A
-        'receiver_name': 1,    # Column B  
-        'slip_type': 2,        # Column C
-        'tyfcb_amount': 4,     # Column E
-        'detail': 6,           # Column G
+        'giver_name': 0,       # Column A - From
+        'receiver_name': 1,     # Column B - To
+        'slip_type': 3,         # Column D - Slip Type
+        'inside_outside': 5,    # Column F - Inside/Outside
+        'tyfcb_amount': 6,      # Column G - $ if TYFCB
+        'qty_ceu': 8,           # Column I - Qty if CEU
+        'detail': 9,            # Column J - Detail
     }
     
     SLIP_TYPES = {
@@ -289,10 +294,10 @@ class ExcelProcessorService:
         with transaction.atomic():
             for idx, row in df.iterrows():
                 try:
-                    # Skip header row (assuming row 0 is header)
-                    if idx == 0:
+                    # Skip first 3 rows (metadata + headers: rows 0, 1, 2)
+                    if idx < 3:
                         continue
-                    
+
                     # Extract data from row
                     giver_name = self._get_cell_value(row, self.COLUMN_MAPPINGS['giver_name'])
                     receiver_name = self._get_cell_value(row, self.COLUMN_MAPPINGS['receiver_name'])
@@ -446,14 +451,17 @@ class ExcelProcessorService:
         # Extract amount
         amount_str = self._get_cell_value(row, self.COLUMN_MAPPINGS['tyfcb_amount'])
         amount = self._parse_currency_amount(amount_str)
-        
+
         if amount <= 0:
             self.warnings.append(f"Row {row_idx + 1}: Invalid TYFCB amount: {amount_str}")
             return False
-        
+
+        # Determine if inside or outside chapter based on Inside/Outside column
+        inside_outside = self._get_cell_value(row, self.COLUMN_MAPPINGS['inside_outside'])
+        within_chapter = inside_outside and inside_outside.lower().strip() == 'inside'
+
         # Extract detail/description
         detail = self._get_cell_value(row, self.COLUMN_MAPPINGS['detail'])
-        within_chapter = not detail or detail.strip() == ""
         
         # Create or get existing TYFCB
         try:

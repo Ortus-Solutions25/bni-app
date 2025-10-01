@@ -54,8 +54,8 @@ class ChapterViewSet(viewsets.ModelViewSet):
                     )
                 )
                 .annotate(
-                    active_member_count=Count('members', filter=models.Q(members__is_active=True)),
-                    report_count=Count('monthly_reports')
+                    active_member_count=Count('members', filter=models.Q(members__is_active=True), distinct=True),
+                    report_count=Count('monthly_reports', distinct=True)
                 )
             )
 

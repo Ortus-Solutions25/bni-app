@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import {
   Settings,
   CloudUpload,
@@ -8,6 +10,7 @@ import {
   FileSpreadsheet,
   Calendar,
   UserPlus,
+  BarChart3,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -19,6 +22,9 @@ import { SystemStatusTab } from './system-status-tab';
 import { useAdminData } from '../hooks/useAdminData';
 
 const AdminDashboard: React.FC = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+
   const {
     chapterData,
     selectedChapter,
@@ -27,6 +33,14 @@ const AdminDashboard: React.FC = () => {
     handleDataRefresh,
     handleChapterSelect,
   } = useAdminData();
+
+  const tabs = [
+    { id: 'dashboard', label: 'Chapter Dashboard', icon: Building2, path: '/' },
+    { id: 'admin', label: 'Admin Dashboard', icon: Settings, path: '/admin' },
+    { id: 'summary', label: 'Summary', icon: BarChart3, path: '/summary' }
+  ];
+
+  const currentTab = location.pathname === '/admin' ? 'admin' : location.pathname === '/summary' ? 'summary' : 'dashboard';
 
   // Persist tab selection in URL and localStorage
   const [activeTab, setActiveTab] = useState<string>(() => {
@@ -59,16 +73,46 @@ const AdminDashboard: React.FC = () => {
   }
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div>
-        <div className="flex items-center gap-3 mb-2">
-          <Settings className="h-8 w-8 text-primary" />
-          <h1 className="text-3xl font-bold">BNI Admin Dashboard</h1>
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.3 }}
+      className="space-y-6 sm:space-y-8 p-4 sm:p-6"
+    >
+      {/* Navigation Tabs */}
+      <div className="flex items-center justify-between gap-4 pb-4 border-b">
+        <div className="flex items-center gap-2">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = currentTab === tab.id;
+            return (
+              <motion.button
+                key={tab.id}
+                onClick={() => navigate(tab.path)}
+                className={`relative px-4 py-2 rounded-lg font-semibold transition-colors ${
+                  isActive
+                    ? 'text-foreground'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <div className="flex items-center gap-2">
+                  <Icon className="h-4 w-4" />
+                  <span className="hidden sm:inline">{tab.label}</span>
+                </div>
+                {isActive && (
+                  <motion.div
+                    layoutId="activeTab"
+                    className="absolute inset-0 bg-secondary/20 rounded-lg -z-10"
+                    transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
+                  />
+                )}
+              </motion.button>
+            );
+          })}
         </div>
-        <p className="text-muted-foreground">
-          Manage chapters, upload data, and monitor system performance
-        </p>
       </div>
 
       {/* Admin Tabs */}
@@ -134,7 +178,7 @@ const AdminDashboard: React.FC = () => {
           <SystemStatusTab systemStats={systemStats} />
         </TabsContent>
       </Tabs>
-    </div>
+    </motion.div>
   );
 };
 

@@ -6,6 +6,7 @@ import { ChapterMemberData, loadAllChapterData } from '../../../shared/services/
 const ChapterDetailPage = lazy(() => import('./chapter-detail-page'));
 const MemberDetails = lazy(() => import('../../members/components/member-details'));
 const AdminDashboard = lazy(() => import('../../admin/components/admin-dashboard'));
+const SummaryPage = lazy(() => import('./summary-page'));
 
 const LoadingFallback: React.FC = () => (
   <div className="flex items-center justify-center min-h-[400px]">
@@ -92,6 +93,16 @@ const ChapterRoutes: React.FC = () => {
         element={
           <Suspense fallback={<LoadingFallback />}>
             <AdminDashboard />
+          </Suspense>
+        }
+      />
+
+      {/* Summary Page */}
+      <Route
+        path="/summary"
+        element={
+          <Suspense fallback={<LoadingFallback />}>
+            <SummaryPage />
           </Suspense>
         }
       />

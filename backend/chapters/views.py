@@ -37,110 +37,133 @@ class ChapterViewSet(viewsets.ModelViewSet):
         Uses aggregation and prefetch_related to avoid N+1 queries.
         """
         from django.db.models import Count, Sum, Prefetch
+        import logging
+        logger = logging.getLogger(__name__)
 
-        # Single query to get all chapters with aggregated stats
-        chapters = (
-            self.get_queryset()
-            .prefetch_related(
-                Prefetch(
-                    'members',
-                    queryset=Member.objects.filter(is_active=True).only(
-                        'id', 'first_name', 'last_name', 'business_name',
-                        'classification', 'email', 'phone', 'chapter_id'
+        try:
+            # Single query to get all chapters with aggregated stats
+            chapters = (
+                self.get_queryset()
+                .prefetch_related(
+                    Prefetch(
+                        'members',
+                        queryset=Member.objects.filter(is_active=True).only(
+                            'id', 'first_name', 'last_name', 'business_name',
+                            'classification', 'email', 'phone', 'chapter_id'
+                        )
                     )
                 )
+                .annotate(
+                    active_member_count=Count('members', filter=models.Q(members__is_active=True)),
+                    report_count=Count('monthly_reports')
+                )
             )
-            .annotate(
-                active_member_count=Count('members', filter=models.Q(members__is_active=True)),
-                report_count=Count('monthly_reports')
+
+            # Get all analytics data in batch queries
+            chapter_ids = [c.id for c in chapters]
+        except Exception as e:
+            logger.exception(f"Error fetching chapters: {str(e)}")
+            return Response(
+                {'error': f'Failed to fetch chapters: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-        )
 
-        # Get all analytics data in batch queries
-        chapter_ids = [c.id for c in chapters]
+        try:
+            # Batch query for referral counts
+            referral_stats = (
+                Referral.objects
+                .filter(giver__chapter_id__in=chapter_ids)
+                .values('giver__chapter_id')
+                .annotate(total=Count('id'))
+            )
+            referral_dict = {r['giver__chapter_id']: r['total'] for r in referral_stats}
 
-        # Batch query for referral counts
-        referral_stats = (
-            Referral.objects
-            .filter(giver__chapter_id__in=chapter_ids)
-            .values('giver__chapter_id')
-            .annotate(total=Count('id'))
-        )
-        referral_dict = {r['giver__chapter_id']: r['total'] for r in referral_stats}
+            # Batch query for one-to-one counts
+            oto_stats = (
+                OneToOne.objects
+                .filter(member1__chapter_id__in=chapter_ids)
+                .values('member1__chapter_id')
+                .annotate(total=Count('id'))
+            )
+            oto_dict = {o['member1__chapter_id']: o['total'] for o in oto_stats}
 
-        # Batch query for one-to-one counts
-        oto_stats = (
-            OneToOne.objects
-            .filter(member1__chapter_id__in=chapter_ids)
-            .values('member1__chapter_id')
-            .annotate(total=Count('id'))
-        )
-        oto_dict = {o['member1__chapter_id']: o['total'] for o in oto_stats}
-
-        # Batch query for TYFCB amounts
-        tyfcb_stats = (
-            TYFCB.objects
-            .filter(receiver__chapter_id__in=chapter_ids)
-            .values('receiver__chapter_id', 'within_chapter')
-            .annotate(total=Sum('amount'))
-        )
-        tyfcb_dict = {}
-        for t in tyfcb_stats:
-            chapter_id = t['receiver__chapter_id']
-            if chapter_id not in tyfcb_dict:
-                tyfcb_dict[chapter_id] = {'inside': 0, 'outside': 0}
-            if t['within_chapter']:
-                tyfcb_dict[chapter_id]['inside'] = float(t['total'] or 0)
-            else:
-                tyfcb_dict[chapter_id]['outside'] = float(t['total'] or 0)
+            # Batch query for TYFCB amounts
+            tyfcb_stats = (
+                TYFCB.objects
+                .filter(receiver__chapter_id__in=chapter_ids)
+                .values('receiver__chapter_id', 'within_chapter')
+                .annotate(total=Sum('amount'))
+            )
+            tyfcb_dict = {}
+            for t in tyfcb_stats:
+                chapter_id = t['receiver__chapter_id']
+                if chapter_id not in tyfcb_dict:
+                    tyfcb_dict[chapter_id] = {'inside': 0, 'outside': 0}
+                if t['within_chapter']:
+                    tyfcb_dict[chapter_id]['inside'] = float(t['total'] or 0)
+                else:
+                    tyfcb_dict[chapter_id]['outside'] = float(t['total'] or 0)
+        except Exception as e:
+            logger.exception(f"Error fetching analytics data: {str(e)}")
+            return Response(
+                {'error': f'Failed to fetch analytics data: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
         # Build response
         chapter_data = []
-        for chapter in chapters:
-            member_count = chapter.active_member_count
-            total_referrals = referral_dict.get(chapter.id, 0)
-            total_one_to_ones = oto_dict.get(chapter.id, 0)
-            tyfcb_data = tyfcb_dict.get(chapter.id, {'inside': 0, 'outside': 0})
-            total_tyfcb_inside = tyfcb_data['inside']
-            total_tyfcb_outside = tyfcb_data['outside']
+        try:
+            for chapter in chapters:
+                member_count = chapter.active_member_count
+                total_referrals = referral_dict.get(chapter.id, 0)
+                total_one_to_ones = oto_dict.get(chapter.id, 0)
+                tyfcb_data = tyfcb_dict.get(chapter.id, {'inside': 0, 'outside': 0})
+                total_tyfcb_inside = tyfcb_data['inside']
+                total_tyfcb_outside = tyfcb_data['outside']
 
-            # Calculate averages
-            avg_referrals = round(total_referrals / member_count, 2) if member_count > 0 else 0
-            avg_one_to_ones = round(total_one_to_ones / member_count, 2) if member_count > 0 else 0
-            avg_tyfcb_inside = round(total_tyfcb_inside / member_count, 2) if member_count > 0 else 0
-            avg_tyfcb_outside = round(total_tyfcb_outside / member_count, 2) if member_count > 0 else 0
+                # Calculate averages
+                avg_referrals = round(total_referrals / member_count, 2) if member_count > 0 else 0
+                avg_one_to_ones = round(total_one_to_ones / member_count, 2) if member_count > 0 else 0
+                avg_tyfcb_inside = round(total_tyfcb_inside / member_count, 2) if member_count > 0 else 0
+                avg_tyfcb_outside = round(total_tyfcb_outside / member_count, 2) if member_count > 0 else 0
 
-            # Prepare member list from prefetched data
-            member_list = [
-                {
-                    'id': member.id,
-                    'name': member.full_name,
-                    'business_name': member.business_name,
-                    'classification': member.classification,
-                    'email': member.email,
-                    'phone': member.phone,
-                }
-                for member in chapter.members.all()
-            ]
+                # Prepare member list from prefetched data
+                member_list = [
+                    {
+                        'id': member.id,
+                        'name': member.full_name,
+                        'business_name': member.business_name,
+                        'classification': member.classification,
+                        'email': member.email,
+                        'phone': member.phone,
+                    }
+                    for member in chapter.members.all()
+                ]
 
-            chapter_data.append({
-                'id': chapter.id,
-                'name': chapter.name,
-                'location': chapter.location,
-                'meeting_day': chapter.meeting_day,
-                'meeting_time': str(chapter.meeting_time) if chapter.meeting_time else None,
-                'total_members': member_count,
-                'monthly_reports_count': chapter.report_count,
-                'total_referrals': total_referrals,
-                'total_one_to_ones': total_one_to_ones,
-                'total_tyfcb_inside': total_tyfcb_inside,
-                'total_tyfcb_outside': total_tyfcb_outside,
-                'avg_referrals_per_member': avg_referrals,
-                'avg_one_to_ones_per_member': avg_one_to_ones,
-                'avg_tyfcb_inside_per_member': avg_tyfcb_inside,
-                'avg_tyfcb_outside_per_member': avg_tyfcb_outside,
-                'members': member_list,
-            })
+                chapter_data.append({
+                    'id': chapter.id,
+                    'name': chapter.name,
+                    'location': chapter.location,
+                    'meeting_day': chapter.meeting_day,
+                    'meeting_time': str(chapter.meeting_time) if chapter.meeting_time else None,
+                    'total_members': member_count,
+                    'monthly_reports_count': chapter.report_count,
+                    'total_referrals': total_referrals,
+                    'total_one_to_ones': total_one_to_ones,
+                    'total_tyfcb_inside': total_tyfcb_inside,
+                    'total_tyfcb_outside': total_tyfcb_outside,
+                    'avg_referrals_per_member': avg_referrals,
+                    'avg_one_to_ones_per_member': avg_one_to_ones,
+                    'avg_tyfcb_inside_per_member': avg_tyfcb_inside,
+                    'avg_tyfcb_outside_per_member': avg_tyfcb_outside,
+                    'members': member_list,
+                })
+        except Exception as e:
+            logger.exception(f"Error building response: {str(e)}")
+            return Response(
+                {'error': f'Failed to build response: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
         return Response(chapter_data)
 

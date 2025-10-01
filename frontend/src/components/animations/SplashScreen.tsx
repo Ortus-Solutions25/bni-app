@@ -65,15 +65,22 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
       >
         <div className="relative w-full max-w-4xl px-8 flex items-center justify-center overflow-hidden">
           {/* BNI DEIRA Text */}
-          {(stage === 'bni' || stage === 'app') && (
+          {stage === 'bni' && (
+            <div className="absolute text-center">
+              <h1 className="text-6xl md:text-8xl font-bold text-white tracking-tight">
+                BNI
+                <span className="block text-bniGold-300 mt-2">DEIRA</span>
+              </h1>
+            </div>
+          )}
+
+          {/* BNI DEIRA Text - Sliding Out */}
+          {stage === 'app' && (
             <motion.div
-              animate={
-                stage === 'bni'
-                  ? { opacity: 1, scale: 1, x: 0 }
-                  : { opacity: 0, x: '-100%' }
-              }
+              initial={{ opacity: 1, x: 0 }}
+              animate={{ opacity: 0, x: '-100%' }}
               transition={{
-                duration: stage === 'bni' ? 0 : 0.5,
+                duration: 0.5,
                 ease: [0.43, 0.13, 0.23, 0.96],
               }}
               className="absolute text-center"

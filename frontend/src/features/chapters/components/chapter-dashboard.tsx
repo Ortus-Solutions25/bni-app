@@ -1,5 +1,5 @@
 import React, { useMemo, useEffect } from 'react';
-import { Building2, Loader2 } from 'lucide-react';
+import { Building2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
 import ChapterCard from './chapter-card';
@@ -11,7 +11,7 @@ import { useNavigationStats } from '../../../shared/contexts/NavigationContext';
 interface ChapterDashboardProps {
   chapterData: ChapterMemberData[];
   isLoading: boolean;
-  onChapterSelect: (chapter: ChapterMemberData) => void;
+  onChapterSelect: (chapterId: string, tab: 'info' | 'upload' | 'compare' | 'preview') => void;
   onChapterAdded?: () => void;
 }
 
@@ -82,15 +82,15 @@ const ChapterDashboard: React.FC<ChapterDashboardProps> = ({
         className="space-y-6 sm:space-y-8 p-4 sm:p-6"
         data-testid="chapter-dashboard"
       >
-      {/* Chapters Grid */}
+      {/* Chapters List */}
       <div>
         {processedChapterData.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="flex flex-col gap-4">
             {processedChapterData.map((chapter) => (
               <ChapterCard
                 key={chapter.chapterId}
                 chapterData={chapter}
-                onClick={() => onChapterSelect(chapter)}
+                onTabSelect={onChapterSelect}
                 isLoading={isLoading}
               />
             ))}

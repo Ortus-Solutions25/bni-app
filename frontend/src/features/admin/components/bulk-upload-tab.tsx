@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Info, CheckCircle, AlertTriangle, Loader2 } from 'lucide-react';
+import { Info, CheckCircle, AlertTriangle, Loader2, Trash2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { UploadResult } from '../types/admin.types';
 import { API_BASE_URL } from '@/config/api';
 
@@ -13,6 +14,8 @@ interface BulkUploadTabProps {
 export const BulkUploadTab: React.FC<BulkUploadTabProps> = ({ onDataRefresh }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadResult, setUploadResult] = useState<UploadResult | null>(null);
+  const [isResetting, setIsResetting] = useState(false);
+  const [resetResult, setResetResult] = useState<UploadResult | null>(null);
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -73,13 +76,72 @@ export const BulkUploadTab: React.FC<BulkUploadTabProps> = ({ onDataRefresh }) =
     }
   };
 
+  const handleReset = async () => {
+    const confirmText = 'DELETE ALL DATA';
+    const userInput = window.prompt(
+      `⚠️ WARNING: This will permanently delete ALL data from the database!\n\n` +
+      `This includes:\n` +
+      `- All chapters\n` +
+      `- All members\n` +
+      `- All reports\n` +
+      `- All analytics (referrals, one-to-ones, TYFCB)\n\n` +
+      `Type "${confirmText}" to confirm:`
+    );
+
+    if (userInput !== confirmText) {
+      if (userInput !== null) {
+        alert('Reset cancelled. Confirmation text did not match.');
+      }
+      return;
+    }
+
+    setIsResetting(true);
+    setResetResult(null);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/upload/reset-all/`, {
+        method: 'POST',
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        setResetResult({
+          success: true,
+          message: result.message,
+          details: result.deleted,
+        });
+
+        // Refresh data after successful reset
+        setTimeout(() => {
+          onDataRefresh();
+        }, 2000);
+      } else {
+        setResetResult({
+          success: false,
+          message: result.error || 'Reset failed',
+        });
+      }
+    } catch (error) {
+      console.error('Reset error:', error);
+      setResetResult({
+        success: false,
+        message: `Reset error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      });
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-semibold mb-4">Bulk Update</h2>
-        <p className="text-muted-foreground">
-          Upload a Regional PALMS Summary report to bulk create/update chapters and members.
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-semibold mb-2">Bulk Operations</h2>
+          <p className="text-muted-foreground">
+            Upload a Regional PALMS Summary report to bulk create/update chapters and members.
+          </p>
+        </div>
       </div>
 
       <Card>
@@ -134,6 +196,75 @@ export const BulkUploadTab: React.FC<BulkUploadTabProps> = ({ onDataRefresh }) =
                         <div className="text-xs text-muted-foreground">Some rows were skipped due to missing data</div>
                       </div>
                     )}
+                  </div>
+                )}
+              </AlertDescription>
+            </Alert>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Reset Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-destructive flex items-center gap-2">
+            <Trash2 className="h-5 w-5" />
+            Danger Zone: Reset Database
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Alert>
+            <AlertTriangle className="h-4 w-4 text-destructive" />
+            <AlertDescription>
+              <strong className="text-destructive">Warning:</strong> This action will permanently delete ALL data from the database, including:
+              <ul className="list-disc list-inside mt-2 space-y-1">
+                <li>All chapters and their settings</li>
+                <li>All members</li>
+                <li>All monthly reports</li>
+                <li>All analytics data (referrals, one-to-ones, TYFCB)</li>
+              </ul>
+              <div className="mt-3 font-semibold">This action cannot be undone!</div>
+            </AlertDescription>
+          </Alert>
+
+          <Button
+            onClick={handleReset}
+            disabled={isResetting || isUploading}
+            variant="destructive"
+            className="w-full sm:w-auto"
+          >
+            {isResetting ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Resetting...
+              </>
+            ) : (
+              <>
+                <Trash2 className="h-4 w-4 mr-2" />
+                Reset All Data
+              </>
+            )}
+          </Button>
+
+          {resetResult && (
+            <Alert variant={resetResult.success ? 'default' : 'destructive'}>
+              {resetResult.success ? (
+                <CheckCircle className="h-4 w-4" />
+              ) : (
+                <AlertTriangle className="h-4 w-4" />
+              )}
+              <AlertDescription>
+                {resetResult.message}
+                {resetResult.details && resetResult.success && (
+                  <div className="mt-2 text-sm space-y-1">
+                    <div className="font-medium">Items deleted:</div>
+                    <div>Chapters: {resetResult.details.chapters || 0}</div>
+                    <div>Members: {resetResult.details.members || 0}</div>
+                    <div>Monthly Reports: {resetResult.details.monthly_reports || 0}</div>
+                    <div>Member Stats: {resetResult.details.member_stats || 0}</div>
+                    <div>Referrals: {resetResult.details.referrals || 0}</div>
+                    <div>One-to-Ones: {resetResult.details.one_to_ones || 0}</div>
+                    <div>TYFCBs: {resetResult.details.tyfcbs || 0}</div>
                   </div>
                 )}
               </AlertDescription>

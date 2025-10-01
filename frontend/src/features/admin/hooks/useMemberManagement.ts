@@ -66,6 +66,19 @@ export const useMemberManagement = (chapterData: ChapterMemberData[]) => {
     setSelectedMembers([]);
   }, [selectedMembers]);
 
+  const handleEdit = useCallback((member: AdminMember) => {
+    // TODO: Implementation would open edit dialog or navigate to edit page
+    console.log('Edit member:', member);
+    alert(`Edit functionality for ${member.name} will be implemented here`);
+  }, []);
+
+  const handleDelete = useCallback(async (member: AdminMember) => {
+    if (!window.confirm(`Are you sure you want to delete ${member.name}?`)) return;
+
+    // TODO: Implementation would call DELETE API for the member
+    console.log('Delete member:', member);
+  }, []);
+
   const exportMemberData = useCallback(() => {
     const csvContent = "data:text/csv;charset=utf-8,"
       + "Name,Chapter\n"
@@ -94,6 +107,8 @@ export const useMemberManagement = (chapterData: ChapterMemberData[]) => {
     handleMemberSelect,
     handleSelectAll,
     handleBulkDelete,
+    handleEdit,
+    handleDelete,
     exportMemberData,
   };
 };

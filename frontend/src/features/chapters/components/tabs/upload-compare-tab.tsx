@@ -48,7 +48,7 @@ const UploadCompareTab: React.FC<UploadCompareTabProps> = ({
         </CardHeader>
         <CardContent>
           <ComparisonTab
-            chapterData={chapterData}
+            chapterId={chapterData.chapterId}
             key={refreshKey}
           />
         </CardContent>

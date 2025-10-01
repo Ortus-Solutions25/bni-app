@@ -26,6 +26,7 @@ interface UploadFile {
   name: string;
   size: string;
   type: 'slip_audit' | 'member_names';
+  extractedDate?: string;
 }
 
 interface FileUploadComponentProps {
@@ -54,17 +55,37 @@ const FileUploadComponent: React.FC<FileUploadComponentProps> = ({
   const { handleError } = useApiError();
   const [isMonthPopoverOpen, setIsMonthPopoverOpen] = useState(false);
 
+  // Extract date from filename (format: Slips_Audit_Report_08-25-2025_2-26_PM.xls)
+  const extractDateFromFilename = (filename: string): string | undefined => {
+    const pattern = /(\d{2})-(\d{2})-(\d{4})/;
+    const match = filename.match(pattern);
+    if (match) {
+      const [, month, , year] = match;
+      return `${year}-${month}`;
+    }
+    return undefined;
+  };
+
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const newFiles = acceptedFiles.map(file => {
       // Try to determine file type based on name
       const isSlipAudit = file.name.toLowerCase().includes('slip') ||
                          file.name.toLowerCase().includes('audit');
 
+      // Extract date from filename if it's a slip audit file
+      const extractedDate = isSlipAudit ? extractDateFromFilename(file.name) : undefined;
+
+      // Auto-set month/year if date was extracted
+      if (extractedDate && isSlipAudit) {
+        setMonthYear(extractedDate);
+      }
+
       return {
         file,
         name: file.name,
         size: (file.size / 1024 / 1024).toFixed(2) + ' MB',
-        type: (isSlipAudit ? 'slip_audit' : 'member_names') as 'slip_audit' | 'member_names'
+        type: (isSlipAudit ? 'slip_audit' : 'member_names') as 'slip_audit' | 'member_names',
+        extractedDate
       };
     });
 
@@ -97,14 +118,16 @@ const FileUploadComponent: React.FC<FileUploadComponentProps> = ({
       return;
     }
 
-    if (!monthYear) {
-      setUploadResult({type: 'error', message: 'Please enter month/year (e.g., 2024-08)'});
-      return;
-    }
-
     const slipAuditFile = files.find(f => f.type === 'slip_audit');
     if (!slipAuditFile) {
       setUploadResult({type: 'error', message: 'Please select at least one slip audit file'});
+      return;
+    }
+
+    // Allow upload without month_year - backend will extract from filename
+    // Only warn if neither monthYear is set nor can be extracted
+    if (!monthYear && !slipAuditFile.extractedDate) {
+      setUploadResult({type: 'error', message: 'Please enter month/year or upload a file with date in filename (format: MM-DD-YYYY)'});
       return;
     }
 
@@ -121,7 +144,10 @@ const FileUploadComponent: React.FC<FileUploadComponentProps> = ({
       }
 
       formData.append('chapter_id', chapterId);
-      formData.append('month_year', monthYear);
+      // Only send month_year if it's set
+      if (monthYear) {
+        formData.append('month_year', monthYear);
+      }
       formData.append('upload_option', uploadOption);
 
       // Add timeout to prevent hanging
@@ -170,20 +196,8 @@ const FileUploadComponent: React.FC<FileUploadComponentProps> = ({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-xl font-semibold flex items-center gap-2 mb-2">
-          <CloudUpload className="h-5 w-5" />
-          Upload Palms Data
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          Upload slip audit reports from PALMS for {chapterName}
-        </p>
-      </div>
-
-      <div className="space-y-6">
-
-        {/* Month/Year and Upload Option */}
-        <div className="space-y-4">
+      {/* Month/Year and Upload Option */}
+      <div className="space-y-4">
           <div className="space-y-2">
             <label className="text-sm font-medium">
               Report Month
@@ -269,31 +283,33 @@ const FileUploadComponent: React.FC<FileUploadComponentProps> = ({
         </div>
 
         {/* File Drop Zone */}
-        <Card>
+        <Card className="border-2 border-primary/30">
           <CardContent className="p-0">
             <div
               {...getRootProps()}
               className={`
-                p-8 text-center border-2 border-dashed rounded-lg cursor-pointer transition-all duration-200
+                p-12 text-center border-4 border-dashed rounded-lg cursor-pointer transition-all duration-200
                 ${isDragActive
-                  ? 'border-primary bg-primary/5 dark:bg-primary/10'
-                  : 'border-muted-foreground/25 hover:border-primary/50 hover:bg-muted/20'
+                  ? 'border-primary bg-primary/10 dark:bg-primary/20 scale-[1.02]'
+                  : 'border-primary/40 hover:border-primary bg-primary/5 hover:bg-primary/10'
                 }
               `}
               data-testid="file-dropzone"
             >
               <input {...getInputProps()} />
-              <div className="flex flex-col items-center space-y-4">
-                <CloudUpload className={`h-12 w-12 ${isDragActive ? 'text-primary' : 'text-muted-foreground'}`} />
+              <div className="flex flex-col items-center space-y-5">
+                <div className={`p-4 rounded-full ${isDragActive ? 'bg-primary/20' : 'bg-primary/10'}`}>
+                  <CloudUpload className={`h-16 w-16 ${isDragActive ? 'text-primary' : 'text-primary/80'}`} />
+                </div>
                 <div>
-                  <h3 className="text-lg font-medium">
+                  <h3 className="text-2xl font-bold text-primary">
                     {isDragActive ? 'Drop files here...' : 'Drop PALMS Files Here'}
                   </h3>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Or click to select files
+                  <p className="text-base text-muted-foreground mt-2">
+                    Or click to browse and select files
                   </p>
                 </div>
-                <Badge variant="outline">
+                <Badge variant="secondary" className="text-sm px-4 py-1">
                   Supported formats: .xls, .xlsx
                 </Badge>
               </div>
@@ -321,9 +337,16 @@ const FileUploadComponent: React.FC<FileUploadComponentProps> = ({
                         <p className="font-medium truncate">
                           {file.name}
                         </p>
-                        <p className="text-sm text-muted-foreground">
-                          {file.size}
-                        </p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm text-muted-foreground">
+                            {file.size}
+                          </p>
+                          {file.extractedDate && (
+                            <Badge variant="secondary" className="text-xs">
+                              Date: {format(new Date(file.extractedDate + '-01'), 'MMM yyyy')}
+                            </Badge>
+                          )}
+                        </div>
                       </div>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
@@ -356,20 +379,30 @@ const FileUploadComponent: React.FC<FileUploadComponentProps> = ({
         )}
 
         {/* Upload Button */}
-        <div className="flex justify-start">
-          <Button
-            onClick={handleUpload}
-            disabled={isUploading || files.length === 0 || !monthYear}
-            size="lg"
-            className="flex items-center gap-2"
-          >
-            {isUploading ? (
-              <Loader2 className="h-5 w-5 animate-spin" />
-            ) : (
-              <CloudUpload className="h-5 w-5" />
-            )}
-            {isUploading ? 'Uploading...' : 'Upload & Process Files'}
-          </Button>
+        <div className="flex flex-col gap-2">
+          {files.some(f => f.extractedDate) && (
+            <Alert>
+              <Info className="h-4 w-4" />
+              <AlertDescription>
+                Date auto-detected from filename. You can override it by selecting a different month above.
+              </AlertDescription>
+            </Alert>
+          )}
+          <div className="flex justify-start">
+            <Button
+              onClick={handleUpload}
+              disabled={isUploading || files.length === 0}
+              size="lg"
+              className="flex items-center gap-2"
+            >
+              {isUploading ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <CloudUpload className="h-5 w-5" />
+              )}
+              {isUploading ? 'Uploading...' : 'Upload & Process Files'}
+            </Button>
+          </div>
         </div>
 
         {/* Upload Result */}
@@ -400,7 +433,7 @@ const FileUploadComponent: React.FC<FileUploadComponentProps> = ({
               </div>
               <div className="flex gap-2">
                 <span className="font-medium text-primary min-w-[20px]">2.</span>
-                <span>Upload slip audit reports exported from PALMS system (.xls or .xlsx files)</span>
+                <span>Upload report files (.xls or .xlsx files)</span>
               </div>
               <div className="flex gap-2">
                 <span className="font-medium text-primary min-w-[20px]">3.</span>
@@ -417,7 +450,6 @@ const FileUploadComponent: React.FC<FileUploadComponentProps> = ({
             </div>
           </CardContent>
         </Card>
-      </div>
     </div>
   );
 };

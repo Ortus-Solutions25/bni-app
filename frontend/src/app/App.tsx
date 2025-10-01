@@ -3,7 +3,6 @@ import {
   BrowserRouter as Router,
   Routes,
   Route,
-  useNavigate,
   useLocation,
 } from "react-router-dom";
 import { QueryClientProvider } from '@tanstack/react-query';
@@ -59,15 +58,14 @@ function App() {
 }
 
 function AppContent() {
-  const navigate = useNavigate();
   const location = useLocation();
   const { stats } = useNavigationStats();
+  const [selectedChapterId, setSelectedChapterId] = React.useState<string>('');
+  const [chapters, setChapters] = React.useState<Array<{ chapterId: string; chapterName: string; memberCount: number }>>([]);
 
   // Initialize network status monitoring
   useNetworkStatus();
 
-  const isAdminPage = location.pathname.startsWith('/admin');
-  const isHomePage = location.pathname === '/';
   const isDashboardOrAdmin = location.pathname === '/' || location.pathname.startsWith('/admin');
 
   return (
@@ -81,11 +79,23 @@ function AppContent() {
               <SharedNavigation
                 totalMembers={stats.totalMembers}
                 biggestChapter={stats.biggestChapter}
+                chapters={chapters}
+                selectedChapterId={selectedChapterId}
+                onChapterSelect={setSelectedChapterId}
               />
             </div>
           )}
           <Routes>
-            <Route path="/*" element={<ChapterRoutes />} />
+            <Route
+              path="/*"
+              element={
+                <ChapterRoutes
+                  selectedChapterId={selectedChapterId}
+                  onChapterSelect={setSelectedChapterId}
+                  onChaptersLoad={setChapters}
+                />
+              }
+            />
           </Routes>
         </main>
       </div>

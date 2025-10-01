@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { MemberAnalytics } from '../types/member.types';
 
 interface UseMemberDetailProps {
@@ -21,7 +21,7 @@ export const useMemberDetail = ({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchMemberAnalytics = async () => {
+  const fetchMemberAnalytics = useCallback(async () => {
     setIsLoading(true);
     setError(null);
 
@@ -42,11 +42,11 @@ export const useMemberDetail = ({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [chapterId, memberName]);
 
   useEffect(() => {
     fetchMemberAnalytics();
-  }, [chapterId, memberName]);
+  }, [fetchMemberAnalytics]);
 
   return {
     memberAnalytics,

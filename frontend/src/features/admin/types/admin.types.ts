@@ -41,6 +41,14 @@ export interface UploadResult {
     members_updated?: number;
     total_processed?: number;
     warnings?: string[];
+    // Reset result fields
+    chapters?: number;
+    members?: number;
+    monthly_reports?: number;
+    member_stats?: number;
+    referrals?: number;
+    one_to_ones?: number;
+    tyfcbs?: number;
   };
 }
 

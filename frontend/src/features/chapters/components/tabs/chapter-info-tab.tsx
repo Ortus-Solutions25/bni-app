@@ -1,7 +1,6 @@
 import React, { useMemo } from 'react';
-import { Trophy, TrendingUp, DollarSign, Users, Award, Target } from 'lucide-react';
+import { Trophy, DollarSign, Users, Award, Target } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { ChapterMemberData } from '../../../../shared/services/ChapterDataLoader';
 import { formatCurrency } from '@/lib/utils';
 
@@ -11,30 +10,22 @@ interface ChapterInfoTabProps {
 
 const ChapterInfoTab: React.FC<ChapterInfoTabProps> = ({ chapterData }) => {
   const stats = useMemo(() => {
-    const members = chapterData.members || [];
+    const metrics = chapterData.performanceMetrics;
+    const memberCount = chapterData.memberCount || 0;
 
-    // Calculate totals
-    const totalReferrals = members.reduce((sum, m) => sum + (m.referralsGiven || 0), 0);
-    const totalOTOs = members.reduce((sum, m) => sum + (m.oneToOnesAttended || 0), 0);
-    const totalTYFCB = members.reduce((sum, m) => sum + (m.tyfcb || 0), 0);
-    const totalVisitors = members.reduce((sum, m) => sum + (m.visitorsInvited || 0), 0);
+    // Calculate totals from metrics (with defaults if no data)
+    const totalReferrals = metrics ? Math.round(metrics.avgReferralsPerMember * memberCount) : 0;
+    const totalOTOs = metrics ? Math.round(metrics.avgOTOsPerMember * memberCount) : 0;
+    const totalTYFCB = metrics?.totalTYFCB || 0;
+    const totalVisitors = 0; // Not available in current metrics
 
-    // Find top performers
-    const topReferrer = members.reduce((max, m) =>
-      (m.referralsGiven || 0) > (max.referralsGiven || 0) ? m : max, members[0] || {});
-
-    const topOTO = members.reduce((max, m) =>
-      (m.oneToOnesAttended || 0) > (max.oneToOnesAttended || 0) ? m : max, members[0] || {});
-
-    const topTYFCB = members.reduce((max, m) =>
-      (m.tyfcb || 0) > (max.tyfcb || 0) ? m : max, members[0] || {});
-
-    const topVisitors = members.reduce((max, m) =>
-      (m.visitorsInvited || 0) > (max.visitorsInvited || 0) ? m : max, members[0] || {});
+    // Use top performer from metrics or default
+    const topPerformerName = metrics?.topPerformer || 'No data available';
 
     return {
       totals: { totalReferrals, totalOTOs, totalTYFCB, totalVisitors },
-      topPerformers: { topReferrer, topOTO, topTYFCB, topVisitors }
+      topPerformer: topPerformerName,
+      hasData: !!metrics
     };
   }, [chapterData]);
 
@@ -121,72 +112,34 @@ const ChapterInfoTab: React.FC<ChapterInfoTabProps> = ({ chapterData }) => {
         </Card>
       </div>
 
-      {/* Top Performers */}
+      {/* Top Performer */}
       <Card className="border-l-4 border-l-primary/30">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Trophy className="h-5 w-5 text-primary" />
-            Top Performers This Period
+            Top Performer This Period
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Most Referrals */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <Target className="h-4 w-4 text-primary" />
-                <p className="text-sm font-semibold">Most Referrals Given</p>
-              </div>
-              <div className="pl-6">
-                <p className="font-bold text-lg">{stats.topPerformers.topReferrer.name}</p>
-                <Badge variant="secondary" className="mt-1">
-                  {stats.topPerformers.topReferrer.referralsGiven || 0} referrals
-                </Badge>
+          {stats.hasData ? (
+            <div className="flex items-center gap-4">
+              <Award className="h-12 w-12 text-primary" />
+              <div>
+                <p className="text-2xl font-bold">{stats.topPerformer}</p>
+                <p className="text-sm text-muted-foreground">
+                  Outstanding performance across all categories
+                </p>
               </div>
             </div>
-
-            {/* Most One-to-Ones */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <Users className="h-4 w-4 text-primary" />
-                <p className="text-sm font-semibold">Most One-to-Ones</p>
-              </div>
-              <div className="pl-6">
-                <p className="font-bold text-lg">{stats.topPerformers.topOTO.name}</p>
-                <Badge variant="secondary" className="mt-1">
-                  {stats.topPerformers.topOTO.oneToOnesAttended || 0} meetings
-                </Badge>
-              </div>
+          ) : (
+            <div className="text-center py-8">
+              <Trophy className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
+              <p className="text-lg font-semibold text-muted-foreground">No Performance Data Available</p>
+              <p className="text-sm text-muted-foreground mt-2">
+                Upload a chapter report to see detailed performance metrics and top performers
+              </p>
             </div>
-
-            {/* Highest TYFCB */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <DollarSign className="h-4 w-4 text-primary" />
-                <p className="text-sm font-semibold">Highest TYFCB</p>
-              </div>
-              <div className="pl-6">
-                <p className="font-bold text-lg">{stats.topPerformers.topTYFCB.name}</p>
-                <Badge variant="secondary" className="mt-1">
-                  {formatCurrency(stats.topPerformers.topTYFCB.tyfcb || 0)}
-                </Badge>
-              </div>
-            </div>
-
-            {/* Most Visitors */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <Award className="h-4 w-4 text-primary" />
-                <p className="text-sm font-semibold">Most Visitors Invited</p>
-              </div>
-              <div className="pl-6">
-                <p className="font-bold text-lg">{stats.topPerformers.topVisitors.name}</p>
-                <Badge variant="secondary" className="mt-1">
-                  {stats.topPerformers.topVisitors.visitorsInvited || 0} visitors
-                </Badge>
-              </div>
-            </div>
-          </div>
+          )}
         </CardContent>
       </Card>
     </div>

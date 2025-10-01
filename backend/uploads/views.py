@@ -2,6 +2,8 @@
 File Upload ViewSet - RESTful API for Excel file uploads
 """
 import logging
+import re
+from datetime import datetime
 from rest_framework import viewsets, status, serializers
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny
@@ -20,7 +22,7 @@ class FileUploadSerializer(serializers.Serializer):
     slip_audit_file = serializers.FileField()
     member_names_file = serializers.FileField(required=False)
     chapter_id = serializers.IntegerField()
-    month_year = serializers.CharField(max_length=7, help_text="e.g., '2024-06'")
+    month_year = serializers.CharField(max_length=7, required=False, allow_blank=True, help_text="e.g., '2024-06' (optional, will be extracted from filename if not provided)")
     upload_option = serializers.ChoiceField(choices=['slip_only', 'slip_and_members'], default='slip_only')
 
 
@@ -34,6 +36,26 @@ class FileUploadViewSet(viewsets.ViewSet):
     """
     parser_classes = (MultiPartParser, FormParser)
     permission_classes = [AllowAny]  # TODO: Add proper authentication
+
+    def _extract_date_from_filename(self, filename):
+        """
+        Extract date from slip audit report filename.
+
+        Expected format: Slips_Audit_Report_08-25-2025_2-26_PM.xls
+        Where 08-25-2025 is MM-DD-YYYY
+
+        Returns month_year in format 'YYYY-MM' or None if not found
+        """
+        # Pattern to match MM-DD-YYYY in the filename
+        pattern = r'(\d{2})-(\d{2})-(\d{4})'
+        match = re.search(pattern, filename)
+
+        if match:
+            month, day, year = match.groups()
+            # Return in YYYY-MM format
+            return f"{year}-{month}"
+
+        return None
 
     @action(detail=False, methods=['post'], url_path='excel')
     def upload_excel(self, request):
@@ -61,8 +83,20 @@ class FileUploadViewSet(viewsets.ViewSet):
             slip_audit_file = serializer.validated_data['slip_audit_file']
             member_names_file = serializer.validated_data.get('member_names_file')
             chapter_id = serializer.validated_data['chapter_id']
-            month_year = serializer.validated_data['month_year']
+            month_year = serializer.validated_data.get('month_year')
             upload_option = serializer.validated_data['upload_option']
+
+            # If month_year not provided, try to extract from filename
+            if not month_year:
+                extracted_date = self._extract_date_from_filename(slip_audit_file.name)
+                if extracted_date:
+                    month_year = extracted_date
+                    logger.info(f"Extracted date from filename: {month_year}")
+                else:
+                    return Response(
+                        {'error': 'month_year is required. Could not extract date from filename. Please provide it manually or use a filename format like: Slips_Audit_Report_MM-DD-YYYY_...'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
 
             # Validate chapter access
             try:
@@ -165,5 +199,56 @@ class FileUploadViewSet(viewsets.ViewSet):
             logger.exception("Error in bulk upload")
             return Response(
                 {'error': f'Processing failed: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    @action(detail=False, methods=['post'], url_path='reset-all')
+    def reset_all_data(self, request):
+        """
+        Reset all data in the database.
+
+        WARNING: This deletes ALL chapters, members, reports, and analytics data.
+        Use with extreme caution!
+
+        Returns summary of deleted items.
+        """
+        try:
+            from chapters.models import Chapter
+            from members.models import Member
+            from reports.models import MonthlyReport, MemberMonthlyStats
+            from analytics.models import Referral, OneToOne, TYFCB
+
+            # Count before deletion
+            counts = {
+                'chapters': Chapter.objects.count(),
+                'members': Member.objects.count(),
+                'monthly_reports': MonthlyReport.objects.count(),
+                'member_stats': MemberMonthlyStats.objects.count(),
+                'referrals': Referral.objects.count(),
+                'one_to_ones': OneToOne.objects.count(),
+                'tyfcbs': TYFCB.objects.count(),
+            }
+
+            # Delete all data (cascade will handle related objects)
+            Chapter.objects.all().delete()
+            Member.objects.all().delete()
+            MonthlyReport.objects.all().delete()
+            MemberMonthlyStats.objects.all().delete()
+            Referral.objects.all().delete()
+            OneToOne.objects.all().delete()
+            TYFCB.objects.all().delete()
+
+            logger.warning(f"Database reset performed. Deleted: {counts}")
+
+            return Response({
+                'success': True,
+                'message': 'All data has been deleted successfully',
+                'deleted': counts
+            }, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            logger.exception("Error resetting database")
+            return Response(
+                {'error': f'Reset failed: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )

@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Home, Info, Upload, Grid3X3 } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
+import { Home, Info, Upload, Grid3X3, GitCompare } from 'lucide-react';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -11,7 +12,8 @@ import {
 } from '@/components/ui/breadcrumb';
 import { ChapterMemberData } from '../../../shared/services/ChapterDataLoader';
 import ChapterInfoTab from './tabs/chapter-info-tab';
-import UploadCompareTab from './tabs/upload-compare-tab';
+import FileUploadTab from './tabs/file-upload-tab';
+import ComparisonTab from '../../analytics/components/comparison-tab';
 import MatrixPreviewTab from './tabs/matrix-preview-tab';
 
 interface ChapterDetailTabbedProps {
@@ -27,10 +29,19 @@ const ChapterDetailTabbed: React.FC<ChapterDetailTabbedProps> = ({
   onMemberSelect,
   onDataRefresh,
 }) => {
-  const [activeTab, setActiveTab] = useState<'info' | 'upload' | 'preview'>('info');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabFromUrl = searchParams.get('tab') as 'info' | 'upload' | 'compare' | 'preview' | null;
+  const [activeTab, setActiveTab] = useState<'info' | 'upload' | 'compare' | 'preview'>(tabFromUrl || 'info');
   const [refreshKey, setRefreshKey] = useState(0);
 
-  const handleUploadSuccess = () => {
+  // Update active tab when URL parameter changes
+  useEffect(() => {
+    if (tabFromUrl && ['info', 'upload', 'compare', 'preview'].includes(tabFromUrl)) {
+      setActiveTab(tabFromUrl);
+    }
+  }, [tabFromUrl]);
+
+  const handleUploadSuccess = useCallback(() => {
     setRefreshKey(prev => prev + 1);
     if (onDataRefresh) {
       onDataRefresh();
@@ -39,13 +50,19 @@ const ChapterDetailTabbed: React.FC<ChapterDetailTabbedProps> = ({
     setTimeout(() => {
       setActiveTab('preview');
     }, 500);
-  };
+  }, [onDataRefresh]);
 
-  const tabs = [
+  const tabs = useMemo(() => [
     { id: 'info' as const, label: 'Chapter Info', icon: Info },
-    { id: 'upload' as const, label: 'Upload & Compare', icon: Upload },
-    { id: 'preview' as const, label: 'Preview Matrices', icon: Grid3X3 }
-  ];
+    { id: 'upload' as const, label: 'Upload', icon: Upload },
+    { id: 'compare' as const, label: 'Compare', icon: GitCompare },
+    { id: 'preview' as const, label: 'Matrices', icon: Grid3X3 }
+  ], []);
+
+  const handleTabChange = useCallback((tabId: 'info' | 'upload' | 'compare' | 'preview') => {
+    setActiveTab(tabId);
+    setSearchParams({ tab: tabId });
+  }, [setSearchParams]);
 
   return (
     <div className="min-h-screen">
@@ -79,7 +96,7 @@ const ChapterDetailTabbed: React.FC<ChapterDetailTabbedProps> = ({
             return (
               <motion.button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => handleTabChange(tab.id)}
                 className={`relative px-4 py-2 rounded-lg font-semibold transition-colors ${
                   isActive
                     ? 'text-foreground'
@@ -118,10 +135,15 @@ const ChapterDetailTabbed: React.FC<ChapterDetailTabbedProps> = ({
           <ChapterInfoTab chapterData={chapterData} />
         )}
         {activeTab === 'upload' && (
-          <UploadCompareTab
+          <FileUploadTab
             chapterData={chapterData}
             onUploadSuccess={handleUploadSuccess}
-            refreshKey={refreshKey}
+          />
+        )}
+        {activeTab === 'compare' && (
+          <ComparisonTab
+            chapterId={chapterData.chapterId}
+            key={refreshKey}
           />
         )}
         {activeTab === 'preview' && (

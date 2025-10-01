@@ -1,5 +1,6 @@
 import React from 'react';
-import { Download, Edit, Trash2 } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Download, Edit, Trash2, Plus } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -27,6 +28,8 @@ export const MemberManagementTab: React.FC<MemberManagementTabProps> = ({
     handleMemberSelect,
     handleSelectAll,
     handleBulkDelete,
+    handleEdit,
+    handleDelete,
     exportMemberData,
   } = useMemberManagement(chapterData);
 
@@ -35,11 +38,17 @@ export const MemberManagementTab: React.FC<MemberManagementTabProps> = ({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-semibold mb-4">Member Management</h2>
-        <p className="text-muted-foreground">
-          Manage all members across all chapters. Perform bulk operations and export member data.
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-semibold mb-2">Member Management</h2>
+          <p className="text-muted-foreground">
+            Manage all members across all chapters. Perform bulk operations and export member data.
+          </p>
+        </div>
+        <Button onClick={() => alert('Add member functionality coming soon')} className="w-full sm:w-auto">
+          <Plus className="h-4 w-4 mr-2" />
+          Add Member
+        </Button>
       </div>
 
       {/* Filters and Actions Bar */}
@@ -49,7 +58,7 @@ export const MemberManagementTab: React.FC<MemberManagementTabProps> = ({
             <div className="flex flex-col sm:flex-row gap-4 flex-1">
               <div className="flex-1 max-w-md">
                 <Input
-                  placeholder="Search members by name, business, classification, or chapter..."
+                  placeholder="Search members..."
                   value={filters.searchTerm}
                   onChange={(e) => setFilters({ ...filters, searchTerm: e.target.value })}
                   className="w-full"
@@ -82,7 +91,7 @@ export const MemberManagementTab: React.FC<MemberManagementTabProps> = ({
                 className="flex items-center gap-2"
               >
                 <Download className="h-4 w-4" />
-                Export CSV
+                Export
               </Button>
               {selectedMembers.length > 0 && (
                 <Button
@@ -104,72 +113,86 @@ export const MemberManagementTab: React.FC<MemberManagementTabProps> = ({
       </Card>
 
       {/* Members Table */}
-      <Card className="border-l-4 border-l-primary/30">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>All Members</CardTitle>
-            <Badge variant="secondary">
-              {filteredCount} of {totalMembers} members
-            </Badge>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="rounded-lg border overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-12">
+      <Card>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-12">
+                <input
+                  type="checkbox"
+                  checked={selectedMembers.length === filteredMembers.length && filteredMembers.length > 0}
+                  onChange={(e) => handleSelectAll(e.target.checked)}
+                  aria-label="Select all members"
+                />
+              </TableHead>
+              <TableHead>Name</TableHead>
+              <TableHead className="text-center">Chapter</TableHead>
+              <TableHead className="text-center">Status</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredMembers.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                  No members found. {filters.searchTerm || filters.chapterFilter !== 'all' ? 'Try adjusting your filters.' : 'Add members to get started.'}
+                </TableCell>
+              </TableRow>
+            ) : (
+              filteredMembers.map((member, index) => (
+                <motion.tr
+                  key={`${member.chapterName}-${index}`}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.2, delay: index * 0.03 }}
+                  className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"
+                >
+                  <TableCell>
                     <input
                       type="checkbox"
-                      checked={selectedMembers.length === filteredMembers.length && filteredMembers.length > 0}
-                      onChange={(e) => handleSelectAll(e.target.checked)}
-                      aria-label="Select all members"
+                      checked={selectedMembers.includes(`${member.chapterName}-${index}`)}
+                      onChange={(e) => handleMemberSelect(`${member.chapterName}-${index}`, e.target.checked)}
+                      aria-label={`Select ${member.name}`}
+                      className="cursor-pointer"
                     />
-                  </TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Business</TableHead>
-                  <TableHead>Classification</TableHead>
-                  <TableHead>Chapter</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredMembers.map((member, index) => (
-                  <TableRow key={`${member.chapterName}-${index}`}>
-                    <TableCell>
-                      <input
-                        type="checkbox"
-                        checked={selectedMembers.includes(`${member.chapterName}-${index}`)}
-                        onChange={(e) => handleMemberSelect(`${member.chapterName}-${index}`, e.target.checked)}
-                        aria-label={`Select ${member.name}`}
-                      />
-                    </TableCell>
-                    <TableCell className="font-medium">{member.name || 'N/A'}</TableCell>
-                    <TableCell>N/A</TableCell>
-                    <TableCell>N/A</TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{member.chapterName}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="default">Active</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        <Button variant="ghost" size="sm" aria-label={`Edit ${member.name}`}>
+                  </TableCell>
+                  <TableCell className="font-medium">{member.name || 'N/A'}</TableCell>
+                  <TableCell className="text-center">
+                    <Badge variant="outline">{member.chapterName}</Badge>
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <Badge variant="default">Active</Badge>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex gap-2 justify-end">
+                      <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleEdit(member)}
+                          aria-label={`Edit ${member.name}`}
+                        >
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="sm" aria-label={`Delete ${member.name}`}>
+                      </motion.div>
+                      <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => handleDelete(member)}
+                          aria-label={`Delete ${member.name}`}
+                        >
                           <Trash2 className="h-4 w-4" />
                         </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
+                      </motion.div>
+                    </div>
+                  </TableCell>
+                </motion.tr>
+              ))
+            )}
+          </TableBody>
+        </Table>
       </Card>
     </div>
   );

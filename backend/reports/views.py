@@ -358,31 +358,6 @@ class MonthlyReportViewSet(viewsets.ModelViewSet):
             if monthly_report.tyfcb_inside_data or monthly_report.tyfcb_outside_data:
                 ws_tyfcb = wb.create_sheet("TYFCB Report")
 
-                # Get member counts from database
-                # Parse month_year (format: YYYY-MM) to get year and month
-                year, month = map(int, monthly_report.month_year.split('-'))
-
-                # Query TYFCB data for this month
-                inside_tyfcbs = TYFCB.objects.filter(
-                    receiver__chapter=chapter,
-                    within_chapter=True,
-                    date_closed__year=year,
-                    date_closed__month=month
-                ).values('receiver__first_name', 'receiver__last_name').annotate(
-                    total_amount=Sum('amount'),
-                    count=Count('id')
-                ).order_by('-total_amount')
-
-                outside_tyfcbs = TYFCB.objects.filter(
-                    receiver__chapter=chapter,
-                    within_chapter=False,
-                    date_closed__year=year,
-                    date_closed__month=month
-                ).values('receiver__first_name', 'receiver__last_name').annotate(
-                    total_amount=Sum('amount'),
-                    count=Count('id')
-                ).order_by('-total_amount')
-
                 # Header
                 ws_tyfcb.cell(1, 1, "TYFCB Report").font = Font(bold=True, size=14)
                 ws_tyfcb.merge_cells('A1:D1')
@@ -398,21 +373,22 @@ class MonthlyReportViewSet(viewsets.ModelViewSet):
                     ws_tyfcb.cell(row, 3, f"Total TYFCBs: {inside.get('count', 0)}").font = Font(bold=True)
                     row += 2
 
-                    # By member breakdown with count
+                    # By member breakdown - use data from JSON field
                     ws_tyfcb.cell(row, 1, "Member").font = header_font
                     ws_tyfcb.cell(row, 1).fill = header_fill
                     ws_tyfcb.cell(row, 2, "Amount (AED)").font = header_font
                     ws_tyfcb.cell(row, 2).fill = header_fill
-                    ws_tyfcb.cell(row, 3, "# of TYFCBs").font = header_font
-                    ws_tyfcb.cell(row, 3).fill = header_fill
                     row += 1
 
-                    for tyfcb in inside_tyfcbs:
-                        member_name = f"{tyfcb['receiver__first_name']} {tyfcb['receiver__last_name']}"
-                        ws_tyfcb.cell(row, 1, member_name)
-                        ws_tyfcb.cell(row, 2, f"{float(tyfcb['total_amount']):,.2f}")
-                        ws_tyfcb.cell(row, 3, tyfcb['count'])
-                        row += 1
+                    # Get by_member data and sort by amount (descending)
+                    by_member = inside.get('by_member', {})
+                    sorted_members = sorted(by_member.items(), key=lambda x: x[1], reverse=True)
+
+                    for member_name, amount in sorted_members:
+                        if amount > 0:  # Only show members with TYFCB
+                            ws_tyfcb.cell(row, 1, member_name)
+                            ws_tyfcb.cell(row, 2, f"{float(amount):,.2f}")
+                            row += 1
 
                     row += 2
 
@@ -426,21 +402,22 @@ class MonthlyReportViewSet(viewsets.ModelViewSet):
                     ws_tyfcb.cell(row, 3, f"Total TYFCBs: {outside.get('count', 0)}").font = Font(bold=True)
                     row += 2
 
-                    # By member breakdown with count
+                    # By member breakdown - use data from JSON field
                     ws_tyfcb.cell(row, 1, "Member").font = header_font
                     ws_tyfcb.cell(row, 1).fill = header_fill
                     ws_tyfcb.cell(row, 2, "Amount (AED)").font = header_font
                     ws_tyfcb.cell(row, 2).fill = header_fill
-                    ws_tyfcb.cell(row, 3, "# of TYFCBs").font = header_font
-                    ws_tyfcb.cell(row, 3).fill = header_fill
                     row += 1
 
-                    for tyfcb in outside_tyfcbs:
-                        member_name = f"{tyfcb['receiver__first_name']} {tyfcb['receiver__last_name']}"
-                        ws_tyfcb.cell(row, 1, member_name)
-                        ws_tyfcb.cell(row, 2, f"{float(tyfcb['total_amount']):,.2f}")
-                        ws_tyfcb.cell(row, 3, tyfcb['count'])
-                        row += 1
+                    # Get by_member data and sort by amount (descending)
+                    by_member = outside.get('by_member', {})
+                    sorted_members = sorted(by_member.items(), key=lambda x: x[1], reverse=True)
+
+                    for member_name, amount in sorted_members:
+                        if amount > 0:  # Only show members with TYFCB
+                            ws_tyfcb.cell(row, 1, member_name)
+                            ws_tyfcb.cell(row, 2, f"{float(amount):,.2f}")
+                            row += 1
 
                 # Set column widths
                 ws_tyfcb.column_dimensions['A'].width = 30

@@ -11,11 +11,13 @@ interface SystemStatusTabProps {
 export const SystemStatusTab: React.FC<SystemStatusTabProps> = ({ systemStats }) => {
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-semibold mb-4">System Status</h2>
-        <p className="text-muted-foreground mb-6">
-          Monitor system health and data integrity.
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-semibold mb-2">System Status</h2>
+          <p className="text-muted-foreground">
+            Monitor system health and data integrity.
+          </p>
+        </div>
       </div>
 
       <div className="space-y-4">

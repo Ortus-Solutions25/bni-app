@@ -1,6 +1,5 @@
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Grid3X3 } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
 import { ChapterMemberData } from '../../../../shared/services/ChapterDataLoader';
 import MatrixTab from '../../../analytics/components/matrix-tab';
 
@@ -16,23 +15,14 @@ const MatrixPreviewTab: React.FC<MatrixPreviewTabProps> = ({
   refreshKey
 }) => {
   return (
-    <div className="space-y-6">
-      <Card className="border-l-4 border-l-primary/30">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Grid3X3 className="h-5 w-5 text-primary" />
-            Current Matrices
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <MatrixTab
-            chapterData={chapterData}
-            onMemberSelect={onMemberSelect}
-            key={refreshKey}
-          />
-        </CardContent>
-      </Card>
-    </div>
+    <Card className="border-l-4 border-l-primary/30">
+      <CardContent className="pt-6">
+        <MatrixTab
+          chapterData={chapterData}
+          key={refreshKey}
+        />
+      </CardContent>
+    </Card>
   );
 };
 

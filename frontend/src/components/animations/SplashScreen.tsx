@@ -1,6 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BarChart3 } from 'lucide-react';
 
 interface SplashScreenProps {
   onComplete: () => void;
@@ -27,21 +26,20 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
   }, [onComplete]);
 
   // Handle user interaction (click, tap, or any key press)
-  const handleInteraction = () => {
+  const handleInteraction = useCallback(() => {
     if (canSkip) {
       onComplete();
     }
-  };
+  }, [canSkip, onComplete]);
 
   useEffect(() => {
     // Listen for any key press
-    const handleKeyPress = () => handleInteraction();
-    window.addEventListener('keydown', handleKeyPress);
+    window.addEventListener('keydown', handleInteraction);
 
     return () => {
-      window.removeEventListener('keydown', handleKeyPress);
+      window.removeEventListener('keydown', handleInteraction);
     };
-  }, [canSkip]);
+  }, [handleInteraction]);
 
   return (
     <AnimatePresence mode="wait">

@@ -1,8 +1,11 @@
 import React from 'react';
-import { Plus, Building2, CheckCircle, AlertTriangle, Trash2, Loader2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Plus, CheckCircle, AlertTriangle, Trash2, Loader2, Edit } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
 import { ChapterMemberData } from '../../../shared/services/ChapterDataLoader';
 import { useChapterManagement } from '../hooks/useChapterManagement';
 
@@ -19,10 +22,12 @@ export const ChapterManagementTab: React.FC<ChapterManagementTabProps> = ({
     showAddForm,
     formData,
     isSubmitting,
+    editingChapterId,
     handleFormChange,
     handleSubmit,
     handleDelete,
     handleAddChapter,
+    handleEditChapter,
     setShowAddForm,
   } = useChapterManagement(onDataRefresh);
 
@@ -42,13 +47,20 @@ export const ChapterManagementTab: React.FC<ChapterManagementTabProps> = ({
       </div>
 
       {/* Add Chapter Form */}
-      {showAddForm && (
-        <Card className="border-l-4 border-l-primary/30">
-          <CardHeader>
-            <CardTitle>Add New Chapter</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
+      <AnimatePresence>
+        {showAddForm && (
+          <motion.div
+            initial={{ opacity: 0, height: 0, y: -20 }}
+            animate={{ opacity: 1, height: 'auto', y: 0 }}
+            exit={{ opacity: 0, height: 0, y: -20 }}
+            transition={{ duration: 0.3, ease: 'easeInOut' }}
+          >
+            <Card className="border-l-4 border-l-primary/30">
+              <CardHeader>
+                <CardTitle>{editingChapterId ? 'Edit Chapter' : 'Add New Chapter'}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label htmlFor="name" className="text-sm font-medium">Chapter Name</label>
@@ -94,10 +106,10 @@ export const ChapterManagementTab: React.FC<ChapterManagementTabProps> = ({
                   {isSubmitting ? (
                     <>
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Adding...
+                      {editingChapterId ? 'Updating...' : 'Adding...'}
                     </>
                   ) : (
-                    'Add Chapter'
+                    editingChapterId ? 'Update Chapter' : 'Add Chapter'
                   )}
                 </Button>
                 <Button
@@ -111,58 +123,86 @@ export const ChapterManagementTab: React.FC<ChapterManagementTabProps> = ({
             </form>
           </CardContent>
         </Card>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      <div className="grid gap-4">
-        {chapterData.map((chapter) => (
-          <Card key={chapter.chapterId} className="border-l-4 border-l-primary/30">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2">
-                  <Building2 className="h-5 w-5" />
-                  {chapter.chapterName}
-                </CardTitle>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-muted-foreground">
-                    {chapter.members.length} members
-                  </span>
-                  {(chapter.monthlyReports?.length || 0) > 0 ? (
-                    <CheckCircle className="h-4 w-4 text-green-500" />
-                  ) : (
-                    <AlertTriangle className="h-4 w-4 text-yellow-500" />
-                  )}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                    onClick={() => handleDelete(chapter.chapterId)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <p className="text-sm font-medium">Chapter ID</p>
-                  <p className="text-sm text-muted-foreground">{chapter.chapterId}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium">Total Members</p>
-                  <p className="text-sm text-muted-foreground">{chapter.members.length}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium">Monthly Reports</p>
-                  <p className="text-sm text-muted-foreground">
-                    {chapter.monthlyReports?.length || 0} reports
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      <Card>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Chapter Name</TableHead>
+              <TableHead className="text-center">Members</TableHead>
+              <TableHead className="text-center">Reports</TableHead>
+              <TableHead className="text-center">Status</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {chapterData.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                  No chapters found. Add your first chapter to get started.
+                </TableCell>
+              </TableRow>
+            ) : (
+              chapterData.map((chapter, index) => (
+                <motion.tr
+                  key={chapter.chapterId}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.2, delay: index * 0.05 }}
+                  className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"
+                >
+                  <TableCell className="font-medium">{chapter.chapterName}</TableCell>
+                  <TableCell className="text-center">
+                    <Badge variant="secondary">{chapter.members.length}</Badge>
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <Badge variant="outline">{chapter.monthlyReports?.length || 0}</Badge>
+                  </TableCell>
+                  <TableCell className="text-center">
+                    {(chapter.monthlyReports?.length || 0) > 0 ? (
+                      <Badge variant="default" className="gap-1">
+                        <CheckCircle className="h-3 w-3" />
+                        Active
+                      </Badge>
+                    ) : (
+                      <Badge variant="secondary" className="gap-1">
+                        <AlertTriangle className="h-3 w-3" />
+                        No Data
+                      </Badge>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex gap-2 justify-end">
+                      <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleEditChapter(chapter)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      </motion.div>
+                      <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => handleDelete(chapter.chapterId)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </motion.div>
+                    </div>
+                  </TableCell>
+                </motion.tr>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </Card>
     </div>
   );
 };

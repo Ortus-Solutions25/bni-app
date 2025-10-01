@@ -21,11 +21,13 @@ export const DataUploadTab: React.FC<DataUploadTabProps> = ({
 }) => {
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-semibold mb-4">Upload PALMS Data</h2>
-        <p className="text-muted-foreground">
-          Select a chapter and upload slip audit reports or member data files.
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-semibold mb-2">Upload PALMS Data</h2>
+          <p className="text-muted-foreground">
+            Select a chapter and upload slip audit reports or member data files.
+          </p>
+        </div>
       </div>
 
       {/* Chapter Selection */}

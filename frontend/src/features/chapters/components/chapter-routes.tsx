@@ -1,6 +1,6 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { Routes, Route, useNavigate, useParams } from 'react-router-dom';
-import ChapterDashboard from './chapter-dashboard';
+import UnifiedDashboard from './unified-dashboard';
 import { ChapterMemberData, loadAllChapterData } from '../../../shared/services/ChapterDataLoader';
 
 const ChapterDetailPage = lazy(() => import('./chapter-detail-page'));
@@ -23,7 +23,13 @@ const LoadingFallback: React.FC = () => (
   </div>
 );
 
-const ChapterRoutes: React.FC = () => {
+interface ChapterRoutesProps {
+  selectedChapterId: string;
+  onChapterSelect: (chapterId: string) => void;
+  onChaptersLoad: (chapters: Array<{ chapterId: string; chapterName: string; memberCount: number }>) => void;
+}
+
+const ChapterRoutes: React.FC<ChapterRoutesProps> = ({ selectedChapterId, onChapterSelect, onChaptersLoad }) => {
   const [chapterData, setChapterData] = useState<ChapterMemberData[]>([]);
   const [isLoadingChapters, setIsLoadingChapters] = useState(true);
   const navigate = useNavigate();
@@ -35,21 +41,27 @@ const ChapterRoutes: React.FC = () => {
       try {
         const chapters = await loadAllChapterData();
         setChapterData(chapters);
+        // Notify parent of loaded chapters
+        onChaptersLoad(chapters.map(c => ({
+          chapterId: c.chapterId,
+          chapterName: c.chapterName,
+          memberCount: c.memberCount
+        })));
+        // Auto-select first chapter if none selected
+        if (chapters.length > 0 && !selectedChapterId) {
+          onChapterSelect(chapters[0].chapterId);
+        }
       } catch (error) {
         console.error('Failed to load chapter data:', error);
       } finally {
         setIsLoadingChapters(false);
       }
     };
-    
+
     loadChapters();
-  }, []);
+  }, []); // Only run once on mount
 
   // Navigation handlers
-  const handleChapterSelect = (chapter: ChapterMemberData) => {
-    navigate(`/chapter/${chapter.chapterId}`);
-  };
-
   const handleMemberSelect = (chapterId: string, memberName: string) => {
     navigate(`/chapter/${chapterId}/members/${encodeURIComponent(memberName)}`);
   };
@@ -62,7 +74,7 @@ const ChapterRoutes: React.FC = () => {
     navigate(`/chapter/${chapterId}`);
   };
 
-  const handleChapterAdded = async () => {
+  const handleDataRefresh = async () => {
     // Reload chapter data after adding a new chapter
     setIsLoadingChapters(true);
     try {
@@ -77,15 +89,17 @@ const ChapterRoutes: React.FC = () => {
 
   return (
     <Routes>
-      {/* Chapters Dashboard */}
+      {/* Unified Dashboard */}
       <Route
         path="/"
         element={
-          <ChapterDashboard
+          <UnifiedDashboard
             chapterData={chapterData}
             isLoading={isLoadingChapters}
-            onChapterSelect={handleChapterSelect}
-            onChapterAdded={handleChapterAdded}
+            selectedChapterId={selectedChapterId}
+            onChapterSelect={onChapterSelect}
+            onMemberSelect={handleMemberSelect}
+            onDataRefresh={handleDataRefresh}
           />
         }
       />
@@ -139,7 +153,7 @@ const ChapterRoutes: React.FC = () => {
           chapterData={chapterData}
           onBackToChapters={handleBackToChapters}
           onMemberSelect={handleMemberSelect}
-          onDataRefresh={handleChapterAdded}
+          onDataRefresh={handleDataRefresh}
         />}
       />
 
@@ -150,7 +164,7 @@ const ChapterRoutes: React.FC = () => {
           chapterData={chapterData}
           onBackToMembers={handleBackToMembers}
           onBackToChapters={handleBackToChapters}
-          onDataRefresh={handleChapterAdded}
+          onDataRefresh={handleDataRefresh}
         />}
       />
     </Routes>

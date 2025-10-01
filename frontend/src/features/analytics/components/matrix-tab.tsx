@@ -106,7 +106,7 @@ const MatrixTab: React.FC<MatrixTabProps> = ({ chapterData }) => {
         <Alert>
           <AlertDescription>
             No monthly reports have been uploaded yet for {chapterData.chapterName}.
-            Use the "Upload Palms Data" tab to upload PALMS slip audit reports.
+            Use the "Upload" tab to upload chapter reports.
           </AlertDescription>
         </Alert>
       )}

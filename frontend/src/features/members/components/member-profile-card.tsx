@@ -19,7 +19,6 @@ import { Progress } from '@/components/ui/progress';
 import {
   Building2,
   User,
-  ChevronRight,
   Edit,
   Trash2,
   CheckCircle,

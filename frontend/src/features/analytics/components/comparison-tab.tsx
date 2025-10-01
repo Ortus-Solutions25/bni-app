@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, TrendingDown, ArrowRight, Calendar, AlertCircle, Loader2, Download, FileSpreadsheet } from 'lucide-react';
+import { TrendingUp, TrendingDown, Calendar, AlertCircle, Loader2, Download, FileSpreadsheet } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
@@ -68,28 +68,6 @@ const ComparisonTab: React.FC<ComparisonTabProps> = ({ chapterId }) => {
       setError(err instanceof Error ? err.message : 'Failed to load comparison data');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const getDirectionIcon = (direction: string) => {
-    switch (direction) {
-      case '↗️':
-        return <TrendingUp className="h-4 w-4 text-green-500" />;
-      case '↘️':
-        return <TrendingDown className="h-4 w-4 text-red-500" />;
-      default:
-        return <ArrowRight className="h-4 w-4 text-gray-500" />;
-    }
-  };
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'improved':
-        return <Badge variant="default" className="bg-green-500">Improved</Badge>;
-      case 'declined':
-        return <Badge variant="destructive">Declined</Badge>;
-      default:
-        return <Badge variant="secondary">No Change</Badge>;
     }
   };
 

@@ -7,16 +7,19 @@ import {
   Loader2,
   File,
   Info,
+  CalendarIcon,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useDropzone } from 'react-dropzone';
 import { useApiError } from '../../../shared/hooks/useApiError';
 import { API_BASE_URL } from '@/config/api';
+import { cn } from '@/lib/utils';
+import { format } from 'date-fns';
 
 interface UploadFile {
   file: File;
@@ -49,6 +52,7 @@ const FileUploadComponent: React.FC<FileUploadComponentProps> = ({
   const [isUploading, setIsUploading] = useState(false);
   const [uploadResult, setUploadResult] = useState<{type: 'success' | 'error', message: string} | null>(null);
   const { handleError } = useApiError();
+  const [isMonthPopoverOpen, setIsMonthPopoverOpen] = useState(false);
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const newFiles = acceptedFiles.map(file => {
@@ -176,26 +180,81 @@ const FileUploadComponent: React.FC<FileUploadComponentProps> = ({
         </p>
       </div>
 
-      <div className="space-y-6 max-w-4xl">
+      <div className="space-y-6">
 
         {/* Month/Year and Upload Option */}
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="space-y-2 flex-1 max-w-xs">
-            <label htmlFor="month-year" className="text-sm font-medium">
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">
               Report Month
             </label>
-            <Input
-              id="month-year"
-              type="month"
-              value={monthYear}
-              onChange={(e) => setMonthYear(e.target.value)}
-            />
-            <p className="text-xs text-muted-foreground">
-              Select the month for this report
-            </p>
+            <Popover open={isMonthPopoverOpen} onOpenChange={setIsMonthPopoverOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-full justify-start text-left font-normal",
+                    !monthYear && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {monthYear ? format(new Date(monthYear + '-01'), 'MMMM yyyy') : "Select month"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-4" align="start">
+                <div className="space-y-2">
+                  <div className="grid grid-cols-3 gap-2">
+                    {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((month, idx) => {
+                      const currentYear = new Date().getFullYear();
+                      const monthValue = `${currentYear}-${String(idx + 1).padStart(2, '0')}`;
+                      return (
+                        <Button
+                          key={month}
+                          variant={monthYear === monthValue ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => {
+                            setMonthYear(monthValue);
+                            setIsMonthPopoverOpen(false);
+                          }}
+                        >
+                          {month}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => {
+                        const currentYear = new Date().getFullYear();
+                        const prevYear = currentYear - 1;
+                        const currentMonth = monthYear.split('-')[1];
+                        setMonthYear(`${prevYear}-${currentMonth}`);
+                      }}
+                    >
+                      {new Date().getFullYear() - 1}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => {
+                        const currentYear = new Date().getFullYear();
+                        const currentMonth = monthYear.split('-')[1];
+                        setMonthYear(`${currentYear}-${currentMonth}`);
+                      }}
+                    >
+                      {new Date().getFullYear()}
+                    </Button>
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
 
-          <div className="space-y-2 flex-1 max-w-xs">
+          <div className="space-y-2">
             <label className="text-sm font-medium">Upload Option</label>
             <Select value={uploadOption} onValueChange={(value) => setUploadOption(value as 'slip_only' | 'slip_and_members')}>
               <SelectTrigger>

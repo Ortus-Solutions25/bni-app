@@ -49,9 +49,14 @@ urlpatterns = [
          name='chapter-reports-member-detail'),
 
     # TYFCB data for report
-    path('chapters/<int:chapter_id>/reports/<int:pk>/tyfcb/',
+    path('chapters/<int:chapter_id>/reports/<int:pk>/tyfcb-data/',
          MonthlyReportViewSet.as_view({'get': 'tyfcb_data'}),
          name='chapter-reports-tyfcb'),
+
+    # Download matrices as Excel
+    path('chapters/<int:chapter_id>/reports/<int:pk>/download-matrices/',
+         MonthlyReportViewSet.as_view({'get': 'download_matrices'}),
+         name='chapter-reports-download-matrices'),
 
     # Matrix endpoints: chapters/{chapter_id}/reports/{report_id}/matrices/
     path('chapters/<int:chapter_id>/reports/<int:report_id>/referral-matrix/',
@@ -77,4 +82,7 @@ urlpatterns = [
     path('chapters/<int:chapter_id>/reports/<int:report_id>/compare/<int:previous_report_id>/combination/',
          ComparisonViewSet.as_view({'get': 'compare_combination'}),
          name='report-compare-combination'),
+    path('chapters/<int:chapter_id>/reports/<int:report_id>/compare/<int:previous_report_id>/download-excel/',
+         ComparisonViewSet.as_view({'get': 'download_comparison_excel'}),
+         name='report-compare-download-excel'),
 ]

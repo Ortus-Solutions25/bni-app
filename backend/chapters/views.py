@@ -10,6 +10,7 @@ from rest_framework.response import Response
 from chapters.models import Chapter
 from members.models import Member
 from analytics.models import Referral, OneToOne, TYFCB
+from reports.models import MonthlyReport
 from bni.serializers import ChapterSerializer
 from bni.services.chapter_service import ChapterService
 
@@ -78,6 +79,9 @@ class ChapterViewSet(viewsets.ModelViewSet):
                     'phone': member.phone,
                 })
 
+            # Get monthly reports count
+            monthly_reports_count = MonthlyReport.objects.filter(chapter=chapter).count()
+
             chapter_data.append({
                 'id': chapter.id,
                 'name': chapter.name,
@@ -85,6 +89,7 @@ class ChapterViewSet(viewsets.ModelViewSet):
                 'meeting_day': chapter.meeting_day,
                 'meeting_time': str(chapter.meeting_time) if chapter.meeting_time else None,
                 'total_members': member_count,
+                'monthly_reports_count': monthly_reports_count,
                 'total_referrals': total_referrals,
                 'total_one_to_ones': total_one_to_ones,
                 'total_tyfcb_inside': total_tyfcb_inside,

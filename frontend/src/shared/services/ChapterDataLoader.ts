@@ -314,6 +314,7 @@ export const loadAllChapterData = async (): Promise<ChapterMemberData[]> => {
       memberCount: chapter.total_members || chapter.member_count || 0,
       memberFile: `${chapter.name.toLowerCase().replace(/\s+/g, '-')}.xls`,
       loadedAt: new Date(),
+      monthlyReports: chapter.monthly_reports_count ? Array(chapter.monthly_reports_count).fill({}) : [],
       performanceMetrics: {
         avgReferralsPerMember: chapter.avg_referrals_per_member || 0,
         avgOTOsPerMember: chapter.avg_one_to_ones_per_member || chapter.avg_otos_per_member || 0,

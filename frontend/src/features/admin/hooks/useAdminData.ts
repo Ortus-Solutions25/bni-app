@@ -15,7 +15,11 @@ export const useAdminData = () => {
       try {
         const chapters = await loadAllChapterData();
         setChapterData(chapters);
-        if (chapters.length > 0 && !selectedChapter) {
+
+        // If selected chapter no longer exists (deleted), clear selection
+        if (selectedChapter && !chapters.find(c => c.chapterId === selectedChapter.chapterId)) {
+          setSelectedChapter(chapters.length > 0 ? chapters[0] : null);
+        } else if (chapters.length > 0 && !selectedChapter) {
           setSelectedChapter(chapters[0]);
         }
       } catch (error) {
@@ -26,7 +30,7 @@ export const useAdminData = () => {
     };
 
     loadChapters();
-  }, [refreshTrigger]);
+  }, [refreshTrigger, selectedChapter]);
 
   const handleDataRefresh = useCallback(() => {
     setRefreshTrigger(prev => prev + 1);

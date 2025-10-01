@@ -47,17 +47,20 @@ export const useChapterManagement = (onDataRefresh: () => void) => {
     if (!window.confirm('Are you sure you want to delete this chapter? This action cannot be undone.')) return;
 
     try {
-      const response = await fetch(`http://localhost:8000/api/chapters/${chapterId}/delete/`, {
+      const response = await fetch(`http://localhost:8000/api/chapters/${chapterId}/`, {
         method: 'DELETE',
       });
 
       if (response.ok) {
         onDataRefresh();
       } else {
-        console.error('Failed to delete chapter');
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Failed to delete chapter:', errorData);
+        alert(`Failed to delete chapter: ${errorData.error || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('Failed to delete chapter:', error);
+      alert('Failed to delete chapter. Please try again.');
     }
   }, [onDataRefresh]);
 

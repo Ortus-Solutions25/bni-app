@@ -55,14 +55,24 @@ const FileUploadComponent: React.FC<FileUploadComponentProps> = ({
   const { handleError } = useApiError();
   const [isMonthPopoverOpen, setIsMonthPopoverOpen] = useState(false);
 
-  // Extract date from filename (format: Slips_Audit_Report_08-25-2025_2-26_PM.xls)
+  // Extract date from filename - supports multiple formats
   const extractDateFromFilename = (filename: string): string | undefined => {
-    const pattern = /(\d{2})-(\d{2})-(\d{4})/;
-    const match = filename.match(pattern);
+    // Try YYYY-MM-DD format first (e.g., slips-audit-report_2025-01-28.xls)
+    const patternYMD = /(\d{4})-(\d{2})-(\d{2})/;
+    let match = filename.match(patternYMD);
+    if (match) {
+      const [, year, month] = match;
+      return `${year}-${month}`;
+    }
+
+    // Try MM-DD-YYYY format (e.g., Slips_Audit_Report_08-25-2025_2-26_PM.xls)
+    const patternMDY = /(\d{2})-(\d{2})-(\d{4})/;
+    match = filename.match(patternMDY);
     if (match) {
       const [, month, , year] = match;
       return `${year}-${month}`;
     }
+
     return undefined;
   };
 
@@ -124,12 +134,7 @@ const FileUploadComponent: React.FC<FileUploadComponentProps> = ({
       return;
     }
 
-    // Allow upload without month_year - backend will extract from filename
-    // Only warn if neither monthYear is set nor can be extracted
-    if (!monthYear && !slipAuditFile.extractedDate) {
-      setUploadResult({type: 'error', message: 'Please enter month/year or upload a file with date in filename (format: MM-DD-YYYY)'});
-      return;
-    }
+    // month_year is now optional - backend will use current month as default if not provided
 
     setIsUploading(true);
     setUploadResult(null);

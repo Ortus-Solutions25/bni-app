@@ -41,18 +41,24 @@ class FileUploadViewSet(viewsets.ViewSet):
         """
         Extract date from slip audit report filename.
 
-        Expected format: Slips_Audit_Report_08-25-2025_2-26_PM.xls
-        Where 08-25-2025 is MM-DD-YYYY
+        Supports multiple formats:
+        - YYYY-MM-DD: slips-audit-report_2025-01-28.xls
+        - MM-DD-YYYY: Slips_Audit_Report_08-25-2025_2-26_PM.xls
 
         Returns month_year in format 'YYYY-MM' or None if not found
         """
-        # Pattern to match MM-DD-YYYY in the filename
-        pattern = r'(\d{2})-(\d{2})-(\d{4})'
-        match = re.search(pattern, filename)
+        # Try YYYY-MM-DD format first (e.g., 2025-01-28)
+        pattern_ymd = r'(\d{4})-(\d{2})-(\d{2})'
+        match = re.search(pattern_ymd, filename)
+        if match:
+            year, month, day = match.groups()
+            return f"{year}-{month}"
 
+        # Try MM-DD-YYYY format (e.g., 08-25-2025)
+        pattern_mdy = r'(\d{2})-(\d{2})-(\d{4})'
+        match = re.search(pattern_mdy, filename)
         if match:
             month, day, year = match.groups()
-            # Return in YYYY-MM format
             return f"{year}-{month}"
 
         return None
@@ -66,7 +72,7 @@ class FileUploadViewSet(viewsets.ViewSet):
         - slip_audit_file: Required Excel file (.xls/.xlsx)
         - member_names_file: Optional Excel file for member names
         - chapter_id: Chapter to associate with
-        - month_year: Report month in format 'YYYY-MM'
+        - month_year: Optional report month in format 'YYYY-MM' (defaults to current month)
         - upload_option: 'slip_only' or 'slip_and_members'
 
         Returns processing result with created records and any errors.
@@ -90,17 +96,17 @@ class FileUploadViewSet(viewsets.ViewSet):
             month_year = serializer.validated_data.get('month_year')
             upload_option = serializer.validated_data['upload_option']
 
-            # If month_year not provided, try to extract from filename
+            # If month_year not provided, try to extract from filename (optional, non-blocking)
             if not month_year:
                 extracted_date = self._extract_date_from_filename(slip_audit_file.name)
                 if extracted_date:
                     month_year = extracted_date
                     logger.info(f"Extracted date from filename: {month_year}")
                 else:
-                    return Response(
-                        {'error': 'month_year is required. Could not extract date from filename. Please provide it manually or use a filename format like: Slips_Audit_Report_MM-DD-YYYY_...'},
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
+                    # Use current month as default if extraction fails
+                    from datetime import datetime
+                    month_year = datetime.now().strftime('%Y-%m')
+                    logger.info(f"Using current month as default: {month_year}")
 
             # Validate chapter access
             try:

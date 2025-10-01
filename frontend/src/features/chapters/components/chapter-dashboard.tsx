@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import ChapterCard from './chapter-card';
 import ChapterErrorBoundary from './chapter-error-boundary';
+import ChapterCardSkeleton from '@/components/skeletons/ChapterCardSkeleton';
 import { ChapterMemberData, generateMockPerformanceMetrics } from '../../../shared/services/ChapterDataLoader';
 import { formatNumber } from '../../../shared/lib/utils';
 
@@ -68,13 +69,19 @@ const ChapterDashboard: React.FC<ChapterDashboardProps> = ({
 
   if (isLoading && chapterData.length === 0) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center space-y-4">
-          <Loader2 className="h-12 w-12 animate-spin mx-auto text-primary" />
-          <div>
-            <p className="text-lg font-medium">Loading chapters...</p>
-            <p className="text-sm text-muted-foreground">Please wait while we fetch your data</p>
-          </div>
+      <div className="space-y-6 p-6">
+        {/* Dashboard Stats Skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <ChapterCardSkeleton key={i} />
+          ))}
+        </div>
+
+        {/* Chapter Grid Skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <ChapterCardSkeleton key={`chapter-${i}`} />
+          ))}
         </div>
       </div>
     );

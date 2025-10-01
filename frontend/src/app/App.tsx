@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -7,8 +7,6 @@ import {
   useLocation,
 } from "react-router-dom";
 import { QueryClientProvider } from '@tanstack/react-query';
-import { Settings, Home } from "lucide-react";
-import { Button } from '@/components/ui/button';
 
 // Import components
 import ChapterRoutes from "../features/chapters/components/chapter-routes";
@@ -73,38 +71,19 @@ function AppContent() {
         {/* Fixed Header */}
         <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
           <div className="flex h-16 items-center justify-between px-6">
-            <div className="flex items-center gap-3">
+            <button
+              onClick={() => navigate(isAdminPage ? '/' : '/admin')}
+              className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+            >
               <div className="flex flex-col">
-                <h1 className="text-xl font-semibold text-foreground">
-                  BNI PALMS Analysis
+                <h1 className="text-xl font-semibold text-foreground text-left">
+                  BNI PALMS Analysis {isAdminPage && '· Admin'}
                 </h1>
-                <span className="text-sm text-muted-foreground">
-                  Professional Business Analytics
+                <span className="text-sm text-muted-foreground text-left">
+                  {isAdminPage ? 'Click to return to dashboard' : 'Click to access admin'}
                 </span>
               </div>
-            </div>
-            <div className="flex items-center gap-3">
-              {!isHomePage && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => navigate('/')}
-                  className="flex items-center gap-2"
-                >
-                  <Home className="h-4 w-4" />
-                  <span className="hidden sm:inline">Dashboard</span>
-                </Button>
-              )}
-              <Button
-                variant={isAdminPage ? "default" : "secondary"}
-                size="sm"
-                onClick={() => navigate(isAdminPage ? '/' : '/admin')}
-                className="flex items-center gap-2 font-semibold"
-              >
-                <Settings className="h-4 w-4" />
-                <span>{isAdminPage ? 'Exit Admin' : 'Admin'}</span>
-              </Button>
-            </div>
+            </button>
           </div>
         </header>
 

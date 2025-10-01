@@ -45,17 +45,28 @@ class MonthlyReportViewSet(viewsets.ModelViewSet):
 
             result = []
             for report in monthly_reports:
-                result.append({
-                    'id': report.id,
-                    'month_year': report.month_year,
-                    'uploaded_at': report.uploaded_at,
-                    'processed_at': report.processed_at,
-                    'slip_audit_file': report.slip_audit_file if report.slip_audit_file else None,
-                    'member_names_file': report.member_names_file if report.member_names_file else None,
-                    'has_referral_matrix': bool(report.referral_matrix_data),
-                    'has_oto_matrix': bool(report.oto_matrix_data),
-                    'has_combination_matrix': bool(report.combination_matrix_data)
-                })
+                try:
+                    # Safely access file fields (they are strings, not actual files)
+                    slip_file = str(report.slip_audit_file) if report.slip_audit_file else None
+                    member_file = str(report.member_names_file) if report.member_names_file else None
+
+                    result.append({
+                        'id': report.id,
+                        'month_year': report.month_year,
+                        'uploaded_at': report.uploaded_at.isoformat() if report.uploaded_at else None,
+                        'processed_at': report.processed_at.isoformat() if report.processed_at else None,
+                        'slip_audit_file': slip_file,
+                        'member_names_file': member_file,
+                        'has_referral_matrix': bool(report.referral_matrix_data),
+                        'has_oto_matrix': bool(report.oto_matrix_data),
+                        'has_combination_matrix': bool(report.combination_matrix_data)
+                    })
+                except Exception as e:
+                    # Log the error but continue processing other reports
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.error(f"Error processing report {report.id}: {str(e)}")
+                    continue
 
             return Response(result)
 

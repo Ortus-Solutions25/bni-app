@@ -25,6 +25,7 @@ import {
   CheckCircle,
   AlertTriangle,
   AlertCircle,
+  Home,
 } from 'lucide-react';
 import { MemberAnalytics, PerformanceColor } from '../types/member.types';
 
@@ -54,40 +55,38 @@ export const MemberProfileCard: React.FC<MemberProfileCardProps> = ({
   return (
     <>
       {/* Breadcrumbs */}
-      <Breadcrumb className="mb-6">
-        <BreadcrumbList>
-          <BreadcrumbItem>
-            <BreadcrumbLink asChild>
-              <button
+      <div className="mb-6 p-4 bg-background border-b">
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink
                 onClick={onBackToChapters}
-                className="flex items-center hover:text-foreground"
+                className="flex items-center gap-2 cursor-pointer"
               >
-                <Building2 className="w-4 h-4 mr-2" />
+                <Home className="h-4 w-4" />
                 Chapters
-              </button>
-            </BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator>
-            <ChevronRight className="w-4 h-4" />
-          </BreadcrumbSeparator>
-          <BreadcrumbItem>
-            <BreadcrumbLink asChild>
-              <button
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbLink
                 onClick={onBackToMembers}
-                className="hover:text-foreground"
+                className="flex items-center gap-2 cursor-pointer"
               >
+                <Building2 className="h-4 w-4" />
                 {memberAnalytics.chapter.name}
-              </button>
-            </BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator>
-            <ChevronRight className="w-4 h-4" />
-          </BreadcrumbSeparator>
-          <BreadcrumbItem>
-            <BreadcrumbPage>{memberAnalytics.member.full_name}</BreadcrumbPage>
-          </BreadcrumbItem>
-        </BreadcrumbList>
-      </Breadcrumb>
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage className="flex items-center gap-2">
+                <User className="h-4 w-4" />
+                {memberAnalytics.member.full_name}
+              </BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+      </div>
 
       {/* Header */}
       <div className="flex items-center mb-8">

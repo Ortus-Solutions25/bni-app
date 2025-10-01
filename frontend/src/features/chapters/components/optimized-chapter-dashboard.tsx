@@ -8,7 +8,8 @@ import {
   ChevronUp,
   History,
   Grid3X3,
-  ArrowRight
+  ArrowRight,
+  Home
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,6 +18,14 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb';
 import { ChapterMemberData } from '../../../shared/services/ChapterDataLoader';
 import PreviousDataTab from '../../reports/components/previous-data-tab';
 import MatrixTab from '../../analytics/components/matrix-tab';
@@ -57,31 +66,27 @@ const OptimizedChapterDashboard: React.FC<OptimizedChapterDashboardProps> = ({
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Breadcrumb Navigation */}
-      <div className="flex items-center gap-4 p-4">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onBackToChapters}
-          className="flex items-center gap-2"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to Chapters
-        </Button>
-
-        <nav className="flex items-center space-x-2 text-sm text-muted-foreground">
-          <button
-            onClick={onBackToChapters}
-            className="flex items-center gap-1 hover:text-foreground"
-          >
-            <Building2 className="h-4 w-4" />
-            BNI Chapters
-          </button>
-          <span>/</span>
-          <span className="flex items-center gap-1 text-foreground font-medium">
-            <Building2 className="h-4 w-4" />
-            {chapterData.chapterName}
-          </span>
-        </nav>
+      <div className="flex items-center gap-4 p-4 bg-background border-b">
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink
+                onClick={onBackToChapters}
+                className="flex items-center gap-2 cursor-pointer"
+              >
+                <Home className="h-4 w-4" />
+                Chapters
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage className="flex items-center gap-2">
+                <Building2 className="h-4 w-4" />
+                {chapterData.chapterName}
+              </BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
       </div>
 
       {/* Chapter Header */}

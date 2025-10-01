@@ -569,9 +569,14 @@ class ExcelProcessorService:
                     logger.info(f"Processing file: {slip_file.name}")
                     result = self._process_single_slip_file(slip_file)
 
-                    if not result['success']:
+                    # Check if result is valid
+                    if not result:
+                        raise Exception(f"Failed to process {slip_file.name}: No result returned")
+
+                    if not result.get('success', False):
                         # If any file fails, rollback everything
-                        raise Exception(f"Failed to process {slip_file.name}: {result.get('error')}")
+                        error_msg = result.get('error', 'Unknown error')
+                        raise Exception(f"Failed to process {slip_file.name}: {error_msg}")
 
                     total_referrals += result['referrals_created']
                     total_one_to_ones += result['one_to_ones_created']
@@ -668,29 +673,46 @@ class ExcelProcessorService:
         import tempfile
         import os
 
-        # Handle both InMemoryUploadedFile and TemporaryUploadedFile
-        if hasattr(slip_audit_file, 'temporary_file_path'):
-            temp_file_path = slip_audit_file.temporary_file_path()
-            df = self._read_excel_file(Path(temp_file_path))
-        else:
-            with tempfile.NamedTemporaryFile(delete=False, suffix='.xls') as temp_file:
-                for chunk in slip_audit_file.chunks():
-                    temp_file.write(chunk)
-                    temp_file.flush()
+        try:
+            # Handle both InMemoryUploadedFile and TemporaryUploadedFile
+            if hasattr(slip_audit_file, 'temporary_file_path'):
+                temp_file_path = slip_audit_file.temporary_file_path()
+                df = self._read_excel_file(Path(temp_file_path))
+            else:
+                with tempfile.NamedTemporaryFile(delete=False, suffix='.xls') as temp_file:
+                    for chunk in slip_audit_file.chunks():
+                        temp_file.write(chunk)
+                        temp_file.flush()
 
-                try:
-                    df = self._read_excel_file(Path(temp_file.name))
-                finally:
-                    os.unlink(temp_file.name)
+                    try:
+                        df = self._read_excel_file(Path(temp_file.name))
+                    finally:
+                        os.unlink(temp_file.name)
 
-        if df is None:
-            return {'success': False, 'error': 'Failed to read Excel file'}
+            if df is None:
+                return {'success': False, 'error': 'Failed to read Excel file',
+                        'referrals_created': 0, 'one_to_ones_created': 0,
+                        'tyfcbs_created': 0, 'total_processed': 0}
 
-        # Get members lookup
-        members_lookup = self._get_members_lookup()
+            # Get members lookup
+            members_lookup = self._get_members_lookup()
 
-        # Process the data
-        return self._process_dataframe(df, members_lookup, None)
+            # Process the data
+            result = self._process_dataframe(df, members_lookup, None)
+
+            # Ensure result has all required keys
+            if not result:
+                return {'success': False, 'error': 'No result from dataframe processing',
+                        'referrals_created': 0, 'one_to_ones_created': 0,
+                        'tyfcbs_created': 0, 'total_processed': 0}
+
+            return result
+
+        except Exception as e:
+            logger.exception(f"Error processing slip file: {str(e)}")
+            return {'success': False, 'error': str(e),
+                    'referrals_created': 0, 'one_to_ones_created': 0,
+                    'tyfcbs_created': 0, 'total_processed': 0}
 
     def process_monthly_report(self, slip_audit_file, member_names_file, month_year: str) -> Dict:
         """

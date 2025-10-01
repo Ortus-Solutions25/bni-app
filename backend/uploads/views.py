@@ -84,7 +84,25 @@ class FileUploadViewSet(viewsets.ViewSet):
         # Log incoming request for debugging
         logger.info(f"Excel upload request - Files: {list(request.FILES.keys())}, Data: {list(request.data.keys())}")
 
-        serializer = FileUploadSerializer(data=request.data)
+        # Handle both new (slip_audit_files) and old (slip_audit_file) format
+        slip_files = request.FILES.getlist('slip_audit_files')
+        if not slip_files:
+            # Try old format for backward compatibility
+            single_file = request.FILES.get('slip_audit_file')
+            if single_file:
+                slip_files = [single_file]
+
+        if not slip_files:
+            return Response(
+                {'error': 'No slip audit files provided'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Build data dict for serializer with the files
+        data = request.data.copy()
+        data['slip_audit_files'] = slip_files
+
+        serializer = FileUploadSerializer(data=data)
         if not serializer.is_valid():
             logger.error(f"Serializer validation failed: {serializer.errors}")
             return Response(

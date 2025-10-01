@@ -120,7 +120,7 @@ const FileUploadComponent: React.FC<FileUploadComponentProps> = ({
       formData.append('month_year', monthYear);
       formData.append('upload_option', uploadOption);
 
-      const response = await fetch(`${API_BASE_URL}/api/upload/`, {
+      const response = await fetch(`${API_BASE_URL}/api/upload/excel/`, {
         method: 'POST',
         body: formData,
       });

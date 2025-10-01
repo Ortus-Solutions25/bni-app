@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { MatrixData, TYFCBData } from '../types/matrix.types';
 import { MonthlyReport, loadMonthlyReports, loadMatrixData } from '../../../shared/services/ChapterDataLoader';
+import { API_BASE_URL } from '@/config/api';
 
 interface UseMatrixDataReturn {
   monthlyReports: MonthlyReport[];
@@ -91,7 +92,7 @@ export const useMatrixData = (chapterId: string): UseMatrixDataReturn => {
 
         // Always try to load TYFCB data
         promises.push(
-          fetch(`/api/chapters/${chapterId}/reports/${selectedReport.id}/tyfcb-data/`)
+          fetch(`${API_BASE_URL}/api/chapters/${chapterId}/reports/${selectedReport.id}/tyfcb-data/`)
             .then(response => response.json())
             .catch(() => null)
         );

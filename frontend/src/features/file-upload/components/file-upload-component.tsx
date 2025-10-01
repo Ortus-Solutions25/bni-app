@@ -16,6 +16,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useDropzone } from 'react-dropzone';
 import { useApiError } from '../../../shared/hooks/useApiError';
+import { API_BASE_URL } from '@/config/api';
 
 interface UploadFile {
   file: File;
@@ -119,7 +120,7 @@ const FileUploadComponent: React.FC<FileUploadComponentProps> = ({
       formData.append('month_year', monthYear);
       formData.append('upload_option', uploadOption);
 
-      const response = await fetch('/api/upload/', {
+      const response = await fetch(`${API_BASE_URL}/api/upload/`, {
         method: 'POST',
         body: formData,
       });

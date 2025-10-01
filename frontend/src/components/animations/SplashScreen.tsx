@@ -61,8 +61,8 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
           className="flex flex-col items-center gap-8"
         >
           {/* BNI DEIRA */}
-          <div className="text-center">
-            <h1 className="text-5xl md:text-7xl font-bold text-white tracking-tight">
+          <div className="text-center px-4">
+            <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold text-white tracking-tight">
               BNI DEIRA
             </h1>
           </div>
@@ -72,12 +72,12 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.3 }}
-            className="text-center"
+            className="text-center px-4"
           >
-            <h2 className="text-4xl md:text-5xl font-bold text-white">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white">
               PALMS Analysis
             </h2>
-            <p className="text-xl text-white/90 mt-3">
+            <p className="text-lg sm:text-xl text-white/90 mt-3">
               Professional Business Analytics
             </p>
           </motion.div>

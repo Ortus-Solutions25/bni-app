@@ -55,7 +55,7 @@ export const MemberProfileCard: React.FC<MemberProfileCardProps> = ({
   return (
     <>
       {/* Breadcrumbs */}
-      <div className="px-6 py-4 bg-background border-b">
+      <div className="px-4 sm:px-6 py-4 bg-background border-b">
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
@@ -64,7 +64,7 @@ export const MemberProfileCard: React.FC<MemberProfileCardProps> = ({
                 className="flex items-center gap-2 cursor-pointer"
               >
                 <Home className="h-4 w-4" />
-                Chapters
+                <span className="hidden sm:inline">Chapters</span>
               </BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator />
@@ -74,14 +74,14 @@ export const MemberProfileCard: React.FC<MemberProfileCardProps> = ({
                 className="flex items-center gap-2 cursor-pointer"
               >
                 <Building2 className="h-4 w-4" />
-                {memberAnalytics.chapter.name}
+                <span className="truncate max-w-[120px] sm:max-w-none">{memberAnalytics.chapter.name}</span>
               </BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbItem>
               <BreadcrumbPage className="flex items-center gap-2">
                 <User className="h-4 w-4" />
-                {memberAnalytics.member.full_name}
+                <span className="truncate max-w-[120px] sm:max-w-none">{memberAnalytics.member.full_name}</span>
               </BreadcrumbPage>
             </BreadcrumbItem>
           </BreadcrumbList>
@@ -89,7 +89,7 @@ export const MemberProfileCard: React.FC<MemberProfileCardProps> = ({
       </div>
 
       {/* Header */}
-      <div className="flex items-center px-6 py-8">
+      <div className="flex items-center px-4 sm:px-6 py-6 sm:py-8">
         <User className="mr-4 h-10 w-10 text-muted-foreground" />
         <div className="flex-1">
           <h1 className="text-3xl font-bold mb-2">

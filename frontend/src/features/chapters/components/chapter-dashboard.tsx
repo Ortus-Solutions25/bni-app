@@ -89,14 +89,14 @@ const ChapterDashboard: React.FC<ChapterDashboardProps> = ({
 
   return (
     <ChapterErrorBoundary>
-      <div className="space-y-8 p-6 animate-fade-in" data-testid="chapter-dashboard">
+      <div className="space-y-6 sm:space-y-8 p-4 sm:p-6 animate-fade-in" data-testid="chapter-dashboard">
       {/* Header Section */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
             BNI Chapter Dashboard
           </h1>
-          <p className="text-muted-foreground mt-2">
+          <p className="text-sm sm:text-base text-muted-foreground mt-2">
             View and analyze your business networking chapters
           </p>
         </div>

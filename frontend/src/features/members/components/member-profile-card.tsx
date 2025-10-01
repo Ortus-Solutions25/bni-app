@@ -55,7 +55,7 @@ export const MemberProfileCard: React.FC<MemberProfileCardProps> = ({
   return (
     <>
       {/* Breadcrumbs */}
-      <div className="mb-6 p-4 bg-background border-b">
+      <div className="px-6 py-4 bg-background border-b">
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
@@ -89,7 +89,7 @@ export const MemberProfileCard: React.FC<MemberProfileCardProps> = ({
       </div>
 
       {/* Header */}
-      <div className="flex items-center mb-8">
+      <div className="flex items-center px-6 py-8">
         <User className="mr-4 h-10 w-10 text-muted-foreground" />
         <div className="flex-1">
           <h1 className="text-3xl font-bold mb-2">

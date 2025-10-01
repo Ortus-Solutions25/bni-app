@@ -64,9 +64,9 @@ const OptimizedChapterDashboard: React.FC<OptimizedChapterDashboardProps> = ({
   };
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-8 animate-fade-in">
       {/* Breadcrumb Navigation */}
-      <div className="flex items-center gap-4 p-4 bg-background border-b">
+      <div className="px-6 py-4 bg-background border-b">
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
@@ -90,7 +90,7 @@ const OptimizedChapterDashboard: React.FC<OptimizedChapterDashboardProps> = ({
       </div>
 
       {/* Chapter Header */}
-      <div className="px-4 space-y-2">
+      <div className="px-6 space-y-2">
         <h1 className="text-3xl font-bold text-foreground">
           {chapterData.chapterName}
         </h1>
@@ -100,7 +100,7 @@ const OptimizedChapterDashboard: React.FC<OptimizedChapterDashboardProps> = ({
       </div>
 
       {/* Primary Workflow Section: Upload → Compare */}
-      <div className="px-4">
+      <div className="px-6">
         <div className="space-y-6">
           {/* Upload Data */}
           <Card className="border-2 border-primary/20">

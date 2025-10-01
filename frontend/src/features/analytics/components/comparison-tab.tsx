@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, TrendingDown, ArrowRight, Calendar, AlertCircle, Loader2 } from 'lucide-react';
+import { TrendingUp, TrendingDown, ArrowRight, Calendar, AlertCircle, Loader2, Download, FileSpreadsheet } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
@@ -7,6 +7,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { MonthlyReport, ComparisonData, loadComparisonData, loadMonthlyReports } from '../../../shared/services/ChapterDataLoader';
+
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
 
 interface ComparisonTabProps {
   chapterId: string;
@@ -91,6 +93,13 @@ const ComparisonTab: React.FC<ComparisonTabProps> = ({ chapterId }) => {
     }
   };
 
+  const handleDownloadExcel = () => {
+    if (!currentReportId || !previousReportId) return;
+
+    const url = `${API_BASE_URL}/api/chapters/${chapterId}/reports/${currentReportId}/compare/${previousReportId}/download-excel/`;
+    window.location.href = url;
+  };
+
   // Show loading state while fetching reports
   if (loadingReports) {
     return (
@@ -117,7 +126,7 @@ const ComparisonTab: React.FC<ComparisonTabProps> = ({ chapterId }) => {
         <CardContent className="space-y-4">
           {sortedReports.length >= 2 ? (
             <>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-4">
                 {/* Current Month */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Current Month</label>
@@ -159,16 +168,13 @@ const ComparisonTab: React.FC<ComparisonTabProps> = ({ chapterId }) => {
                 </div>
 
                 {/* Compare Button */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">&nbsp;</label>
-                  <Button
-                    onClick={handleCompare}
-                    disabled={loading || !currentReportId || !previousReportId}
-                    className="w-full"
-                  >
-                    {loading ? 'Comparing...' : 'Compare'}
-                  </Button>
-                </div>
+                <Button
+                  onClick={handleCompare}
+                  disabled={loading || !currentReportId || !previousReportId}
+                  className="w-full"
+                >
+                  {loading ? 'Comparing...' : 'Compare'}
+                </Button>
               </div>
 
               {error && (
@@ -194,49 +200,90 @@ const ComparisonTab: React.FC<ComparisonTabProps> = ({ chapterId }) => {
       {/* Comparison Results */}
       {comparisonData && (
         <div className="space-y-6">
-          {/* Overall Insights */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Overall Performance Summary</CardTitle>
-              <CardDescription>
-                Comparing {comparisonData.current_report.month_year} vs {comparisonData.previous_report.month_year}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="space-y-1">
-                  <p className="text-sm text-muted-foreground">Total Members</p>
-                  <p className="text-2xl font-bold">{comparisonData.overall_insights.overall.total_members}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-sm text-muted-foreground">New Members</p>
-                  <p className="text-2xl font-bold text-blue-500">{comparisonData.overall_insights.overall.new_members}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-sm text-muted-foreground">Referral Improvement Rate</p>
-                  <p className="text-2xl font-bold text-green-500">{comparisonData.overall_insights.referrals.improvement_rate}%</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-sm text-muted-foreground">OTO Improvement Rate</p>
-                  <p className="text-2xl font-bold text-green-500">{comparisonData.overall_insights.one_to_ones.improvement_rate}%</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Detailed Comparison Tabs */}
-          <Tabs defaultValue="referrals" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="referrals">Referrals</TabsTrigger>
-              <TabsTrigger value="otos">One-to-Ones</TabsTrigger>
-              <TabsTrigger value="combination">Combined</TabsTrigger>
+          {/* Comparison Tabs */}
+          <Tabs defaultValue="preview" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="preview">
+                <FileSpreadsheet className="h-4 w-4 mr-2" />
+                Preview & Download
+              </TabsTrigger>
+              <TabsTrigger value="summary">
+                <TrendingUp className="h-4 w-4 mr-2" />
+                Summary
+              </TabsTrigger>
             </TabsList>
 
-            {/* Referrals Tab */}
-            <TabsContent value="referrals" className="space-y-4">
+            {/* Preview Tab - Matrix with Download Button */}
+            <TabsContent value="preview" className="space-y-4">
               <Card>
                 <CardHeader>
-                  <CardTitle>Referral Performance Comparison</CardTitle>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle>Combination Matrix Comparison</CardTitle>
+                      <CardDescription>
+                        Comparing {comparisonData.current_report.month_year} vs {comparisonData.previous_report.month_year}
+                      </CardDescription>
+                    </div>
+                    <Button onClick={handleDownloadExcel} className="flex items-center gap-2">
+                      <Download className="h-4 w-4" />
+                      Download Excel
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <Alert>
+                    <FileSpreadsheet className="h-4 w-4" />
+                    <AlertDescription>
+                      Download the full comparison Excel file to view the detailed combination matrix with:
+                      <ul className="list-disc list-inside mt-2 space-y-1">
+                        <li>Current combination matrix (0=Neither, 1=OTO Only, 2=Referral Only, 3=Both)</li>
+                        <li>Aggregate counts for each category</li>
+                        <li>Current vs Previous Referrals with change indicators</li>
+                        <li>Current vs Previous "Neither" count with change indicators</li>
+                        <li>Color-coded improvements (green) and declines (red)</li>
+                      </ul>
+                    </AlertDescription>
+                  </Alert>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Summary Tab - All Insights */}
+            <TabsContent value="summary" className="space-y-4">
+              {/* Overall Insights */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Overall Performance Summary</CardTitle>
+                  <CardDescription>
+                    Comparing {comparisonData.current_report.month_year} vs {comparisonData.previous_report.month_year}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground">Total Members</p>
+                      <p className="text-2xl font-bold">{comparisonData.overall_insights.overall.total_members}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground">New Members</p>
+                      <p className="text-2xl font-bold text-blue-500">{comparisonData.overall_insights.overall.new_members}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground">Referral Improvement Rate</p>
+                      <p className="text-2xl font-bold text-green-500">{comparisonData.overall_insights.referrals.improvement_rate}%</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground">OTO Improvement Rate</p>
+                      <p className="text-2xl font-bold text-green-500">{comparisonData.overall_insights.one_to_ones.improvement_rate}%</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Referrals Performance */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Referral Performance</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {/* Summary Stats */}
@@ -310,13 +357,11 @@ const ComparisonTab: React.FC<ComparisonTabProps> = ({ chapterId }) => {
                   )}
                 </CardContent>
               </Card>
-            </TabsContent>
 
-            {/* One-to-Ones Tab */}
-            <TabsContent value="otos" className="space-y-4">
+              {/* One-to-Ones Performance */}
               <Card>
                 <CardHeader>
-                  <CardTitle>One-to-One Performance Comparison</CardTitle>
+                  <CardTitle>One-to-One Performance</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {/* Summary Stats */}
@@ -390,13 +435,11 @@ const ComparisonTab: React.FC<ComparisonTabProps> = ({ chapterId }) => {
                   )}
                 </CardContent>
               </Card>
-            </TabsContent>
 
-            {/* Combination Tab */}
-            <TabsContent value="combination" className="space-y-4">
+              {/* Combined Performance */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Combined Performance Comparison</CardTitle>
+                  <CardTitle>Combined Performance</CardTitle>
                   <CardDescription>
                     Combined view of referrals and one-to-one meetings
                   </CardDescription>

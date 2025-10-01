@@ -13,8 +13,8 @@ from openpyxl import load_workbook
 
 from chapters.models import Chapter
 from members.models import Member
-from reports.models import MonthlyReport, MemberMonthlyStats
-from analytics.models import Referral, OneToOne, TYFCB, DataImportSession
+from reports.models import MonthlyReport
+from analytics.models import Referral, OneToOne, TYFCB
 from bni.services.chapter_service import ChapterService
 from bni.services.member_service import MemberService
 
@@ -71,17 +71,11 @@ class ExcelProcessorService:
             
             # Process the data
             results = self._process_dataframe(df, members_lookup, week_of_date)
-            
-            # Create import session record
-            import_session = self._create_import_session(
-                file_path, results, success=len(self.errors) == 0
-            )
-            
+
             return {
                 'success': len(self.errors) == 0,
-                'import_session_id': import_session.id,
                 'referrals_created': results['referrals_created'],
-                'one_to_ones_created': results['one_to_ones_created'], 
+                'one_to_ones_created': results['one_to_ones_created'],
                 'tyfcbs_created': results['tyfcbs_created'],
                 'total_processed': results['total_processed'],
                 'errors': self.errors,
@@ -472,21 +466,6 @@ class ExcelProcessorService:
         except (ValueError, TypeError):
             return 0.0
     
-    def _create_import_session(self, file_path: Path, results: Dict, success: bool) -> DataImportSession:
-        """Create an import session record for auditing."""
-        return DataImportSession.objects.create(
-            chapter=self.chapter,
-            file_name=file_path.name,
-            file_size=file_path.stat().st_size if file_path.exists() else 0,
-            records_processed=results['total_processed'],
-            referrals_created=results['referrals_created'],
-            one_to_ones_created=results['one_to_ones_created'],
-            tyfcbs_created=results['tyfcbs_created'],
-            errors_count=len(self.errors),
-            success=success,
-            error_details=self.errors + self.warnings
-        )
-    
     def _create_error_result(self, error_message: str) -> Dict:
         """Create error result dictionary."""
         return {
@@ -624,60 +603,13 @@ class ExcelProcessorService:
                 
                 # Process the data and create individual records
                 processing_result = self._process_dataframe(df, members_lookup, None)
-                
-                # Generate matrix data using existing utilities
-                from bni.services.matrix_generator import MatrixGenerator
-                
-                members = list(Member.objects.filter(chapter=self.chapter, is_active=True))
-                referrals = list(Referral.objects.filter(giver__chapter=self.chapter))
-                one_to_ones = list(OneToOne.objects.filter(member1__chapter=self.chapter))
-                tyfcbs = list(TYFCB.objects.filter(receiver__chapter=self.chapter))
-                
-                generator = MatrixGenerator(members)
-                
-                # Generate matrices and store as JSON
-                monthly_report.referral_matrix_data = {
-                    'members': [m.full_name for m in members],
-                    'matrix': generator.generate_referral_matrix(referrals).values.tolist(),
-                }
-                
-                monthly_report.oto_matrix_data = {
-                    'members': [m.full_name for m in members],
-                    'matrix': generator.generate_one_to_one_matrix(one_to_ones).values.tolist(),
-                }
-                
-                monthly_report.combination_matrix_data = {
-                    'members': [m.full_name for m in members],
-                    'matrix': generator.generate_combination_matrix(referrals, one_to_ones).values.tolist(),
-                    'legend': {
-                        '0': 'Neither',
-                        '1': 'One-to-One Only', 
-                        '2': 'Referral Only',
-                        '3': 'Both'
-                    }
-                }
-                
-                # Separate TYFCBs by inside/outside chapter
-                inside_tyfcbs = [t for t in tyfcbs if t.within_chapter]
-                outside_tyfcbs = [t for t in tyfcbs if not t.within_chapter]
-                
-                monthly_report.tyfcb_inside_data = {
-                    'total_amount': sum(float(t.amount) for t in inside_tyfcbs),
-                    'count': len(inside_tyfcbs),
-                    'by_member': {m.full_name: sum(float(t.amount) for t in inside_tyfcbs if t.receiver == m) for m in members}
-                }
-                
-                monthly_report.tyfcb_outside_data = {
-                    'total_amount': sum(float(t.amount) for t in outside_tyfcbs),
-                    'count': len(outside_tyfcbs),
-                    'by_member': {m.full_name: sum(float(t.amount) for t in outside_tyfcbs if t.receiver == m) for m in members}
-                }
-                
+
+                # Generate and cache matrices after data is saved
                 monthly_report.processed_at = timezone.now()
                 monthly_report.save()
-                
-                # Generate member monthly stats
-                self._generate_member_stats(monthly_report, members, referrals, one_to_ones, inside_tyfcbs, outside_tyfcbs)
+
+                # Generate matrices now (fast enough after optimization)
+                self._generate_and_cache_matrices(monthly_report)
                 
                 return {
                     'success': True,
@@ -688,9 +620,6 @@ class ExcelProcessorService:
                     'referrals_created': processing_result['referrals_created'],
                     'one_to_ones_created': processing_result['one_to_ones_created'],
                     'tyfcbs_created': processing_result['tyfcbs_created'],
-                    'referrals_count': len(referrals),
-                    'one_to_ones_count': len(one_to_ones),
-                    'tyfcbs_count': len(tyfcbs),
                     'total_processed': processing_result['total_processed'],
                     'errors': self.errors,
                     'warnings': self.warnings,
@@ -699,47 +628,64 @@ class ExcelProcessorService:
         except Exception as e:
             logger.exception(f"Error processing monthly report for {self.chapter}")
             return self._create_error_result(f"Processing failed: {str(e)}")
-    
-    def _generate_member_stats(self, monthly_report, members, referrals, one_to_ones, inside_tyfcbs, outside_tyfcbs):
-        """Generate MemberMonthlyStats for each member."""
-        
-        for member in members:
-            # Calculate stats for this member
-            referrals_given = len([r for r in referrals if r.giver == member])
-            referrals_received = len([r for r in referrals if r.receiver == member])
-            
-            # Count one-to-ones
-            otos_completed = len([o for o in one_to_ones if o.member1 == member or o.member2 == member])
-            
-            # Calculate TYFCB amounts
-            inside_amount = sum(float(t.amount) for t in inside_tyfcbs if t.receiver == member)
-            outside_amount = sum(float(t.amount) for t in outside_tyfcbs if t.receiver == member)
-            
-            # Create or update member stats
-            member_stats, created = MemberMonthlyStats.objects.get_or_create(
-                member=member,
-                monthly_report=monthly_report,
-                defaults={
-                    'referrals_given': referrals_given,
-                    'referrals_received': referrals_received,
-                    'one_to_ones_completed': otos_completed,
-                    'tyfcb_inside_amount': inside_amount,
-                    'tyfcb_outside_amount': outside_amount,
-                }
-            )
-            
-            if not created:
-                # Update existing stats
-                member_stats.referrals_given = referrals_given
-                member_stats.referrals_received = referrals_received
-                member_stats.one_to_ones_completed = otos_completed
-                member_stats.tyfcb_inside_amount = inside_amount
-                member_stats.tyfcb_outside_amount = outside_amount
-                member_stats.save()
-            
-            # Calculate missing lists
-            member_stats.calculate_missing_lists(Member.objects.filter(chapter=self.chapter, is_active=True))
-            member_stats.save()
+
+    def _generate_and_cache_matrices(self, monthly_report):
+        """Generate matrices and cache them in the MonthlyReport. Only runs if not already cached."""
+        # Check if matrices are already generated
+        if (monthly_report.referral_matrix_data and
+            monthly_report.oto_matrix_data and
+            monthly_report.combination_matrix_data):
+            logger.info(f"Matrices already cached for {monthly_report}")
+            return
+
+        logger.info(f"Generating matrices for {monthly_report}")
+
+        from bni.services.matrix_generator import MatrixGenerator
+
+        # Get data
+        members = list(Member.objects.filter(chapter=self.chapter, is_active=True))
+        referrals = list(Referral.objects.filter(giver__chapter=self.chapter))
+        one_to_ones = list(OneToOne.objects.filter(member1__chapter=self.chapter))
+        tyfcbs = list(TYFCB.objects.filter(receiver__chapter=self.chapter))
+
+        generator = MatrixGenerator(members)
+
+        # Generate and cache matrices
+        monthly_report.referral_matrix_data = {
+            'members': [m.full_name for m in members],
+            'matrix': generator.generate_referral_matrix(referrals).values.tolist(),
+        }
+
+        monthly_report.oto_matrix_data = {
+            'members': [m.full_name for m in members],
+            'matrix': generator.generate_one_to_one_matrix(one_to_ones).values.tolist(),
+        }
+
+        monthly_report.combination_matrix_data = {
+            'members': [m.full_name for m in members],
+            'matrix': generator.generate_combination_matrix(referrals, one_to_ones).values.tolist(),
+            'legend': {'0': 'Neither', '1': 'One-to-One Only', '2': 'Referral Only', '3': 'Both'}
+        }
+
+        # Cache TYFCB data
+        inside_tyfcbs = [t for t in tyfcbs if t.within_chapter]
+        outside_tyfcbs = [t for t in tyfcbs if not t.within_chapter]
+
+        monthly_report.tyfcb_inside_data = {
+            'total_amount': sum(float(t.amount) for t in inside_tyfcbs),
+            'count': len(inside_tyfcbs),
+            'by_member': {m.full_name: sum(float(t.amount) for t in inside_tyfcbs if t.receiver == m) for m in members}
+        }
+
+        monthly_report.tyfcb_outside_data = {
+            'total_amount': sum(float(t.amount) for t in outside_tyfcbs),
+            'count': len(outside_tyfcbs),
+            'by_member': {m.full_name: sum(float(t.amount) for t in outside_tyfcbs if t.receiver == m) for m in members}
+        }
+
+        monthly_report.save()
+        logger.info(f"Matrices cached successfully for {monthly_report}")
+
 
 
 class BNIMonthlyDataImportService:

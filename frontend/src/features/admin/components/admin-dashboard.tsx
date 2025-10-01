@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Settings,
   CloudUpload,
@@ -28,6 +28,28 @@ const AdminDashboard: React.FC = () => {
     handleChapterSelect,
   } = useAdminData();
 
+  // Persist tab selection in URL and localStorage
+  const [activeTab, setActiveTab] = useState<string>(() => {
+    // Try to get from URL first
+    const params = new URLSearchParams(window.location.search);
+    const urlTab = params.get('tab');
+    if (urlTab) return urlTab;
+
+    // Fall back to localStorage
+    return localStorage.getItem('admin-active-tab') || 'upload';
+  });
+
+  // Update URL when tab changes
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    localStorage.setItem('admin-active-tab', value);
+
+    // Update URL without reload
+    const url = new URL(window.location.href);
+    url.searchParams.set('tab', value);
+    window.history.replaceState({}, '', url.toString());
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -49,64 +71,13 @@ const AdminDashboard: React.FC = () => {
         </p>
       </div>
 
-      {/* System Overview Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Chapters</CardTitle>
-            <Building2 className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{systemStats.totalChapters}</div>
-            <p className="text-xs text-muted-foreground">
-              Active business chapters
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Members</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{systemStats.totalMembers}</div>
-            <p className="text-xs text-muted-foreground">
-              Across all chapters
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Reports</CardTitle>
-            <FileSpreadsheet className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{systemStats.totalReports}</div>
-            <p className="text-xs text-muted-foreground">
-              Monthly data reports
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Last Updated</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-sm">{systemStats.lastUpdated}</div>
-            <p className="text-xs text-muted-foreground">
-              System data refresh
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
       {/* Admin Tabs */}
-      <Tabs defaultValue="upload" className="space-y-6">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
         <TabsList className="grid w-full grid-cols-5">
+          <TabsTrigger value="bulk" className="flex items-center gap-2">
+            <UserPlus className="h-4 w-4" />
+            Bulk Operations
+          </TabsTrigger>
           <TabsTrigger value="upload" className="flex items-center gap-2">
             <CloudUpload className="h-4 w-4" />
             Data Upload
@@ -118,10 +89,6 @@ const AdminDashboard: React.FC = () => {
           <TabsTrigger value="members" className="flex items-center gap-2">
             <Users className="h-4 w-4" />
             Member Management
-          </TabsTrigger>
-          <TabsTrigger value="bulk" className="flex items-center gap-2">
-            <UserPlus className="h-4 w-4" />
-            Bulk Operations
           </TabsTrigger>
           <TabsTrigger value="system" className="flex items-center gap-2">
             <Database className="h-4 w-4" />

@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from chapters.models import Chapter
 from members.models import Member
-from analytics.models import Referral, OneToOne, TYFCB, DataImportSession
+from analytics.models import Referral, OneToOne, TYFCB
 
 
 class ChapterSerializer(serializers.ModelSerializer):
@@ -82,16 +82,6 @@ class TYFCBSerializer(serializers.ModelSerializer):
                  'week_of', 'description', 'created_at']
 
 
-class DataImportSessionSerializer(serializers.ModelSerializer):
-    chapter_name = serializers.CharField(source='chapter.name', read_only=True)
-    imported_by_name = serializers.CharField(source='imported_by.username', read_only=True)
-
-    class Meta:
-        model = DataImportSession
-        fields = ['id', 'chapter', 'chapter_name', 'file_name', 'file_size',
-                 'imported_by', 'imported_by_name', 'import_date',
-                 'records_processed', 'referrals_created', 'one_to_ones_created',
-                 'tyfcbs_created', 'errors_count', 'success', 'error_details']
 
 
 class MemberCreateSerializer(serializers.ModelSerializer):

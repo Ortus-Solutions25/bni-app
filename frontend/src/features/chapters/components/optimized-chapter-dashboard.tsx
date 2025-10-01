@@ -40,9 +40,11 @@ const OptimizedChapterDashboard: React.FC<OptimizedChapterDashboardProps> = ({
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [previewsOpen, setPreviewsOpen] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const handleUploadSuccess = () => {
     setUploadSuccess(true);
+    setRefreshKey(prev => prev + 1); // Trigger refresh in child components
     if (onDataRefresh) {
       onDataRefresh();
     }
@@ -94,8 +96,8 @@ const OptimizedChapterDashboard: React.FC<OptimizedChapterDashboardProps> = ({
 
       {/* Primary Workflow Section: Upload → Compare */}
       <div className="px-4">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Left Column: Upload Data */}
+        <div className="space-y-6">
+          {/* Upload Data */}
           <Card className="border-2 border-primary/20">
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -148,7 +150,7 @@ const OptimizedChapterDashboard: React.FC<OptimizedChapterDashboardProps> = ({
             </CardContent>
           </Card>
 
-          {/* Right Column: Compare Results */}
+          {/* Compare Results */}
           <Card id="comparison-section" className="border-2 border-primary/20">
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -169,7 +171,7 @@ const OptimizedChapterDashboard: React.FC<OptimizedChapterDashboardProps> = ({
               </div>
             </CardHeader>
             <CardContent>
-              <ComparisonTab chapterId={chapterData.chapterId} />
+              <ComparisonTab key={`comparison-${refreshKey}`} chapterId={chapterData.chapterId} />
             </CardContent>
           </Card>
         </div>
@@ -191,37 +193,6 @@ const OptimizedChapterDashboard: React.FC<OptimizedChapterDashboardProps> = ({
       {/* Secondary Features: Collapsible Sections */}
       <div className="px-4 space-y-4 mt-8">
         <h2 className="text-lg font-semibold text-muted-foreground">Additional Tools</h2>
-
-        {/* History Section */}
-        <Collapsible open={historyOpen} onOpenChange={setHistoryOpen}>
-          <Card>
-            <CollapsibleTrigger className="w-full">
-              <CardHeader className="hover:bg-secondary/50 transition-colors cursor-pointer">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <History className="h-5 w-5 text-muted-foreground" />
-                    <div className="text-left">
-                      <CardTitle className="text-base">Historical Data</CardTitle>
-                      <CardDescription className="text-sm">
-                        View all previous monthly reports and data
-                      </CardDescription>
-                    </div>
-                  </div>
-                  {historyOpen ? (
-                    <ChevronUp className="h-5 w-5 text-muted-foreground" />
-                  ) : (
-                    <ChevronDown className="h-5 w-5 text-muted-foreground" />
-                  )}
-                </div>
-              </CardHeader>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <CardContent className="pt-0">
-                <PreviousDataTab chapterData={chapterData} />
-              </CardContent>
-            </CollapsibleContent>
-          </Card>
-        </Collapsible>
 
         {/* Matrix Previews Section */}
         <Collapsible open={previewsOpen} onOpenChange={setPreviewsOpen}>
@@ -248,7 +219,38 @@ const OptimizedChapterDashboard: React.FC<OptimizedChapterDashboardProps> = ({
             </CollapsibleTrigger>
             <CollapsibleContent>
               <CardContent className="pt-0">
-                <MatrixTab chapterData={chapterData} />
+                <MatrixTab key={`matrix-${refreshKey}`} chapterData={chapterData} />
+              </CardContent>
+            </CollapsibleContent>
+          </Card>
+        </Collapsible>
+
+        {/* History Section */}
+        <Collapsible open={historyOpen} onOpenChange={setHistoryOpen}>
+          <Card>
+            <CollapsibleTrigger className="w-full">
+              <CardHeader className="hover:bg-secondary/50 transition-colors cursor-pointer">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <History className="h-5 w-5 text-muted-foreground" />
+                    <div className="text-left">
+                      <CardTitle className="text-base">Historical Data</CardTitle>
+                      <CardDescription className="text-sm">
+                        View all previous monthly reports and data
+                      </CardDescription>
+                    </div>
+                  </div>
+                  {historyOpen ? (
+                    <ChevronUp className="h-5 w-5 text-muted-foreground" />
+                  ) : (
+                    <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                  )}
+                </div>
+              </CardHeader>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <CardContent className="pt-0">
+                <PreviousDataTab key={`history-${refreshKey}`} chapterData={chapterData} />
               </CardContent>
             </CollapsibleContent>
           </Card>

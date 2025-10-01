@@ -17,7 +17,6 @@ class Referral(models.Model):
 
     class Meta:
         ordering = ['-date_given']
-        unique_together = ['giver', 'receiver', 'date_given']
         db_table = 'analytics_referral'
 
     def __str__(self):

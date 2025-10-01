@@ -33,33 +33,76 @@ class ChapterViewSet(viewsets.ModelViewSet):
         """
         Get dashboard data for all chapters.
 
-        Returns comprehensive statistics including:
-        - Total members, referrals, one-to-ones, TYFCB amounts
-        - Averages per member
-        - Member lists
+        OPTIMIZED for Supabase/Vercel serverless with minimal queries.
+        Uses aggregation and prefetch_related to avoid N+1 queries.
         """
-        chapters = self.get_queryset()
+        from django.db.models import Count, Sum, Prefetch
+
+        # Single query to get all chapters with aggregated stats
+        chapters = (
+            self.get_queryset()
+            .prefetch_related(
+                Prefetch(
+                    'members',
+                    queryset=Member.objects.filter(is_active=True).only(
+                        'id', 'first_name', 'last_name', 'business_name',
+                        'classification', 'email', 'phone', 'chapter_id'
+                    )
+                )
+            )
+            .annotate(
+                active_member_count=Count('members', filter=models.Q(members__is_active=True)),
+                report_count=Count('monthly_reports')
+            )
+        )
+
+        # Get all analytics data in batch queries
+        chapter_ids = [c.id for c in chapters]
+
+        # Batch query for referral counts
+        referral_stats = (
+            Referral.objects
+            .filter(giver__chapter_id__in=chapter_ids)
+            .values('giver__chapter_id')
+            .annotate(total=Count('id'))
+        )
+        referral_dict = {r['giver__chapter_id']: r['total'] for r in referral_stats}
+
+        # Batch query for one-to-one counts
+        oto_stats = (
+            OneToOne.objects
+            .filter(member1__chapter_id__in=chapter_ids)
+            .values('member1__chapter_id')
+            .annotate(total=Count('id'))
+        )
+        oto_dict = {o['member1__chapter_id']: o['total'] for o in oto_stats}
+
+        # Batch query for TYFCB amounts
+        tyfcb_stats = (
+            TYFCB.objects
+            .filter(receiver__chapter_id__in=chapter_ids)
+            .values('receiver__chapter_id', 'within_chapter')
+            .annotate(total=Sum('amount'))
+        )
+        tyfcb_dict = {}
+        for t in tyfcb_stats:
+            chapter_id = t['receiver__chapter_id']
+            if chapter_id not in tyfcb_dict:
+                tyfcb_dict[chapter_id] = {'inside': 0, 'outside': 0}
+            if t['within_chapter']:
+                tyfcb_dict[chapter_id]['inside'] = float(t['total'] or 0)
+            else:
+                tyfcb_dict[chapter_id]['outside'] = float(t['total'] or 0)
+
+        # Build response
         chapter_data = []
-
         for chapter in chapters:
-            members = Member.objects.filter(chapter=chapter, is_active=True)
-            member_count = members.count()
-
-            # Calculate totals
-            total_referrals = Referral.objects.filter(giver__chapter=chapter).count()
-            total_one_to_ones = OneToOne.objects.filter(member1__chapter=chapter).count()
-            total_tyfcb_inside = float(
-                TYFCB.objects.filter(
-                    receiver__chapter=chapter,
-                    within_chapter=True
-                ).aggregate(total=models.Sum('amount'))['total'] or 0
-            )
-            total_tyfcb_outside = float(
-                TYFCB.objects.filter(
-                    receiver__chapter=chapter,
-                    within_chapter=False
-                ).aggregate(total=models.Sum('amount'))['total'] or 0
-            )
+            member_count = chapter.active_member_count
+            total_referrals = referral_dict.get(chapter.id, 0)
+            total_one_to_ones = oto_dict.get(chapter.id, 0)
+            tyfcb_data = tyfcb_dict.get(chapter.id, {'inside': 0, 'outside': 0})
+            total_tyfcb_inside = tyfcb_data['inside']
+            total_tyfcb_outside = tyfcb_data['outside']
 
             # Calculate averages
             avg_referrals = round(total_referrals / member_count, 2) if member_count > 0 else 0
@@ -67,20 +110,18 @@ class ChapterViewSet(viewsets.ModelViewSet):
             avg_tyfcb_inside = round(total_tyfcb_inside / member_count, 2) if member_count > 0 else 0
             avg_tyfcb_outside = round(total_tyfcb_outside / member_count, 2) if member_count > 0 else 0
 
-            # Prepare member list
-            member_list = []
-            for member in members:
-                member_list.append({
+            # Prepare member list from prefetched data
+            member_list = [
+                {
                     'id': member.id,
                     'name': member.full_name,
                     'business_name': member.business_name,
                     'classification': member.classification,
                     'email': member.email,
                     'phone': member.phone,
-                })
-
-            # Get monthly reports count
-            monthly_reports_count = MonthlyReport.objects.filter(chapter=chapter).count()
+                }
+                for member in chapter.members.all()
+            ]
 
             chapter_data.append({
                 'id': chapter.id,
@@ -89,7 +130,7 @@ class ChapterViewSet(viewsets.ModelViewSet):
                 'meeting_day': chapter.meeting_day,
                 'meeting_time': str(chapter.meeting_time) if chapter.meeting_time else None,
                 'total_members': member_count,
-                'monthly_reports_count': monthly_reports_count,
+                'monthly_reports_count': chapter.report_count,
                 'total_referrals': total_referrals,
                 'total_one_to_ones': total_one_to_ones,
                 'total_tyfcb_inside': total_tyfcb_inside,

@@ -461,7 +461,7 @@ class ExcelProcessorService:
 
         # Determine if inside or outside chapter based on Inside/Outside column
         inside_outside = self._get_cell_value(row, self.COLUMN_MAPPINGS['inside_outside'])
-        within_chapter = inside_outside and inside_outside.lower().strip() == 'inside'
+        within_chapter = bool(inside_outside and inside_outside.lower().strip() == 'inside')
 
         # Extract detail/description
         detail = self._get_cell_value(row, self.COLUMN_MAPPINGS['detail'])

@@ -37,102 +37,87 @@ export const SharedNavigation: React.FC<SharedNavigationProps> = ({
   return (
     <div className="flex items-center justify-between gap-4">
       <div className="flex items-center gap-2 flex-wrap">
-        {/* Main Tabs */}
-        {mainTabs.map((tab) => {
-          const Icon = tab.icon;
-          const isActive = currentTab === tab.id;
+        {/* Chapter Dashboard - minimizes when admin is active */}
+        <motion.button
+          onClick={() => navigate('/')}
+          className={`relative px-4 py-2 rounded-lg font-semibold transition-colors ${
+            currentTab === 'dashboard'
+              ? 'text-foreground'
+              : 'text-muted-foreground hover:text-foreground'
+          }`}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          animate={{
+            opacity: isAdminPage ? 0.5 : 1,
+            scale: isAdminPage ? 0.9 : 1
+          }}
+          transition={{ duration: 0.3 }}
+        >
+          <div className="flex items-center gap-2">
+            <Building2 className="h-4 w-4" />
+            <span className="hidden sm:inline">Chapter Dashboard</span>
+          </div>
+          {currentTab === 'dashboard' && (
+            <motion.div
+              layoutId="navigationActiveTab"
+              className="absolute inset-0 bg-secondary/20 rounded-lg -z-10"
+              transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
+            />
+          )}
+        </motion.button>
 
-          if (tab.id === 'admin') {
+        {/* Admin Operations Label */}
+        <motion.div
+          initial={{ opacity: 0, width: 0 }}
+          animate={{
+            opacity: isAdminPage ? 1 : 0,
+            width: isAdminPage ? 'auto' : 0
+          }}
+          transition={{ duration: 0.3 }}
+          className="overflow-hidden"
+        >
+          <span className="text-muted-foreground text-sm px-2">|</span>
+        </motion.div>
+
+        {/* Admin Sub-Tabs - expand when admin is active */}
+        <AnimatePresence>
+          {isAdminPage && adminSubTabs.map((subTab, index) => {
+            const SubIcon = subTab.icon;
+            const isSubActive = location.pathname === subTab.path;
             return (
-              <div key={tab.id} className="relative">
-                <motion.button
-                  onClick={() => setShowAdminDropdown(!showAdminDropdown)}
-                  className={`relative px-4 py-2 rounded-lg font-semibold transition-colors ${
-                    isActive
-                      ? 'text-foreground'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <div className="flex items-center gap-2">
-                    <Icon className="h-4 w-4" />
-                    <span className="hidden sm:inline">{tab.label}</span>
-                    <ChevronDown className={`h-3 w-3 transition-transform ${showAdminDropdown ? 'rotate-180' : ''}`} />
-                  </div>
-                  {isActive && (
-                    <motion.div
-                      layoutId="navigationActiveTab"
-                      className="absolute inset-0 bg-secondary/20 rounded-lg -z-10"
-                      transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
-                    />
-                  )}
-                </motion.button>
-
-                {/* Dropdown Menu */}
-                <AnimatePresence>
-                  {showAdminDropdown && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      transition={{ duration: 0.2 }}
-                      className="absolute top-full left-0 mt-2 bg-background border rounded-lg shadow-lg py-2 min-w-[200px] z-50"
-                    >
-                      {adminSubTabs.map((subTab) => {
-                        const SubIcon = subTab.icon;
-                        const isSubActive = location.pathname === subTab.path;
-                        return (
-                          <button
-                            key={subTab.id}
-                            onClick={() => {
-                              navigate(subTab.path);
-                              setShowAdminDropdown(false);
-                            }}
-                            className={`w-full px-4 py-2 text-left flex items-center gap-2 transition-colors ${
-                              isSubActive
-                                ? 'bg-secondary/20 text-foreground'
-                                : 'text-muted-foreground hover:bg-secondary/10 hover:text-foreground'
-                            }`}
-                          >
-                            <SubIcon className="h-4 w-4" />
-                            <span className="text-sm">{subTab.label}</span>
-                          </button>
-                        );
-                      })}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
+              <motion.button
+                key={subTab.id}
+                onClick={() => navigate(subTab.path)}
+                className={`relative px-4 py-2 rounded-lg font-semibold transition-colors ${
+                  isSubActive
+                    ? 'text-foreground'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+                initial={{ opacity: 0, x: -20, scale: 0.8 }}
+                animate={{ opacity: 1, x: 0, scale: 1 }}
+                exit={{ opacity: 0, x: -20, scale: 0.8 }}
+                transition={{
+                  duration: 0.3,
+                  delay: index * 0.05
+                }}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <div className="flex items-center gap-2">
+                  <SubIcon className="h-4 w-4" />
+                  <span className="hidden lg:inline text-sm">{subTab.label}</span>
+                </div>
+                {isSubActive && (
+                  <motion.div
+                    layoutId="navigationActiveTab"
+                    className="absolute inset-0 bg-secondary/20 rounded-lg -z-10"
+                    transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
+                  />
+                )}
+              </motion.button>
             );
-          }
-
-          return (
-            <motion.button
-              key={tab.id}
-              onClick={() => tab.path && navigate(tab.path)}
-              className={`relative px-4 py-2 rounded-lg font-semibold transition-colors ${
-                isActive
-                  ? 'text-foreground'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              <div className="flex items-center gap-2">
-                <Icon className="h-4 w-4" />
-                <span className="hidden sm:inline">{tab.label}</span>
-              </div>
-              {isActive && (
-                <motion.div
-                  layoutId="navigationActiveTab"
-                  className="absolute inset-0 bg-secondary/20 rounded-lg -z-10"
-                  transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
-                />
-              )}
-            </motion.button>
-          );
-        })}
+          })}
+        </AnimatePresence>
       </div>
 
       {totalMembers !== undefined && currentTab === 'dashboard' && (

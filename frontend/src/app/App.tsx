@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -16,8 +16,24 @@ import ErrorBoundary from "../shared/components/common/ErrorBoundary";
 import { ErrorToastProvider } from "../shared/components/common/ErrorToast";
 import { useNetworkStatus } from "../shared/hooks/useNetworkStatus";
 import { queryClient } from "../shared/lib/queryClient";
+import SplashScreen from "../components/animations/SplashScreen";
 
 function App() {
+  const [showSplash, setShowSplash] = useState(() => {
+    // Show splash only once per session
+    const hasSeenSplash = sessionStorage.getItem('hasSeenSplash');
+    return !hasSeenSplash;
+  });
+
+  const handleSplashComplete = () => {
+    sessionStorage.setItem('hasSeenSplash', 'true');
+    setShowSplash(false);
+  };
+
+  if (showSplash) {
+    return <SplashScreen onComplete={handleSplashComplete} />;
+  }
+
   return (
     <ErrorBoundary
       level="global"

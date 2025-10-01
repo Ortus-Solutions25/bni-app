@@ -67,25 +67,11 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
             </h1>
           </div>
 
-          {/* Icon */}
-          <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{
-              duration: 0.5,
-              delay: 0.3,
-              type: 'spring',
-              stiffness: 200,
-            }}
-          >
-            <BarChart3 className="h-20 w-20 text-white" />
-          </motion.div>
-
           {/* App Name */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.5 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
             className="text-center"
           >
             <h2 className="text-4xl md:text-5xl font-bold text-white">

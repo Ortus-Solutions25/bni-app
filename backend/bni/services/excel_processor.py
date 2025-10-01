@@ -604,9 +604,12 @@ class ExcelProcessorService:
                 # Process the data and create individual records
                 processing_result = self._process_dataframe(df, members_lookup, None)
 
-                # Just mark as processed - matrices will be generated on-demand when viewed
+                # Generate and cache matrices after data is saved
                 monthly_report.processed_at = timezone.now()
                 monthly_report.save()
+
+                # Generate matrices now (fast enough after optimization)
+                self._generate_and_cache_matrices(monthly_report)
                 
                 return {
                     'success': True,
@@ -625,7 +628,64 @@ class ExcelProcessorService:
         except Exception as e:
             logger.exception(f"Error processing monthly report for {self.chapter}")
             return self._create_error_result(f"Processing failed: {str(e)}")
-    
+
+    def _generate_and_cache_matrices(self, monthly_report):
+        """Generate matrices and cache them in the MonthlyReport. Only runs if not already cached."""
+        # Check if matrices are already generated
+        if (monthly_report.referral_matrix_data and
+            monthly_report.oto_matrix_data and
+            monthly_report.combination_matrix_data):
+            logger.info(f"Matrices already cached for {monthly_report}")
+            return
+
+        logger.info(f"Generating matrices for {monthly_report}")
+
+        from bni.services.matrix_generator import MatrixGenerator
+
+        # Get data
+        members = list(Member.objects.filter(chapter=self.chapter, is_active=True))
+        referrals = list(Referral.objects.filter(giver__chapter=self.chapter))
+        one_to_ones = list(OneToOne.objects.filter(member1__chapter=self.chapter))
+        tyfcbs = list(TYFCB.objects.filter(receiver__chapter=self.chapter))
+
+        generator = MatrixGenerator(members)
+
+        # Generate and cache matrices
+        monthly_report.referral_matrix_data = {
+            'members': [m.full_name for m in members],
+            'matrix': generator.generate_referral_matrix(referrals).values.tolist(),
+        }
+
+        monthly_report.oto_matrix_data = {
+            'members': [m.full_name for m in members],
+            'matrix': generator.generate_one_to_one_matrix(one_to_ones).values.tolist(),
+        }
+
+        monthly_report.combination_matrix_data = {
+            'members': [m.full_name for m in members],
+            'matrix': generator.generate_combination_matrix(referrals, one_to_ones).values.tolist(),
+            'legend': {'0': 'Neither', '1': 'One-to-One Only', '2': 'Referral Only', '3': 'Both'}
+        }
+
+        # Cache TYFCB data
+        inside_tyfcbs = [t for t in tyfcbs if t.within_chapter]
+        outside_tyfcbs = [t for t in tyfcbs if not t.within_chapter]
+
+        monthly_report.tyfcb_inside_data = {
+            'total_amount': sum(float(t.amount) for t in inside_tyfcbs),
+            'count': len(inside_tyfcbs),
+            'by_member': {m.full_name: sum(float(t.amount) for t in inside_tyfcbs if t.receiver == m) for m in members}
+        }
+
+        monthly_report.tyfcb_outside_data = {
+            'total_amount': sum(float(t.amount) for t in outside_tyfcbs),
+            'count': len(outside_tyfcbs),
+            'by_member': {m.full_name: sum(float(t.amount) for t in outside_tyfcbs if t.receiver == m) for m in members}
+        }
+
+        monthly_report.save()
+        logger.info(f"Matrices cached successfully for {monthly_report}")
+
 
 
 class BNIMonthlyDataImportService:
